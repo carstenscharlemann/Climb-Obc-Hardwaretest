@@ -20,6 +20,7 @@
 *[Dd]ebug/
 *[Dd]ebug Breakpoint/
 *[Rr]elease/
+*[Ll]ibs/
 /Doxygen
 *.o
 *.log
