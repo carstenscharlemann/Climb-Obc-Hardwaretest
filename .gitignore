@@ -1,0 +1,28 @@
+# .gitignore file for LPCXpresso projects
+
+
+# Windows files
+
+[Tt]humbs.db
+
+
+# Mac files
+.DS_Store
+
+# Matlab temp
+*.m~
+*.asv
+
+
+# LPCXpresso files
+
+.metadata
+*[Dd]ebug/
+*[Dd]ebug Breakpoint/
+*[Rr]elease/
+/Doxygen
+*.o
+*.log
+
+/O2/**
+
