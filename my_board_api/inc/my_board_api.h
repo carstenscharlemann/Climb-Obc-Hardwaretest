@@ -19,4 +19,19 @@ void MyBoard_Init(void);
 void MyBoard_ShowStatusLeds(unsigned char ledbits);
 
 
+/**
+ * @brief	Get a single character from the UART, required for scanf input
+ * @return	EOF if not character was received, or character value
+ */
+int Board_UARTGetChar(void);
+
+/**
+ * @brief	Prints a string to the UART
+ * @param	str	: Terminated string to output
+ * @return	None
+ */
+void Board_UARTPutSTR(char *str);
+
+
+
 #endif /* MY_BOARD_API_H_ */

@@ -43,6 +43,7 @@
 								<option id="gnu.c.compiler.option.include.paths.830392755" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/my_board_api/inc}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/my_cmn_code/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_chip_175x_6x/inc}&quot;"/>
 								</option>
 								<inputType id="com.crt.advproject.compiler.input.1312023544" superClass="com.crt.advproject.compiler.input"/>
@@ -82,11 +83,14 @@
 								<option id="com.crt.advproject.link.gcc.hdrlib.693011752" name="Library" superClass="com.crt.advproject.link.gcc.hdrlib" useByScannerDiscovery="false" value="com.crt.advproject.gcc.link.hdrlib.codered.none" valueType="enumerated"/>
 								<option id="gnu.c.link.option.libs.945782680" name="Libraries (-l)" superClass="gnu.c.link.option.libs" useByScannerDiscovery="false" valueType="libs">
 									<listOptionValue builtIn="false" value="lpc_chip_175x_6x"/>
+									<listOptionValue builtIn="false" value="my_cmn_code"/>
 								</option>
 								<option id="gnu.c.link.option.paths.808367796" name="Library search path (-L)" superClass="gnu.c.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_chip_175x_6x/Debug}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/my_cmn_code/Debug}&quot;"/>
 								</option>
 								<option id="com.crt.advproject.link.crpenable.165855947" name="Enable automatic placement of Code Read Protection field in image" superClass="com.crt.advproject.link.crpenable" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="com.crt.advproject.link.gcc.multicore.slave.1405406527" name="Multicore configuration" superClass="com.crt.advproject.link.gcc.multicore.slave" useByScannerDiscovery="false"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.87673450" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>

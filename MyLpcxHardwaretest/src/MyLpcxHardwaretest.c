@@ -1,12 +1,12 @@
 /*
-===============================================================================
+ ===============================================================================
  Name        : MyLpcxHardwaretest.c
  Author      : $(author)
  Version     :
  Copyright   : $(copyright)
  Description : main definition
-===============================================================================
-*/
+ ===============================================================================
+ */
 
 #if defined (__USE_LPCOPEN)
 #if defined(NO_BOARD_LIB)
@@ -20,36 +20,46 @@
 
 // TODO: insert other include files here
 #include "my_board_api.h"
+#include "cmd_loop.h"
 
 // TODO: insert other definitions and declarations here
 
 int main(void) {
 
 #if defined (__USE_LPCOPEN)
-    // Read clock settings and update SystemCoreClock variable
-    SystemCoreClockUpdate();
+	// Read clock settings and update SystemCoreClock variable
+	SystemCoreClockUpdate();
 #if !defined(NO_BOARD_LIB)
-    // Set up and initialize all required blocks and
-    // functions related to the board hardware
-    Board_Init();
-    // Set the LED to the state of "On"
-    Board_LED_Set(0, true);
+	// Set up and initialize all required blocks and
+	// functions related to the board hardware
+	Board_Init();
+	// Set the LED to the state of "On"
+	Board_LED_Set(0, true);
 #endif
 #endif
 
-    // TODO: insert code here
+	MyBoard_Init();
 
-    // Force the counter to be placed into memory
-	volatile static int i = 0 ;
-	volatile static int l = 0 ;
+
+	Board_UARTPutSTR("\nHello LPCX (type 'm' for command shell).");
+
+	// Force the counter to be placed into memory
+	volatile static int i = 0;
+	volatile static int l = 0;
 
 	// Enter an infinite loop, just incrementing a counter
-	while(1) {
-	   i++ ;
-	   if (i % 1000000 == 0) {
-		   l++;
-		   MyBoard_ShowStatusLeds((unsigned char)(l));
-	   }
+	while (1) {
+		if (Board_UARTGetChar() == 'm') {
+			MyBoard_ShowStatusLeds(0xFF);
+			while (Board_UARTGetChar() != '\n');	// Consume NewLine.
+			CmdLoop("LPCX>", "exit");
+		}
+
+		i++;
+		if (i % 1000000 == 0) {
+			l++;
+			MyBoard_ShowStatusLeds((unsigned char) (l));
+		}
 	}
-	return 0 ;
+	return 0;
 }

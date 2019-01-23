@@ -82,6 +82,7 @@ void SystemInit(void)
 #if defined(NO_BOARD_LIB)
 	/* Chip specific SystemInit */
 	Chip_SystemInit();
+	MyBoard_SysInit();
 #else
 	/* Setup system clocking and muxing */
 	Board_SystemInit();
