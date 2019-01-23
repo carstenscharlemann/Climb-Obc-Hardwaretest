@@ -8,21 +8,39 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "my_board_api.h"		// The user of this common_app proj has to provide a real board impl and link against it !
+#include "my_board_api.h"		// The user of this cmn_code project has to provide a real board implementation and link against it!
+#include "cmd_loop.h"
 
-enum { kMaxArgs = 64, kMaxLineChar=127 };
+extern void ClockCmd(int argc, char** argv);
 
-typedef struct cmdline {
-	int argc;
-	char *argv[kMaxArgs];
-} cmdline_t;
+static const commands_t commands[] = {
+		{ "clk", ClockCmd  }
+};
+
+void ClockCmd(int argc, char** argv) {
+	Board_UARTPutSTR("Clock Command called.\n");
+}
+
 
 void ProcessCmd(cmdline_t cmd) {
-	Board_UARTPutSTR("cmd: ");
-	for(int i = 0;i<cmd.argc;i++) {
-		Board_UARTPutSTR(cmd.argv[i]);
+	if (cmd.argc > 0) {
+		int arrayLength = sizeof(commands) / sizeof(commands_t);
+		for (int ix = 0; ix < arrayLength; ix++ ) {
+			if (strcmp(cmd.argv[0], commands[ix].cmdStr) == 0) {
+				// Call the Command function
+				commands[ix].cmdPtr(cmd.argc, cmd.argv);
+				return;
+			}
+		}
+		Board_UARTPutSTR("unknown cmd:");
+		for(int i = 0;i<cmd.argc;i++) {
+			Board_UARTPutChar(' ');
+			Board_UARTPutSTR(cmd.argv[i]);
+		}
+		Board_UARTPutSTR("\n");
 	}
-	Board_UARTPutSTR("\n");
+
+
 }
 
 cmdline_t ScanLine(char* line) {

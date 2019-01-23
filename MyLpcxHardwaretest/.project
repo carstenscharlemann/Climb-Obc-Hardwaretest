@@ -4,6 +4,8 @@
 	<comment></comment>
 	<projects>
 		<project>lpc_chip_175x_6x</project>
+		<project>my_board_api</project>
+		<project>my_cmn_code</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
