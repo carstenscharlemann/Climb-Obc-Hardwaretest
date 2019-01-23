@@ -11,7 +11,7 @@
 #include "my_board_api.h"		// The API to be implemented here
 
 //
-// Board specific definitions/implementations for the "OEM 13085" aka "LPCXpresso for LPC1769 CD" (Version D1 with 3 color LED)
+// Board specific definitions/implementations for the "OEM 13085" aka "LPCXpresso for LPC1769 CD" (revision D1 with 3 color LED)
 // *****************************************************************************************************************************
 
 #define DEBUG_UART 						LPC_UART0
@@ -61,19 +61,19 @@ void MyBoard_Init(void) {
 
 void MyBoard_ShowStatusLeds(unsigned char l) {
 	if (l & 0x01) {
-		LED0_PORT.SET |= 1UL << LED0_GPIO_BIT_NUM;
-	} else {
 		LED0_PORT.CLR |= 1UL << LED0_GPIO_BIT_NUM;
+	} else {
+		LED0_PORT.SET |= 1UL << LED0_GPIO_BIT_NUM;
 	}
 	if (l & 0x02) {
-		LED12_PORT.SET |= 1UL << LED1_GPIO_BIT_NUM;
-	} else {
 		LED12_PORT.CLR |= 1UL << LED1_GPIO_BIT_NUM;
+	} else {
+		LED12_PORT.SET |= 1UL << LED1_GPIO_BIT_NUM;
 	}
 	if (l & 0x04) {
-		LED12_PORT.SET |= 1UL << LED2_GPIO_BIT_NUM;
-	} else {
 		LED12_PORT.CLR |= 1UL << LED2_GPIO_BIT_NUM;
+	} else {
+		LED12_PORT.SET |= 1UL << LED2_GPIO_BIT_NUM;
 	}
 }
 

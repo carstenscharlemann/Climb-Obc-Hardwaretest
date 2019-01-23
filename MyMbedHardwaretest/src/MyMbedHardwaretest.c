@@ -37,8 +37,10 @@ int main(void) {
 #endif
 #endif
 
-    // TODO: insert code here
+
     MyBoard_Init();
+    Board_UARTPutSTR("\nHello mbed (type 'm' for command shell).");
+
 
     // Force the counter to be placed into memory
     volatile static int i = 0 ;
@@ -46,6 +48,12 @@ int main(void) {
 
     // Enter an infinite loop, just incrementing a counter
     while(1) {
+    	if (Board_UARTGetChar() == 'm') {
+			MyBoard_ShowStatusLeds(0xFF);
+			while (Board_UARTGetChar() != '\n');	// Consume NewLine.
+			CmdLoop("mbed>", "quit");
+		}
+
         i++ ;
         if (i % 1000000 == 0) {
             l++;
