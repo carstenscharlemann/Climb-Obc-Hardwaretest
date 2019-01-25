@@ -45,7 +45,7 @@ void MyBoard_SysInit(void) {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
 
 	Chip_SetupXtalClocking();
-	//Chip_SetupIrcClocking();
+
 	/* Setup FLASH access to 4 clocks (100MHz clock) */
 	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
 }

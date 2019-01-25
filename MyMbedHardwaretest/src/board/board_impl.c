@@ -41,6 +41,11 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 
 void MyBoard_SysInit(void) {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
+
+	Chip_SetupXtalClocking();
+
+	/* Setup FLASH access to 4 clocks (100MHz clock) */
+	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
 }
 
 void MyBoard_Init(void) {
