@@ -9,27 +9,28 @@
 #include <stdbool.h>
 
 #include "my_board_api.h"		// The user of this cmn_code project has to provide a real board implementation and link against it!
+#include "clock_commands.h"
 #include "cmd_loop.h"
 
-extern void ClockCmd(int argc, char** argv);
+extern cmdresult_t Exitloop(int argc, char** argv);
 
 static const commands_t commands[] = {
-		{ "clk", ClockCmd  }
+		{ "clk", ClockCmd  },
+		{ "exit", Exitloop }
 };
 
-void ClockCmd(int argc, char** argv) {
-	Board_UARTPutSTR("Clock Command called.\n");
+
+cmdresult_t Exitloop(int argc, char **argv) {
+	return -1;
 }
 
-
-void ProcessCmd(cmdline_t cmd) {
+cmdresult_t ProcessCmd(cmdline_t cmd) {
 	if (cmd.argc > 0) {
 		int arrayLength = sizeof(commands) / sizeof(commands_t);
 		for (int ix = 0; ix < arrayLength; ix++ ) {
 			if (strcmp(cmd.argv[0], commands[ix].cmdStr) == 0) {
 				// Call the Command function
-				commands[ix].cmdPtr(cmd.argc, cmd.argv);
-				return;
+				return commands[ix].cmdPtr(cmd.argc, cmd.argv);
 			}
 		}
 		Board_UARTPutSTR("unknown cmd:");
@@ -38,9 +39,8 @@ void ProcessCmd(cmdline_t cmd) {
 			Board_UARTPutSTR(cmd.argv[i]);
 		}
 		Board_UARTPutSTR("\n");
+		return cmdOk;
 	}
-
-
 }
 
 cmdline_t ScanLine(char* line) {
@@ -59,15 +59,15 @@ cmdline_t ScanLine(char* line) {
 
 void CmdLoop(char* prefix, char* exitCmd) {
 	char commandLine[kMaxLineChar + 1];
-	cmdline_t cmd;
-	cmd.argv[0] = 0;
+	bool exit = false;
 
-	while(! ((strcmp(cmd.argv[0], exitCmd) == 0)) ) {
+	while(!exit) {
+		cmdline_t cmd;
 		int ix = 0;
 		char c = 'x';
 
 		Board_UARTPutSTR(prefix);
-		// Read line chars until CR or bufffer end
+		// Read line chars until CR or buffer end
 		while (((c != '\n' ) && ix < 128)) {
 			// wait for char
 			while((c = Board_UARTGetChar()) == 0xFF);
@@ -77,6 +77,8 @@ void CmdLoop(char* prefix, char* exitCmd) {
 		}
 		commandLine[ix-1] = 0x00;
 		cmd = ScanLine(commandLine);
-		ProcessCmd(cmd);
+		if ( ProcessCmd(cmd) == cmdExitLoop ) {
+			exit = true;
+		}
 	}
 }

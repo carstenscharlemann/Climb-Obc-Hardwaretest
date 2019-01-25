@@ -8,6 +8,10 @@
 #ifndef CMD_LOOP_H_
 #define CMD_LOOP_H_
 
+typedef enum cmdresult {
+	cmdExitLoop = -1,
+	cmdOk = 0
+} cmdresult_t;
 
 enum { kMaxArgs = 64, kMaxLineChar=127 };
 
@@ -18,9 +22,8 @@ typedef struct cmdline {
 
 typedef struct commands {
 	char* cmdStr;
-	void (*cmdPtr) (int argc, char** argv);
+	cmdresult_t (*cmdPtr) (int argc, char** argv);
 } commands_t;
-
 
 extern void CmdLoop(char* prefix, char* exitCmd );
 
