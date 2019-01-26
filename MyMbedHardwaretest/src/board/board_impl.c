@@ -41,22 +41,18 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 
 void MyBoard_SysInit(void) {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
-
-	Chip_SetupXtalClocking();
-
-	/* Setup FLASH access to 4 clocks (100MHz clock) */
-	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
-}
-
-void MyBoard_Init(void) {
-    //  Init the LED Pin as output
-	LED_PORT.DIR |= LED0_MASK | LED1_MASK | LED2_MASK | LED3_MASK;
+	MyBoard_ClockInit();
 
 	// Init the Debug Uart. This is connected to a VCOM via CMSIS DAP of the Development board.
 	Chip_UART_Init(DEBUG_UART);
 	Chip_UART_SetBaud(DEBUG_UART, 115200);
 	Chip_UART_ConfigData(DEBUG_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
 	Chip_UART_TXEnable(DEBUG_UART);
+}
+
+void MyBoard_Init(void) {
+    //  Init the LED Pin as output
+	LED_PORT.DIR |= LED0_MASK | LED1_MASK | LED2_MASK | LED3_MASK;
 }
 
 void MyBoard_ShowStatusLeds(unsigned char l) {

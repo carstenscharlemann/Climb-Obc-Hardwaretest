@@ -22,7 +22,7 @@ typedef struct cmdline {
 
 typedef struct commands {
 	char* cmdStr;
-	cmdresult_t (*cmdPtr) (int argc, char** argv);
+	cmdresult_t (*cmdPtr) (int argc, char* argv[]);
 } commands_t;
 
 extern void CmdLoop(char* prefix, char* exitCmd );

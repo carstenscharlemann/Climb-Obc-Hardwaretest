@@ -12,7 +12,7 @@
 #include "clock_commands.h"
 #include "cmd_loop.h"
 
-extern cmdresult_t Exitloop(int argc, char** argv);
+extern cmdresult_t Exitloop(int argc, char* argv[]);
 
 static const commands_t commands[] = {
 		{ "clk", ClockCmd  },
@@ -30,7 +30,7 @@ cmdresult_t ProcessCmd(cmdline_t cmd) {
 		for (int ix = 0; ix < arrayLength; ix++ ) {
 			if (strcmp(cmd.argv[0], commands[ix].cmdStr) == 0) {
 				// Call the Command function
-				return commands[ix].cmdPtr(cmd.argc, cmd.argv);
+				return commands[ix].cmdPtr(cmd.argc, &cmd.argv);
 			}
 		}
 		Board_UARTPutSTR("unknown cmd:");

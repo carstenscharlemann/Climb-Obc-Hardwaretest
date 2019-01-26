@@ -6,6 +6,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "chip.h"
 
@@ -77,15 +78,35 @@ void ClkInfo(void ) {
 }
 
 
-cmdresult_t ClockCmd(int argc, char** argv) {
-	ClkInfo();
-//	if (argc == 1 && (strcmp(argv[0], "info") == 0)) {
-//		ClkInfo();
-//	} else {
-//		Board_UARTPutSTR("possible commands are: info\n");
+cmdresult_t ClockCmd(int argc, char* argv[]) {
+	if (argc == 2 && (strcmp(argv[1], "info") == 0)) {
+		ClkInfo();
+	} else {
+		Board_UARTPutSTR("possible commands are: info\n");
+
+		RTC_TIME_T FullTime;
+//		/* Set current time for RTC 2:00:00PM, 2012-10-05 */
+//		FullTime.time[RTC_TIMETYPE_SECOND]  = 0;
+//		FullTime.time[RTC_TIMETYPE_MINUTE]  = 0;
+//		FullTime.time[RTC_TIMETYPE_HOUR]    = 14;
+//		FullTime.time[RTC_TIMETYPE_DAYOFMONTH]  = 5;
+//		FullTime.time[RTC_TIMETYPE_DAYOFWEEK]   = 5;
+//		FullTime.time[RTC_TIMETYPE_DAYOFYEAR]   = 279;
+//		FullTime.time[RTC_TIMETYPE_MONTH]   = 10;
+//		FullTime.time[RTC_TIMETYPE_YEAR]    = 2012;
 //
-//
-//	}
+//		Chip_RTC_SetFullTime(LPC_RTC, &FullTime);
+
+		Chip_RTC_GetFullTime(LPC_RTC, &FullTime);
+		Print("Y: ",FullTime.time[RTC_TIMETYPE_YEAR]);
+		Print("M: ",FullTime.time[RTC_TIMETYPE_MONTH]);
+		Println("D: ",FullTime.time[RTC_TIMETYPE_DAYOFMONTH]);
+
+		Print("",FullTime.time[RTC_TIMETYPE_HOUR]);
+		Print(":",FullTime.time[RTC_TIMETYPE_MINUTE]);
+		Println(":",FullTime.time[RTC_TIMETYPE_SECOND]);
+
+	}
 	return cmdOk;
 }
 

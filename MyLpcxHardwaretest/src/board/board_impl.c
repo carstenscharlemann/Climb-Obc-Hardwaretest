@@ -43,18 +43,7 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 // Called before main()
 void MyBoard_SysInit(void) {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
-
-	Chip_SetupXtalClocking();
-
-	/* Setup FLASH access to 4 clocks (100MHz clock) */
-	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
-}
-
-// Called from main()
-void MyBoard_Init(void) {
-	//  Init the LED Pins as output
-	LED0_PORT.DIR |= LED0_MASK;
-	LED12_PORT.DIR |= LED1_MASK | LED2_MASK;
+	MyBoard_ClockInit();
 
 	// Init the Debug Uart. This is connected to a VCOM via CMSIS DAP of the Development board.
 	Chip_UART_Init(DEBUG_UART);
@@ -63,6 +52,20 @@ void MyBoard_Init(void) {
 	Chip_UART_TXEnable(DEBUG_UART);
 }
 
+// Override the weak impl of this method from my_board_api
+//void MyBoard_ClockInit() {
+//  // Other as default impl we use the IRC with 4MHz -> CPU Clock gets set to 120 MHz
+//	Chip_SetupIrcClocking();
+//}
+
+// Called from main()
+void MyBoard_Init(void) {
+	//  Init the LED Pins as output
+	LED0_PORT.DIR |= LED0_MASK;
+	LED12_PORT.DIR |= LED1_MASK | LED2_MASK;
+
+
+}
 
 void MyBoard_ShowStatusLeds(unsigned char l) {
 	if (l & 0x01) {
