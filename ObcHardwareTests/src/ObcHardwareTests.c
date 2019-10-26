@@ -8,6 +8,7 @@
 ===============================================================================
 */
 
+
 #if defined (__USE_LPCOPEN)
 #if defined(NO_BOARD_LIB)
 #include "chip.h"
@@ -16,6 +17,7 @@
 #endif
 #endif
 
+#include <globals.h>
 #include <cr_section_macros.h>
 
 // TODO: insert other include files here
@@ -34,10 +36,10 @@ int main(void) {
 #endif
 #endif
 
-    Board_LED_Set(LED_GREEN_WD, true);		// Eine Flanke für den 1. Trigger - der HW - Power Up trigger funkt nicht richtig .....
+    Board_LED_Set(LED_NR_BLUE, true);		// Eine Flanke für den 1. Trigger - der HW - Power Up trigger funkt nicht richtig .....
     //Board_LED_Set(LED_GREEN_WD, true);
 
-    Board_LED_Set(LED_BLUE, false);
+    Board_LED_Set(LED_NR_BLUE, false);
 	printf("Hallo Bootmode: %s [%d]\n", GetBootmodeStr(), GetBootmode());
 	// Board_UARTPutSTR("Hallo\n"); // this line is exactly the same as above because
     // Force the counter to be placed into memory
@@ -47,7 +49,7 @@ int main(void) {
         i++ ;
         if (i % 1000000 == 0) {
         	//Board_LED_Toggle(LED_GREEN_WD);
-        	Board_LED_Toggle(LED_BLUE);
+        	Board_LED_Toggle(LED_NR_BLUE);
         	//Board_LED_Set(LED_GREEN_WD, false);	// For ever
 
         	printf(".");
