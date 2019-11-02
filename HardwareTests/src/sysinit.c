@@ -37,11 +37,6 @@
  #include "board.h"
  #endif
 
-#if HW_USED == LPCX_BOARD
-	#include "hw_lpcx/lpcx_board.h"
-#elif HW_USED == OBC_BOARD
-	#include "hw_obc/obc_board.h"
-#endif
 
 
 /*****************************************************************************

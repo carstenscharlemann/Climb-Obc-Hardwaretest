@@ -16,4 +16,12 @@
 #define HW_USED	LPCX_BOARD
 //#define HW_USED OBC_BOARD
 
+
+#if HW_USED == LPCX_BOARD
+	#include "hw_lpcx/lpcx_board.h"
+#elif HW_USED == OBC_BOARD
+	#include "hw_obc/obc_board.h"
+#endif
+
+
 #endif /* GLOBALS_H_ */
