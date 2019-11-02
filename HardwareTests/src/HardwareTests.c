@@ -24,6 +24,7 @@
 	#include "hw_obc/obc_board.h"
 #endif
 
+#include "retarget.h"
 #include <cr_section_macros.h>
 
 // TODO: insert other include files here
@@ -50,7 +51,7 @@ int main(void) {
 #endif
 
     // TODO: insert code here
-
+    printf("Hello Climb HardwareTest.");
     // Force the counter to be placed into memory
     volatile static int i = 0 ;
     // Enter an infinite loop, just incrementing a counter
