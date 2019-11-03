@@ -42,7 +42,7 @@
  * this code.
  */
 
-#include "board.h"
+
 
 /* Keil (Realview) support */
 #if defined(__CC_ARM)
@@ -222,13 +222,10 @@ _STD_END
 #if !defined(DEBUG_SEMIHOSTING)
 int WRITEFUNC(int iFileHandle, char *pcBuffer, int iLength)
 {
-#if defined(DEBUG_ENABLE)
 	unsigned int i;
 	for (i = 0; i < iLength; i++) {
-		Board_UARTPutChar(pcBuffer[i]);
+		ClimbCliUARTPutChar(pcBuffer[i]);
 	}
-#endif
-
 	return iLength;
 }
 
@@ -238,13 +235,8 @@ int WRITEFUNC(int iFileHandle, char *pcBuffer, int iLength)
    the character from the LPC1768/RDB1768 UART. */
 int READFUNC(void)
 {
-#if defined(DEBUG_ENABLE)
-	char c = Board_UARTGetChar();
+	char c = ClimbCliUARTGetChar();
 	return (int) c;
-
-#else
-	return (int) -1;
-#endif
 }
 
 #endif /* !defined(DEBUG_SEMIHOSTING) */

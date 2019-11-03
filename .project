@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>ObcHardwareTests</name>
+	<name>HardwareTests</name>
 	<comment></comment>
 	<projects>
-		<project>obc_board_climb_em1</project>
+		<project>lpc_board_nxp_lpcxpresso_1769</project>
 		<project>lpc_chip_175x_6x</project>
 	</projects>
 	<buildSpec>

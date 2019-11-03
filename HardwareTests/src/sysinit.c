@@ -1,8 +1,8 @@
 /*
- * @brief NXP LPC1769 LPCXpresso Sysinit file
+ * @brief Common SystemInit function for LPC17xx/40xx chips
  *
  * @note
- * Copyright(C) NXP Semiconductors, 2013
+ * Copyright 2013-2014, 2019 NXP
  * All rights reserved.
  *
  * @par
@@ -29,43 +29,28 @@
  * this code.
  */
 
-#include "board.h"
+#include "globals.h"
 
-/* The System initialization code is called prior to the application and
-   initializes the board for run-time operation. Board initialization
-   includes clock setup and default pin muxing configuration. */
+ #if defined(NO_BOARD_LIB)
+ #include "chip.h"
+ #else
+ #include "board.h"
+ #endif
+
+
 
 /*****************************************************************************
  * Private types/enumerations/variables
  ****************************************************************************/
 
-/* Pin muxing configuration */
-STATIC const PINMUX_GRP_T pinmuxing[] = {
-	// UARTS
-	{0,  2,   IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD0 - UART SP-D	Y+ */
-	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD0 - UART SP-D Y+ */
-	{2,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD1 - UART SP-C X- */
-	{2,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD1 - UART SP-C X- */
-	{2,  8,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD2 - UART SP-B Y- */
-	{2,  9,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD2 - UART SP-B Y- */
-	{0,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD3 - UART SP-A X+ */
-	{0,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD3 - UART SP-A X+ */
-
-	// LEDS
-	{2,  6,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led 4 Blue - also RGB LED Pin */
-	{1, 18,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led 1 green - Watchdog Feed   */
-
-	// GPIOs
-	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
-	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
-
-
-
-};
-
 /*****************************************************************************
  * Public types/enumerations/variables
  ****************************************************************************/
+
+#if defined(NO_BOARD_LIB)	// This is same for both hw_xy boards. Keep it here for the time being ....
+const uint32_t OscRateIn = 12000000;
+const uint32_t RTCOscRateIn = 32768;
+#endif
 
 /*****************************************************************************
  * Private functions
@@ -75,24 +60,41 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
  * Public functions
  ****************************************************************************/
 
-/* Sets up system pin muxing */
-void Board_SetupMuxing(void)
-{
-	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
-}
-
-/* Setup system clocking */
-void Board_SetupClocking(void)
-{
-	Chip_SetupXtalClocking();
-
-	/* Setup FLASH access to 4 clocks (100MHz clock) */			// ??? ok for OBC ???
-	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
-}
-
 /* Set up and initialize hardware prior to call to main */
-void Board_SystemInit(void)
+void SystemInit(void)
 {
-	Board_SetupMuxing();
-	Board_SetupClocking();
+	unsigned int *pSCB_VTOR = (unsigned int *) 0xE000ED08;
+
+#if defined(__IAR_SYSTEMS_ICC__)
+	extern void *__vector_table;
+
+	*pSCB_VTOR = (unsigned int) &__vector_table;
+#elif defined(__CODE_RED)
+	extern void *g_pfnVectors;
+
+	*pSCB_VTOR = (unsigned int) &g_pfnVectors;
+#elif defined(__ARMCC_VERSION)
+	extern void *__Vectors;
+
+	*pSCB_VTOR = (unsigned int) &__Vectors;
+#endif
+
+#if defined(__FPU_PRESENT) && __FPU_PRESENT == 1
+	fpuInit();
+#endif
+
+#if defined(NO_BOARD_LIB)
+#if defined (HW_USED)
+	ClimbBoardSystemInit();
+#else
+	// The original LpcOpen way of Chip inizializing if no board is defined. it sets Clock to use IRC
+	/* Chip specific SystemInit */
+	Chip_SystemInit();
+#endif
+
+
+#else
+	/* Setup system clocking and muxing */
+	Board_SystemInit();
+#endif
 }
