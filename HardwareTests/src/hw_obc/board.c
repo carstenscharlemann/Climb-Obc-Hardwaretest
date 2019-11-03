@@ -121,3 +121,35 @@ int ObcCliUARTGetChar(void)
 	return -1;
 }
 
+bootmode_t ObcGetBootmode(){
+	bool boot = Chip_GPIO_ReadPortBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM);
+	if (Chip_GPIO_ReadPortBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM)) {
+		 if (boot) {
+			return DebugEven;
+		 } else {
+			 return DebugOdd;
+		 }
+	} else {
+		if (boot) {
+			return Even;
+		 } else {
+			 return Odd;
+		 }
+	}
+}
+
+char* ObcGetBootmodeStr() {
+	switch (ObcGetBootmode()) {
+		case Odd:
+			return "Odd";
+		case Even:
+			return "Even";
+		case DebugOdd:
+			return "DebugOdd";
+		case DebugEven:
+			return "DebugEven";
+	}
+	return "Unknown";
+}
+
+

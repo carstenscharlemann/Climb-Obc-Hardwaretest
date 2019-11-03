@@ -13,6 +13,8 @@
 // Module API (all as Aliases pointing to implementation)
 #define ClimbBoardInit 			ObcClimbBoardInit
 #define ClimbBoardSystemInit 	ObcClimbBoardSystemInit
+#define ClimbGetBootmode()		ObcGetBootmode()
+#define ClimbGetBootmodeStr()	ObcGetBootmodeStr()
 
 #define ClimbLedToggle(x)		ObcLedToggle(x)
 #define ClimbLedSet(x,y)		ObcLedSet(x,y)
@@ -21,10 +23,14 @@
 #define ClimbCliUARTPutChar(x) 	ObcCliUARTPutChar(x)
 #define ClimbCliUARTGetChar 	ObcCliUARTGetChar
 
+// definitions only available in OBC version. For other boards Alias for ObcGetBootmode() gives a pure number (int).
+typedef enum {DebugEven, DebugOdd, Even, Odd} bootmode_t;
 
 // Module Implementation Prototypes
 void ObcClimbBoardInit();
 void ObcClimbBoardSystemInit();
+bootmode_t ObcGetBootmode();
+char* ObcGetBootmodeStr();
 
 void ObcLedToggle(uint8_t ledNr);
 void ObcLedSet(uint8_t ledNr,  bool On);

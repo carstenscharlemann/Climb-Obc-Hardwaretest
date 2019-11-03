@@ -4,11 +4,12 @@
  *  Created on: 02.11.2019
  *      Author: Robert
  */
+#include <stdio.h>
 #include "..\..\globals.h"
 
 #define BUFFER_SIZE 64
 
-
+// prototypes
 void processLine();
 
 int ptrIdx = 0;
@@ -18,9 +19,9 @@ void CliInit() {
 
 }
 
-
 void CliMain(){
 	int anz;
+
 	// The UART has 16 byte Input buffer
 	// read all available bytes in this main loop call.
 	while ((anz = ClimbCliUARTGetChar()) != -1) {
