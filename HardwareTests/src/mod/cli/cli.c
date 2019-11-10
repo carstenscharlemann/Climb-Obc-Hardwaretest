@@ -5,10 +5,14 @@
  *      Author: Robert
  */
 #include <stdio.h>
+#include <string.h>
 #include "cli.h"
 
 #include "..\..\globals.h"
-#define CLI_PROMPT BOARD_SHORT ">"
+
+#define CLI_PROMPT BOARD_SHORT  ">"
+#define CLI_MAX_COMMANDS		100
+#define CLI_MAX_PARAMS			10
 
 //
 // local module variables
@@ -27,15 +31,24 @@ int prtBufferRead = 0;
 int prtBufferWrite = 0;
 char prtBuffer[CLI_TXBUFFER_SIZE];
 
+// Command Line parsing and registry
+char cmdLine[CLI_RXBUFFER_SIZE];
+cliCommand_t commands[CLI_MAX_COMMANDS];
+int  cliRegisteredCommands = 0;
+
+
 // module statistics
 int ignoredTxChars = 0;
 int bufferErrors   = 0;
 int linesProcessed = 0;
+int cmdsProcessed = 0;
+
 
 //
 // local module prototypes
 // ----------------------
 void processLine();
+void CliShowStatistics(int argc, char *argv[]);
 
 //
 // Module function implementations
@@ -135,8 +148,21 @@ int CliGetChar() {
 	return -1;
 }
 
+// With this function you can register your custom command handler(s)
+void RegisterCommand(char* cmdStr, void (*callback)(int argc, char *argv[])) {
+	// TODO check if duplicate entry !!!
+	if ( cliRegisteredCommands < CLI_MAX_COMMANDS) {
+		 strcpy(commands[cliRegisteredCommands].cmdStr,cmdStr);
+		 commands[cliRegisteredCommands].func = callback;
+		 cliRegisteredCommands++;
+	} else {
+		printf("No Command slot left for registering new command.");
+	}
+}
+
 // This module init from main module. Remark: The Uart initialization is done in CliInitUart() called by board init.
 void CliInit() {
+	RegisterCommand("cliStat", CliShowStatistics);
 	printf(CLI_PROMPT);
 }
 
@@ -167,6 +193,51 @@ void CliMain(){
 
 
 void processLine() {
+	bool processed = false;
 	linesProcessed++;
-	printf("\nRe:%s",cliRxBuffer);
+	//printf("\nRe:%s",cliRxBuffer);
+
+	// first lets copy the received line to our command line
+	strcpy(cmdLine, cliRxBuffer);
+
+	// Then we split for parameters
+	int parCnt = 0;
+	char* pars[CLI_MAX_PARAMS];
+	for (int i = 0; i < CLI_MAX_PARAMS; i++) {
+		pars[i] = NULL;
+	}
+	for (int i = 0, p=0; cmdLine[i] != 0x00; i++) {
+		if (cmdLine[i] == ' ') {
+			cmdLine[i] = 0x00;
+			pars[p++] = (&cmdLine[i]) + 1;		// TODO: Check if MAX_PARAM is overrun here!!!!
+			parCnt++;
+		}
+	}
+
+	// Check if command can be found in definitions
+	for (int cmd = 0; cmd < cliRegisteredCommands; cmd++ ) {
+		if (strcmp(commands[cmd].cmdStr, &cmdLine[0]) == 0) {	// Todo: cut whitespaces at begin....
+			// Call this command with the found params
+			commands[cmd].func(parCnt, pars);
+			processed = true;
+			cmdsProcessed++;
+		}
+	}
+
+	if (!processed) {
+		printf("Command '%s' not found. Try one of these: ",  &cmdLine[0]);
+		for (int cmd = 0; cmd < cliRegisteredCommands; cmd++ ) {
+			printf("'%s' ", commands[cmd].cmdStr);
+		}
+		printf("\n");
+	}
+
+}
+
+void CliShowStatistics(int argc, char *argv[]){
+	printf("CliShowStatistics was called !!! :-)\n");
+
+	for (int i = 0; i < argc; i++) {
+		printf("Param[%d]: %s\n", i, argv[i]);
+	}
 }
