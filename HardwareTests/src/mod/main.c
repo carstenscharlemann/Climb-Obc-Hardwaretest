@@ -17,7 +17,7 @@ static int i = 0;
 
 // Call all Module Inits
 void MainInit() {
-	printf("Hello Climb HardwareTest Bootmode: %s [%d]\n", ClimbGetBootmodeStr(), ClimbGetBootmode());
+	printf("Hello Robert HardwareTest Bootmode: %s [%d]\n", ClimbGetBootmodeStr(), ClimbGetBootmode());
 	CliInit();
 }
 
