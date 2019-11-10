@@ -224,7 +224,7 @@ int WRITEFUNC(int iFileHandle, char *pcBuffer, int iLength)
 {
 	unsigned int i;
 	for (i = 0; i < iLength; i++) {
-		ClimbCliUARTPutChar(pcBuffer[i]);
+		CliPutChar(pcBuffer[i]);
 	}
 	return iLength;
 }

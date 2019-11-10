@@ -4,16 +4,16 @@
  *  Created on: 02.11.2019
  *      Author: Robert
  */
+#include <stdio.h>
 
+#include "..\globals.h"
 #include "main.h"
 
 // include Modules used here
-#include "..\globals.h"
 #include "cli\cli.h"
 
 
 static int i = 0;
-
 
 // Call all Module Inits
 void MainInit() {
@@ -23,7 +23,6 @@ void MainInit() {
 
 // Poll all Modules from Main loop
 void MainMain() {
-
 	CliMain();
 	i++ ;
 	if (i % 100000 == 0) {
