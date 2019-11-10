@@ -6,11 +6,12 @@
  */
 
 #include "lpcx_board.h"
+#include "..\mod\cli\cli.h"
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22
 
-#define CLI_UART 			LPC_UART3
+//#define CLI_UART 			LPC_UART3
 
 
 STATIC const PINMUX_GRP_T pinmuxing[] = {
@@ -72,13 +73,19 @@ void LpcxClimbBoardInit() {
 	/* Set the PIO_22 as output */
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
 
-	// UART Init
-	Chip_UART_Init(CLI_UART);
-	Chip_UART_SetBaud(CLI_UART, 115200);
-	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
+	// UART for comand line interface init
+	CliInitUart(LPC_UART3, UART3_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
+//	// UART Init
+//	Chip_UART_Init(CLI_UART);
+//	Chip_UART_SetBaud(CLI_UART, 115200);
+//	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
+//
+//	/* Enable UART Transmit */
+//	Chip_UART_TXEnable(CLI_UART);
+}
 
-	/* Enable UART Transmit */
-	Chip_UART_TXEnable(CLI_UART);
+void UART3_IRQHandler(void) {
+	CliUartIRQHandler(LPC_UART3);
 }
 
 
@@ -110,17 +117,17 @@ bool LpcxLedTest(uint8_t ledNr)
 }
 
 /* Sends a character on the UART */
-void LpcxCliUARTPutChar(char ch)
-{
-	while ((Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_THRE) == 0) {}
-	Chip_UART_SendByte(CLI_UART, (uint8_t) ch);
-}
-
-/* Gets a character from the UART, returns EOF if no character is ready */
-int LpcxCliUARTGetChar(void)
-{
-	if (Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_RDR) {
-		return (int) Chip_UART_ReadByte(CLI_UART);
-	}
-	return -1;
-}
+//void LpcxCliUARTPutChar(char ch)
+//{
+//	while ((Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_THRE) == 0) {}
+//	Chip_UART_SendByte(CLI_UART, (uint8_t) ch);
+//}
+//
+///* Gets a character from the UART, returns EOF if no character is ready */
+//int LpcxCliUARTGetChar(void)
+//{
+//	if (Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_RDR) {
+//		return (int) Chip_UART_ReadByte(CLI_UART);
+//	}
+//	return -1;
+//}

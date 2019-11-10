@@ -220,6 +220,7 @@ _STD_END
 #endif /* defined(DEBUG_ENABLE) */
 
 #if !defined(DEBUG_SEMIHOSTING)
+#include "mod\cli\cli.h"		// To get rid of the warning
 int WRITEFUNC(int iFileHandle, char *pcBuffer, int iLength)
 {
 	unsigned int i;
@@ -235,7 +236,7 @@ int WRITEFUNC(int iFileHandle, char *pcBuffer, int iLength)
    the character from the LPC1768/RDB1768 UART. */
 int READFUNC(void)
 {
-	char c = ClimbCliUARTGetChar();
+	char c = CliGetChar();
 	return (int) c;
 }
 

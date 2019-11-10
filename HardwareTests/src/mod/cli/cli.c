@@ -7,7 +7,8 @@
 #include <stdio.h>
 #include "cli.h"
 
-#define CLI_PROMPT "\ncl>"
+#include "..\..\globals.h"
+#define CLI_PROMPT BOARD_SHORT ">"
 
 //
 // local module variables
