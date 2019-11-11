@@ -8,63 +8,39 @@
 ===============================================================================
 */
 
-#include "globals.h"
+#include "globals.h"				// Go there to switch the used hardware board.
 
 #if defined (__USE_LPCOPEN)
 #if defined(NO_BOARD_LIB)
 #include "chip.h"
-#else
-#include "board.h"
 #endif
 #endif
-
-//#if HW_USED == LPCX_BOARD
-//	#include "hw_lpcx/lpcx_board.h"
-//#elif HW_USED == OBC_BOARD
-//	#include "hw_obc/obc_board.h"
-//#endif
 
 #include "retarget.h"
 #include <cr_section_macros.h>
 
-// TODO: insert other include files here
+// module includes
 #include "mod\main.h"
 
-// TODO: insert other definitions and declarations here
 
 int main(void) {
 
 #if defined (__USE_LPCOPEN)
 #if defined (HW_USED)
+	// Our own board abstraction.
 	ClimbBoardInit();
 #else
-	// The original LpcOpen way of Chip inizializing if no board is defined. Not sure if this Clock Update is needed ...???...
+	// The original LpcOpen way of Chip inizialize if no board is defined. Not sure if this Clock Update is needed ...???...
     // Read clock settings and update SystemCoreClock variable
     SystemCoreClockUpdate();
-#endif
-#if !defined(NO_BOARD_LIB)
-    // Set up and initialize all required blocks and
-    // functions related to the board hardware
-    Board_Init();
-    // Set the LED to the state of "On"
-    Board_LED_Set(0, true);
 #endif
 #endif
 
     MainInit();
 
-    //static int i = 0;
-    // Enter an infinite loop, just incrementing a counter
+    // Enter an infinite loop
     while(1) {
     	MainMain();
-//    	i++ ;
-//		 if (i % 1000000 == 0) {
-//			//Board_LED_Toggle(LED_GREEN_WD);
-//			ClimbLedToggle(0);
-//			//Board_LED_Set(LED_GREEN_WD, false);	// For ever
-//			printf(".");
-//		}
-
     }
     return 0 ;
 }

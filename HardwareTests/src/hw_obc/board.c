@@ -6,6 +6,7 @@
  */
 
 #include "obc_board.h"
+#include "..\mod\cli\cli.h"
 
 #define LED_GREEN_WD_GPIO_PORT_NUM               1
 #define LED_GREEN_WD_GPIO_BIT_NUM               18
@@ -17,7 +18,6 @@
 #define DEBUG_SELECT_GPIO_PORT_NUM               0
 #define DEBUG_SELECT_GPIO_BIT_NUM                5
 
-#define CLI_UART 	LPC_UART2		// We use SP - B (same side as JTAG connector) as Debug UART.
 
 /* Pin muxing configuration */
 STATIC const PINMUX_GRP_T pinmuxing[] = {
@@ -68,15 +68,23 @@ void ObcClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM, false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM, false);
 
-	// UART Init
-	Chip_UART_Init(CLI_UART);
-	Chip_UART_SetBaud(CLI_UART, 115200);
-	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
-
-	/* Enable UART Transmit */
-	Chip_UART_TXEnable(CLI_UART);
+	// UART for comand line interface init
+	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
+//	Chip_UART_Init(CLI_UART);
+//	Chip_UART_SetBaud(CLI_UART, 115200);
+//	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
+//
+//	/* preemption = 1, sub-priority = 1 */
+//	NVIC_SetPriority(UART2_IRQn, 1);
+//	NVIC_EnableIRQ(UART2_IRQn);
+//
+//	/* Enable UART Transmit */
+//	Chip_UART_TXEnable(CLI_UART);
 }
 
+void UART2_IRQHandler(void) {
+	CliUartIRQHandler(LPC_UART2);
+}
 
 void ObcLedToggle(uint8_t ledNr) {
 	if (ledNr == 0) {
@@ -105,21 +113,6 @@ bool ObcLedTest(uint8_t ledNr)
 	return state;
 }
 
-/* Sends a character on the UART */
-void ObcCliUARTPutChar(char ch)
-{
-	while ((Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_THRE) == 0) {}
-	Chip_UART_SendByte(CLI_UART, (uint8_t) ch);
-}
-
-/* Gets a character from the UART, returns EOF if no character is ready */
-int ObcCliUARTGetChar(void)
-{
-	if (Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_RDR) {
-		return (int) Chip_UART_ReadByte(CLI_UART);
-	}
-	return -1;
-}
 
 bootmode_t ObcGetBootmode(){
 	bool boot = Chip_GPIO_ReadPortBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM);
