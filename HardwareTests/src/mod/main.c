@@ -11,6 +11,7 @@
 
 // include Modules used here
 #include "cli\cli.h"
+#include "thr\thruster.h"
 
 
 static int i = 0;
@@ -19,11 +20,13 @@ static int i = 0;
 void MainInit() {
 	printf("Hello Robert HardwareTest Bootmode: %s [%d]\n", ClimbGetBootmodeStr(), ClimbGetBootmode());
 	CliInit();
+	ThrInit();
 }
 
 // Poll all Modules from Main loop
 void MainMain() {
 	CliMain();
+	ThrMain();
 	i++ ;
 	if (i % 100000 == 0) {
 		ClimbLedToggle(0);
