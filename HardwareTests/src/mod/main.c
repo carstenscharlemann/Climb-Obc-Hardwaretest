@@ -12,25 +12,28 @@
 // include Modules used here
 #include "cli\cli.h"
 #include "thr\thruster.h"
-
-
-static int i = 0;
+#include "tim\timer.h"
 
 // Call all Module Inits
 void MainInit() {
-	printf("Hello Robert HardwareTest Bootmode: %s [%d]\n", ClimbGetBootmodeStr(), ClimbGetBootmode());
+	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
+	TimInit();
 	CliInit();
 	ThrInit();
 }
 
 // Poll all Modules from Main loop
 void MainMain() {
+	// Call module mains with 'fast - requirement'
 	CliMain();
 	ThrMain();
-	i++ ;
-	if (i % 100000 == 0) {
+	bool tick = TimMain();
+
+	if (tick) {
 		ClimbLedToggle(0);
-		//printf(".");
+		// Call module mains with 'tick - requirement'
+
 	}
+
 }
 
