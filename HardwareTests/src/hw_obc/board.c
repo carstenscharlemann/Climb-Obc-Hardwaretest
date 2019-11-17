@@ -42,22 +42,27 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
 };
 
+
+//
+// Public API Implementation
+//
+
 // This routine is called prior to main(). We setup all pin Functions and Clock settings here.
 void ObcClimbBoardSystemInit() {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
-	Chip_SetupXtalClocking();
+	Chip_SetupXtalClocking();		// Asumes 12Mhz Quarz -> PLL0 frq=384Mhz -> CPU frq=96MHz
 
 	/* Setup FLASH access to 4 clocks (100MHz clock) */
 	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
 }
 
-
 // This routine is called from main() at startup (prior entering main loop).
 void ObcClimbBoardInit() {
 	/* Initializes GPIO */
 	Chip_GPIO_Init(LPC_GPIO);
-	Chip_IOCON_Init(LPC_IOCON);
 
+	/* Initialize IO Dirs */
+	// TODO: make a nice loop here (like/or combine as the function selects on all IOS...)
 	/* The LED Pins are configured as GPIO pin (FUNC0) during SystemInit */
 	// Here we define them as OUTPUT
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, true);
@@ -75,7 +80,6 @@ void ObcClimbBoardInit() {
 void UART2_IRQHandler(void) {
 	CliUartIRQHandler(LPC_UART2);
 }
-
 
 
 void ObcLedToggle(uint8_t ledNr) {

@@ -51,7 +51,7 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 // This routine is called prior to main(). We setup all pin Functions and Clock settings here.
 void LpcxClimbBoardSystemInit() {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
-	Chip_SetupXtalClocking();
+	Chip_SetupXtalClocking();		// Asumes 12Mhz Quarz -> PLL0 frq=384Mhz -> CPU frq=96MHz
 
 	/* Setup FLASH access to 4 clocks (100MHz clock) */
 	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
@@ -60,19 +60,16 @@ void LpcxClimbBoardSystemInit() {
 
 // This routine is called from main() at startup (prior entering main loop).
 void LpcxClimbBoardInit() {
-	/* Sets up DEBUG UART */
-	//DEBUGINIT();
-
 	/* Initializes GPIO */
 	Chip_GPIO_Init(LPC_GPIO);
-	Chip_IOCON_Init(LPC_IOCON);
 
 	/* Initialize IO Dirs */
+	// TODO: make a nice loop here (like/or combine as the function selects on all IOS...)
 	/* Pin PIO0_22 is configured as GPIO pin during SystemInit */
 	/* Set the PIO_22 as output */
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
 
-	// Decide the UART to use for comand line interface.
+	// Decide the UART to use for command line interface.
 	CliInitUart(LPC_UART3, UART3_IRQn);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
 }
 
