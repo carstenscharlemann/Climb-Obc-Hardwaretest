@@ -1,6 +1,8 @@
 /*
  * board.c
  *
+ *  This is the Board Abstraction Layer for the LPCXpresso 1769 Developer board.
+ *
  *  Created on: 02.11.2019
  *      Author: Robert
  */
@@ -10,9 +12,6 @@
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22
-
-//#define CLI_UART 			LPC_UART3
-
 
 STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD3 */
@@ -73,28 +72,20 @@ void LpcxClimbBoardInit() {
 	/* Set the PIO_22 as output */
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
 
-	// UART for comand line interface init
-	CliInitUart(LPC_UART3, UART3_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
-//	// UART Init
-//	Chip_UART_Init(CLI_UART);
-//	Chip_UART_SetBaud(CLI_UART, 115200);
-//	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
-//
-//	/* Enable UART Transmit */
-//	Chip_UART_TXEnable(CLI_UART);
+	// Decide the UART to use for comand line interface.
+	CliInitUart(LPC_UART3, UART3_IRQn);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
 }
 
+// This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.
 void UART3_IRQHandler(void) {
 	CliUartIRQHandler(LPC_UART3);
 }
-
 
 void LpcxLedToggle(uint8_t ledNr) {
 	if (ledNr == 0) {
 		LpcxLedSet(ledNr, !LpcxLedTest(ledNr));
 	}
 }
-
 
 /* Sets the state of a board LED to on or off */
 void LpcxLedSet(uint8_t ledNr, bool On)
@@ -105,7 +96,6 @@ void LpcxLedSet(uint8_t ledNr, bool On)
 	}
 }
 
-
 /* Returns the current state of a board LED */
 bool LpcxLedTest(uint8_t ledNr)
 {
@@ -115,19 +105,3 @@ bool LpcxLedTest(uint8_t ledNr)
 	}
 	return state;
 }
-
-/* Sends a character on the UART */
-//void LpcxCliUARTPutChar(char ch)
-//{
-//	while ((Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_THRE) == 0) {}
-//	Chip_UART_SendByte(CLI_UART, (uint8_t) ch);
-//}
-//
-///* Gets a character from the UART, returns EOF if no character is ready */
-//int LpcxCliUARTGetChar(void)
-//{
-//	if (Chip_UART_ReadLineStatus(CLI_UART) & UART_LSR_RDR) {
-//		return (int) Chip_UART_ReadByte(CLI_UART);
-//	}
-//	return -1;
-//}

@@ -220,7 +220,9 @@ _STD_END
 #endif /* defined(DEBUG_ENABLE) */
 
 #if !defined(DEBUG_SEMIHOSTING)
-#include "mod\cli\cli.h"		// To get rid of the warning
+
+#include "mod\cli\cli.h"		// We use routines of the CLI modules to redirect the stdio input output streams.
+
 int WRITEFUNC(int iFileHandle, char *pcBuffer, int iLength)
 {
 	unsigned int i;
