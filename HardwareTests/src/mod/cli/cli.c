@@ -10,9 +10,9 @@
 
 #include "..\..\globals.h"
 
-#define CLI_PROMPT BOARD_SHORT  ">"
+#define CLI_PROMPT 				BOARD_SHORT ">"
 #define CLI_MAX_COMMANDS		100
-#define CLI_MAX_PARAMS			10
+#define CLI_MAX_PARAMS			16
 
 //
 // local module variables
@@ -25,16 +25,16 @@ char cliRxBuffer[CLI_RXBUFFER_SIZE];
 int cliRxPtrIdx = 0;
 
 // The Tx 'ringbuffer' used for TX with interrupt routine
-#define CLI_TXBUFFER_SIZE 128
+#define CLI_TXBUFFER_SIZE 256
 bool prtTxInProgress = false;
 int prtBufferRead = 0;
 int prtBufferWrite = 0;
 char prtBuffer[CLI_TXBUFFER_SIZE];
 
 // Command Line parsing and registry
-char cmdLine[CLI_RXBUFFER_SIZE];
-cliCommand_t commands[CLI_MAX_COMMANDS];
+char cmdLine[CLI_RXBUFFER_SIZE+10];
 int  cliRegisteredCommands = 0;
+cliCommand_t commands[CLI_MAX_COMMANDS];
 
 
 // module statistics
@@ -42,7 +42,6 @@ int ignoredTxChars = 0;
 int bufferErrors   = 0;
 int linesProcessed = 0;
 int cmdsProcessed = 0;
-
 
 //
 // local module prototypes
@@ -207,9 +206,10 @@ void processLine() {
 		pars[i] = NULL;
 	}
 	for (int i = 0, p=0; cmdLine[i] != 0x00; i++) {
-		if (cmdLine[i] == ' ') {
+		if ( (cmdLine[i] == ' ') &&
+			 (p < CLI_MAX_PARAMS) )	{
 			cmdLine[i] = 0x00;
-			pars[p++] = (&cmdLine[i]) + 1;		// TODO: Check if MAX_PARAM is overrun here!!!!
+			pars[p++] = (&cmdLine[i]) + 1;
 			parCnt++;
 		}
 	}
@@ -235,9 +235,11 @@ void processLine() {
 }
 
 void CliShowStatistics(int argc, char *argv[]){
-	printf("CliShowStatistics was called !!! :-)\n");
-
+	printf("CliShowStatistics called with\n");
 	for (int i = 0; i < argc; i++) {
-		printf("Param[%d]: %s\n", i, argv[i]);
+		printf("p-%d %s\n", i, argv[i]);
 	}
+
+	printf("\nlinesProcessed: %d\ncmdsProcessed: %d\nignoredTxChars: %d\nbufferErrors: %d\n",
+	          linesProcessed, cmdsProcessed,  ignoredTxChars, bufferErrors);
 }
