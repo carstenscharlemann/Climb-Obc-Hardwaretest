@@ -42,8 +42,8 @@ void ThrMain() {
 
 	if (myStateExample % 100000 == 0) {
 		// Note printf should not take too much time (once CLI module is really ready), but keep the texts small!
-		printf(THR_HELLO_STR);
-		printf("ThrMain() called %d times.\n", myStateExample);
+//		printf(THR_HELLO_STR);
+//		printf("ThrMain() called %d times.\n", myStateExample);
 	}
 
 }

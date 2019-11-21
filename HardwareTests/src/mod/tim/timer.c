@@ -6,8 +6,13 @@
  */
 
 #include <chip.h>
+#include <string.h>		// for strcmp()
+#include <stdlib.h>		// for atoi()
+
+#include "..\cli\cli.h"
 
 #include "timer.h"
+
 
 // Define the timer to use here n=0..3
 #define MAINLOOP_TIMER			LPC_TIMER0
@@ -23,6 +28,7 @@
 // Prototypes
 //
 void TimIrqHandler(LPC_TIMER_T *mlTimer);
+void TimOutputClockCmd(int argc, char *argv[]);
 
 // Variables
 //
@@ -49,8 +55,15 @@ void TimInit() {
 	NVIC_ClearPendingIRQ(MAINLOOP_TIMER_IRQ);
 	NVIC_EnableIRQ(MAINLOOP_TIMER_IRQ);
 
+	// We use clockout but disable after reset.
+	Chip_Clock_DisableCLKOUT();
+
+	// Register module Commands
+	RegisterCommand("clkOut", TimOutputClockCmd);
+
 }
 
+// This 'overwrites' the weak definition of this IRQ in cr_startup_lpc175x_6x.c
 void TIMER0_IRQHandler(void)
 {
 	TimIrqHandler(MAINLOOP_TIMER);
@@ -72,111 +85,49 @@ bool TimMain(){
 	return false;
 }
 
+// Command to switch one of the internal Clock signals to the output PIN43 P1[27] 'CLKOUT'
+// In OBC there is the 'Probe CLKO' pad connected. In LPCX this is on 'C16' - 'PAD16'
+//
+// Cmd Syntax: <cmd> ['OFF'|'CPU'|'OSC'|'IRC'|'USB'|'RTC'] [1...16]
+// The optional divider is set to divide by 10 if omitted.
+// If no parameter given 'CPU' is default
+void TimOutputClockCmd(int argc, char *argv[]) {
+	bool on = true;
+	CHIP_SYSCTL_CLKOUTSRC_T src = SYSCTL_CLKOUTSRC_CPU;
+	uint32_t div = 10;
 
-// Reference code from PEG / Done with CMSISv2p00_LPC17xx Chip Abstraction ....
+	if (argc > 0 ) {
+		if (strcmp(argv[0],"CPU") == 0 ) {
+				src = SYSCTL_CLKOUTSRC_CPU;
+		} else if (strcmp(argv[0],"OSC") == 0 ) {
+			src = SYSCTL_CLKOUTSRC_MAINOSC;
+		} else if (strcmp(argv[0],"IRC") == 0 ) {
+			src = SYSCTL_CLKOUTSRC_IRC;
+		} else if (strcmp(argv[0],"USB") == 0 ) {
+			src = SYSCTL_CLKOUTSRC_USB;
+		} else if (strcmp(argv[0],"RTC") == 0 ) {
+			src = SYSCTL_CLKOUTSRC_RTC;
+		} else if (strcmp(argv[0],"OFF") == 0 ) {
+			on = false;
+		}
+	}
+	if (argc > 1 ) {
+		div = atoi(argv[1]);
+		if (div < 1) {
+			div = 1;
+		}
+		if (div > 16) {
+			div = 16;
+		}
+	}
+	Chip_Clock_DisableCLKOUT();
+	if (on) {
+		Chip_Clock_SetCLKOUTSource(src, div);
+		Chip_Clock_EnableCLKOUT();
+		printf("CLKOUT (P1.27) enabled. Devider: %d \n", div);
+	} else {
+		printf("CLKOUT (P1.27) disabled\n");
+	}
+}
 
-/*********************************************************************//**
- * Macro defines for Power Control for Peripheral Register
- **********************************************************************/
-/** Power Control for Peripherals bit mask */
 
-//#define CLKPWR_PCONP_BITMASK	0xEFEFF7DE
-
-
-/*********************************************************************//**
- * @brief 		Configure power supply for each peripheral according to NewState
- * @param[in]	PPType	Type of peripheral used to enable power,
- *     					should be one of the following:
- *     			-  CLKPWR_PCONP_PCTIM0 		: Timer 0
- -  CLKPWR_PCONP_PCTIM1 		: Timer 1
- -  CLKPWR_PCONP_PCUART0  	: UART 0
- -  CLKPWR_PCONP_PCUART1   	: UART 1
- -  CLKPWR_PCONP_PCPWM1 		: PWM 1
- -  CLKPWR_PCONP_PCI2C0 		: I2C 0
- -  CLKPWR_PCONP_PCSPI   	: SPI
- -  CLKPWR_PCONP_PCRTC   	: RTC
- -  CLKPWR_PCONP_PCSSP1 		: SSP 1
- -  CLKPWR_PCONP_PCAD   		: ADC
- -  CLKPWR_PCONP_PCAN1   	: CAN 1
- -  CLKPWR_PCONP_PCAN2   	: CAN 2
- -  CLKPWR_PCONP_PCGPIO 		: GPIO
- -  CLKPWR_PCONP_PCRIT 		: RIT
- -  CLKPWR_PCONP_PCMC 		: MC
- -  CLKPWR_PCONP_PCQEI 		: QEI
- -  CLKPWR_PCONP_PCI2C1   	: I2C 1
- -  CLKPWR_PCONP_PCSSP0 		: SSP 0
- -  CLKPWR_PCONP_PCTIM2 		: Timer 2
- -  CLKPWR_PCONP_PCTIM3 		: Timer 3
- -  CLKPWR_PCONP_PCUART2  	: UART 2
- -  CLKPWR_PCONP_PCUART3   	: UART 3
- -  CLKPWR_PCONP_PCI2C2 		: I2C 2
- -  CLKPWR_PCONP_PCI2S   	: I2S
- -  CLKPWR_PCONP_PCGPDMA   	: GPDMA
- -  CLKPWR_PCONP_PCENET 		: Ethernet
- -  CLKPWR_PCONP_PCUSB   	: USB
- *
- * @param[in]	NewState	New state of Peripheral Power, should be:
- * 				- ENABLE	: Enable power for this peripheral
- * 				- DISABLE	: Disable power for this peripheral
- *
- * @return none
- **********************************************************************/
-//void CLKPWR_ConfigPPWR(uint32_t PPType, FunctionalState NewState)
-//{
-//	if (NewState == ENABLE)
-//	{
-//		LPC_SC->PCONP |= PPType & CLKPWR_PCONP_BITMASK;
-//	}
-//	else if (NewState == DISABLE)
-//	{
-//		LPC_SC->PCONP &= (~PPType) & CLKPWR_PCONP_BITMASK;
-//	}
-//}
-//
-//
-//RetVal timer0_init(void) /* in Hz */
-//{
-//    /* Init Timer 0 befor RTC init! */
-//
-//    CLKPWR_ConfigPPWR(CLKPWR_PCONP_PCTIM0, ENABLE);
-//
-//    LPC_TIM0->PR = CLKPWR_GetPCLK(CLKPWR_PCLKSEL_TIMER0) / 1000 - 1; /* 1 kHz timer frequency */
-//    LPC_TIM0->TCR = 2; /* Reset & hold timer */
-//    LPC_TIM0->MR0 = 999; /* 1s */
-//    LPC_TIM0->MCR |= (1 << 1); /* Reset timer on Match 0 */
-//
-//    /*LPC_TIM0->MCR |= (1 << 0);*//* Interrupt on Match0 compare */
-//    /*NVIC_SetPriority(TIMER0_IRQn, 0);*/
-//    /*NVIC_EnableIRQ(TIMER0_IRQn);*//* Enable timer0 interrupt */
-//
-//    timer0_start();
-//    obc_status.timer0_initialized = 1;
-//    return DONE;
-//}
-//
-//void timer0_start(void)
-//{
-//    LPC_TIM0->TCR = 1; /* Start  timer */
-//    obc_status_extended.timer0_running = 1;
-//}
-//
-//void timer0_reset(void)
-//{
-//    LPC_TIM0->TCR = 2; /* Reset & hold timer */
-//    obc_status_extended.timer0_running = 0;
-//}
-//
-//void timer0_stop(void)
-//{
-//    LPC_TIM0->TCR = 0; /* Reset & hold timer */
-//    obc_status_extended.timer0_running = 0;
-//}
-//
-//void TIMER0_IRQHandler(void)
-//{
-//    if ((LPC_TIM0->IR & 1) == 1) /* 100 Hz Timer Interrupt */
-//    { /* MR0 interrupt */
-//        LPC_TIM0->IR |= 1; /* Clear MR0 interrupt flag */
-//        /*TIM_ClearIntPending(LPC_TIM0, TIM_MR0_INT); */
-//    }
-//}
