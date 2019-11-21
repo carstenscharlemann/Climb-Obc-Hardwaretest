@@ -30,7 +30,7 @@ int main(void) {
 	// Our own board abstraction.
 	ClimbBoardInit();
 #else
-	// The original LpcOpen way of Chip inizialize if no board is defined. Not sure if this Clock Update is needed ...???...
+	// The original LpcOpen way of Chip initialize if no board is defined. Not sure if this Clock Update is needed ...???...
     // Read clock settings and update SystemCoreClock variable
     SystemCoreClockUpdate();
 #endif

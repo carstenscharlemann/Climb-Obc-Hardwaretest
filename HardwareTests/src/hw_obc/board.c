@@ -40,6 +40,9 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	// GPIOs
 	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
+
+	{1, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* CLOCKOUT */
+
 };
 
 
