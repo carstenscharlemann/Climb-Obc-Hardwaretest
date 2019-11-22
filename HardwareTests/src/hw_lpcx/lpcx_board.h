@@ -20,9 +20,6 @@
 #define ClimbLedSet(x,y)		LpcxLedSet(x,y)
 #define ClimbLedTest(x)			LpcxLedTest(x)
 
-//#define ClimbCliUARTPutChar(x) 	LpcxCliUARTPutChar(x)
-//#define ClimbCliUARTGetChar 	LpcxCliUARTGetChar
-
 // Module Implementation Prototypes
 void LpcxClimbBoardSystemInit();
 void LpcxClimbBoardInit();
@@ -31,8 +28,5 @@ int LpcxGetBootMode();
 void LpcxLedToggle(uint8_t ledNr);
 void LpcxLedSet(uint8_t ledNr,  bool On);
 bool LpcxLedTest(uint8_t ledNr);
-
-//void LpcxCliUARTPutChar(char c);
-//int LpcxCliUARTGetChar();
 
 #endif /* HW_LPCX_LPCX_BOARD_H_ */
