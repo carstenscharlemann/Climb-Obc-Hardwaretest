@@ -38,6 +38,16 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	// GPIOs
 	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
+
+	{1, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* CLOCKOUT */
+	{0, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SDA */
+	{0, 28, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SCL */
+	{0, 19, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C1 SDA */
+	{0, 20, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C1 SCL */
+	{0, 10, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SDA */
+	{0, 11, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SCL */
+
+
 };
 
 // This routine is called prior to main(). We setup all pin Functions and Clock settings here.

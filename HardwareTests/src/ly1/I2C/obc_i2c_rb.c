@@ -1,0 +1,68 @@
+#include "obc_i2c_rb.h"
+//#include "FreeRTOS.h"
+//#include "task.h"
+//#include "main.h"
+
+void taskDISABLE_INTERRUPTS() {
+	// in peg here is some ASM inline code called from RTOS
+	//__disable_irq();
+	// TODO: do we really need this here in our environment .... ????
+}
+
+taskENABLE_INTERRUPTS() {
+	// in peg here is some ASM inline code called from RTOS
+	//__enable_irq();
+	// TODO: do we really need this here in our environment .... ????
+}
+
+void I2C_RB_init(I2C_RB *rb)
+{
+	rb->start = 0;
+	rb->end = 0;
+	rb->overflow = 0;
+}
+
+void I2C_RB_put(I2C_RB *rb, void* daten)
+{
+	taskDISABLE_INTERRUPTS();
+	rb->buffer[rb->end] = daten;
+	rb->end = (rb->end + 1) & (I2C_RB_Size - 1);
+
+	if (rb->end == rb->start)
+	{
+		/*rb->overflow = 1; */
+//		obc_status_extended.i2c_rb_overflow = 1;
+		rb->start = (rb->start + 1) & (I2C_RB_Size - 1);
+	}
+	taskENABLE_INTERRUPTS();
+}
+
+uint8_t I2C_RB_full(I2C_RB *rb)
+{
+	if (((rb->end + 1) & (I2C_RB_Size - 1)) == rb->start)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+uint8_t I2C_RB_empty(I2C_RB *rb)
+{
+	if (rb->end == rb->start)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+void* I2C_RB_read(I2C_RB *rb)
+{
+	void *daten;
+
+	taskDISABLE_INTERRUPTS();
+	daten = rb->buffer[rb->start];
+	rb->start = (rb->start + 1) & (I2C_RB_Size - 1);
+	taskENABLE_INTERRUPTS();
+
+	return daten;
+}
