@@ -50,7 +50,6 @@ volatile i2c_status_t;
 
 i2c_status_t i2c_status;
 
-
 void I2C0_IRQHandler(void)
 {
     I2C_Handler (LPC_I2C0);
@@ -150,7 +149,7 @@ void I2C1Init(uint32_t clockrate)
 {
     int SCL;
 
-//    obc_status.i2c1_initialized = 0;
+    i2c_status.i2c1_initialized = 0;
 
     active_job_done[1] = 1;
 
@@ -222,7 +221,7 @@ void I2C2Init(uint32_t clockrate)
 {
     int SCL;
 
-    //obc_status.i2c2_initialized = 0;
+    i2c_status.i2c2_initialized = 0;
 
     active_job_done[2] = 1;
 

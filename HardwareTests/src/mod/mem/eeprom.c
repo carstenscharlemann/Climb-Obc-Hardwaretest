@@ -33,6 +33,7 @@ void EepromInit() {
 }
 
 void TestEepromCmd(int argc, char *argv[]) {
+	// { __asm volatile ("cpsie i"); }
 	TestEeprom(I2C_ADR_EEPROM1);
 }
 

@@ -8,13 +8,13 @@ static inline void __disable_irq() { __asm volatile ("cpsid i"); }
 
 void taskDISABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
-	__disable_irq();
+	//__disable_irq();
 
 }
 
 void taskENABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
-	__enable_irq();
+	//__enable_irq();
 }
 
 void I2C_RB_init(I2C_RB *rb)
