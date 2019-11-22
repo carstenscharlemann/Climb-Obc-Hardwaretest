@@ -3,16 +3,18 @@
 //#include "task.h"
 //#include "main.h"
 
+static inline void __enable_irq() { __asm volatile ("cpsie i"); }
+static inline void __disable_irq() { __asm volatile ("cpsid i"); }
+
 void taskDISABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
-	//__disable_irq();
-	// TODO: do we really need this here in our environment .... ????
+	__disable_irq();
+
 }
 
-taskENABLE_INTERRUPTS() {
+void taskENABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
-	//__enable_irq();
-	// TODO: do we really need this here in our environment .... ????
+	__enable_irq();
 }
 
 void I2C_RB_init(I2C_RB *rb)

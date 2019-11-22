@@ -16,5 +16,3 @@ uint8_t I2C_RB_full(I2C_RB *rb);
 uint8_t I2C_RB_empty(I2C_RB *rb);
 void* I2C_RB_read(I2C_RB *rb);
 
-/*static inline void __enable_irq() { __asm volatile ("cpsie i"); } */
-/*static inline void __disable_irq() { __asm volatile ("cpsid i"); } */

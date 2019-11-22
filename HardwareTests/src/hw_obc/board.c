@@ -9,6 +9,7 @@
 
 #include "obc_board.h"
 #include "..\mod\cli\cli.h"
+#include "..\layer1\I2C\obc_i2c.h"
 
 #define LED_GREEN_WD_GPIO_PORT_NUM               1
 #define LED_GREEN_WD_GPIO_BIT_NUM               18
@@ -84,16 +85,10 @@ void ObcClimbBoardInit() {
 
 	// UART for comand line interface init
 	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
-//	Chip_UART_Init(CLI_UART);
-//	Chip_UART_SetBaud(CLI_UART, 115200);
-//	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
-//
-//	/* preemption = 1, sub-priority = 1 */
-//	NVIC_SetPriority(UART2_IRQn, 1);
-//	NVIC_EnableIRQ(UART2_IRQn);
-//
-//	/* Enable UART Transmit */
-//	Chip_UART_TXEnable(CLI_UART);
+
+	// Init I2c bus for Onboard devices (3xEEProm, 1xTemp, 1x FRAM)
+	InitOnboardI2C(ONBOARD_I2C);
+
 }
 
 void UART2_IRQHandler(void) {

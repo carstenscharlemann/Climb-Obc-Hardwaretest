@@ -9,6 +9,7 @@
 
 #include "lpcx_board.h"
 #include "..\mod\cli\cli.h"
+#include "..\layer1\I2C\obc_i2c.h"
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22
@@ -71,6 +72,10 @@ void LpcxClimbBoardInit() {
 
 	// Decide the UART to use for command line interface.
 	CliInitUart(LPC_UART3, UART3_IRQn);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
+
+	// Init I2c bus for Onboard device(s) (1xEEProm)
+	InitOnboardI2C(ONBOARD_I2C);
+
 }
 
 // This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.

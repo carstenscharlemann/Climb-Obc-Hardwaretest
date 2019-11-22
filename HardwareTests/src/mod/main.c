@@ -13,6 +13,7 @@
 #include "cli\cli.h"
 #include "thr\thruster.h"
 #include "tim\timer.h"
+#include "mem/eeprom.h"
 
 // Call all Module Inits
 void MainInit() {
@@ -20,6 +21,7 @@ void MainInit() {
 	TimInit();
 	CliInit();
 	ThrInit();
+	EepromInit();
 }
 
 // Poll all Modules from Main loop
@@ -32,7 +34,7 @@ void MainMain() {
 	if (tick) {
 		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
-
+		EepromMain();
 	}
 
 }
