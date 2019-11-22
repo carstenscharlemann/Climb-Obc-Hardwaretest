@@ -66,8 +66,8 @@ void TestEeprom(uint8_t adr) {
 	while (job.job_done != 1)
 	{
 		counter++;
-		delay_ms(1);
-		if (counter > 50)
+		delay_ms(10);
+		if (counter > 5000)
 		{
 			return;
 		}

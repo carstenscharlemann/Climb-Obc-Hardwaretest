@@ -195,8 +195,11 @@ void I2C1Init(uint32_t clockrate)
     if (SCL < 4)
         SCL = 4; /*SCL darf nicht kleiner als 4 werden (siehe user manual) */
 
-    LPC_I2C1->SCLL = SCL;
-    LPC_I2C1->SCLH = SCL;
+    //LPC_I2C1->SCLL = SCL;  // 240 ??
+    //LPC_I2C1->SCLH = SCL;  // 240 ??
+    LPC_I2C1->SCLL = 125;
+    LPC_I2C1->SCLH = 125;
+
 
     /* Install interrupt handler */
     NVIC_EnableIRQ (I2C1_IRQn);
@@ -256,6 +259,7 @@ void I2C2Init(uint32_t clockrate)
 
     LPC_I2C2->SCLL = SCL;
     LPC_I2C2->SCLH = SCL;
+
 
     /* Install interrupt handler */
     NVIC_EnableIRQ (I2C2_IRQn);
@@ -479,8 +483,8 @@ void I2C_Handler(LPC_I2C_T *I2Cx)
     case I2C_I2STAT_M_TX_START:
     case I2C_I2STAT_M_TX_RESTART:
 
-//        if (DEBUG_MODE == 1)
-//            I2C_active[I2C_num]->status = I2C_I2STAT_M_TX_START;
+        if (DEBUG_MODE == 1)
+           I2C_active[I2C_num]->status = I2C_I2STAT_M_TX_START;
 
         I2Cx->CONCLR = I2C_I2CONCLR_STAC; /*clear start bit */
 
