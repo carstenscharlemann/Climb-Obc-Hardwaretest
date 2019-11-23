@@ -45,7 +45,7 @@ void EepromMain() {
 void TestEeprom(uint8_t adr) {
 	static I2C_Data job;
 	static uint8_t tx[5];
-	static uint8_t rx;
+	static uint8_t rx[200];
 	volatile uint32_t counter;
 
 	job.adress = adr;
@@ -58,7 +58,7 @@ void TestEeprom(uint8_t adr) {
 	job.tx_data = tx;
 	job.tx_size = 2;
 	job.rx_data = &rx;
-	job.rx_size = 3;
+	job.rx_size = 128;
 
 	i2c_add_job(&job);
 
@@ -66,8 +66,8 @@ void TestEeprom(uint8_t adr) {
 	while (job.job_done != 1)
 	{
 		counter++;
-		delay_ms(10);
-		if (counter > 5000)
+		delay_ms(100);
+		if (counter > 100000)
 		{
 			return;
 		}
@@ -77,6 +77,9 @@ void TestEeprom(uint8_t adr) {
 	{
 		return;
 	}
+
+	printf("Rx: %d\n", job.rx_count);
+	printf("Data: %s\n", &rx[20]);
 
 	/* Everything fine. */
 	return;
