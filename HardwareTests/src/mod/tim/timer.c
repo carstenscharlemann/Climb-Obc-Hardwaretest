@@ -125,7 +125,7 @@ void TimOutputClockCmd(int argc, char *argv[]) {
 	if (on) {
 		Chip_Clock_SetCLKOUTSource(src, div);
 		Chip_Clock_EnableCLKOUT();
-		printf("CLKOUT (P1.27) enabled. Devider: %d \n", div);
+		printf("CLKOUT (P1.27) enabled. Divider: %d \n", div);
 	} else {
 		printf("CLKOUT (P1.27) disabled\n");
 	}
