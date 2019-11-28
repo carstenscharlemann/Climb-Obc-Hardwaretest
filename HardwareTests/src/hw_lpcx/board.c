@@ -43,6 +43,12 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0, 16, IOCON_MODE_INACT | IOCON_FUNC0},	/* JOYSTICK_RIGHT */
 	{0, 17, IOCON_MODE_INACT | IOCON_FUNC0},	/* JOYSTICK_PRESS */
 
+	{0, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SDA */		// this has nothing connected (only pull ups) and is
+	{0, 28, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SCL */      // available on PAD10/PAD16
+	{0, 19, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SDA */		// this connects to eeprom with adr 0x50
+	{0, 20, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SCL */      // and is also on PAD2/PAD8
+
+
 };
 
 //

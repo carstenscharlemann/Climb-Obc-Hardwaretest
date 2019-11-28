@@ -28,6 +28,7 @@ int main(void) {
 #if defined (__USE_LPCOPEN)
 #if defined (HW_USED)
 	// Our own board abstraction.
+
 	ClimbBoardInit();
 #else
 	// The original LpcOpen way of Chip initialize if no board is defined. Not sure if this Clock Update is needed ...???...

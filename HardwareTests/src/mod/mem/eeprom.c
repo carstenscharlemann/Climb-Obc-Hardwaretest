@@ -4,11 +4,14 @@
  *  Created on: 22.11.2019
  *  Code parts are copied from PEG flight software
   */
+#include <stdio.h>
 
 #include "eeprom.h"
 #include "../../globals.h"
 #include "../../layer1/I2C/obc_i2c.h"
 #include "../main.h"
+#include "../cli/cli.h"
+
 
 // Prototypes
 void TestEeprom(uint8_t adr);
@@ -57,7 +60,7 @@ void TestEeprom(uint8_t adr) {
 	job.device = ONBOARD_I2C;
 	job.tx_data = tx;
 	job.tx_size = 2;
-	job.rx_data = &rx;
+	job.rx_data = rx;
 	job.rx_size = 128;
 
 	i2c_add_job(&job);

@@ -23,6 +23,26 @@ enum
 	I2C_ERROR_NO_ERROR = 0, I2C_ERROR_RX_OVERFLOW, I2C_ERROR_BUS_ERROR, I2C_ERROR_SM_ERROR, I2C_ERROR_JOB_NOT_FINISHED
 } i2c_errors_e;
 
+typedef struct i2c_status_s
+{
+	/* OBC status bits block 2 - 32 Bits */
+	unsigned int i2c_initialized 				:1;  /* Bit 0 */
+	unsigned int i2c_interrupt_handler_error 	:1;  /* Bit 3 */
+	unsigned int unused 		  				:28; /* Bit 4..31 */
+
+	/* OBC error and overflow counters */
+	/* --- Block 1 --- */
+	uint8_t i2c_error_counter;
+}
+volatile i2c_status_t;
+
+// This is/was somehow configured via RTOS header files ....
+#define configMAX_LIBRARY_INTERRUPT_PRIORITY    ( 5 )
+#define I2C0_INTERRUPT_PRIORITY         (configMAX_LIBRARY_INTERRUPT_PRIORITY + 4)  /* I2C */
+#define I2C1_INTERRUPT_PRIORITY         (configMAX_LIBRARY_INTERRUPT_PRIORITY + 3)  /* I2C */ //
+#define I2C2_INTERRUPT_PRIORITY         (configMAX_LIBRARY_INTERRUPT_PRIORITY + 4)  /* I2C */
+
+
 //#define I2C_ERROR_RX_OVERFLOW 	0x01
 //#define I2C_ERROR_BUS_ERROR   	0x02
 //#define I2C_ERROR_SM_ERROR   	0x03
@@ -43,7 +63,7 @@ enum
 //	LPC_I2C_T *device;
 //}volatile I2C_Data;
 
-uint8_t i2c_add_job(I2C_Data* data);
+//uint8_t i2c_add_job(I2C_Data* data);
 
 void I2C_send();
 

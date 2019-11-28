@@ -42,6 +42,7 @@ typedef struct
 	LPC_I2C_T *device;
 } volatile I2C_Data;
 
+uint8_t i2c_add_job(I2C_Data* data);
 
 void init_i2c(LPC_I2C_T *I2Cx, uint32_t clockrate);
 
