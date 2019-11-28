@@ -1,20 +1,16 @@
 #include "obc_i2c_rb.h"
-//#include "FreeRTOS.h"
-//#include "task.h"
-//#include "main.h"
 
 static inline void __enable_irq() { __asm volatile ("cpsie i"); }
 static inline void __disable_irq() { __asm volatile ("cpsid i"); }
 
 void taskDISABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
-	//__disable_irq();
-
+	__disable_irq();
 }
 
 void taskENABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
-	//__enable_irq();
+	__enable_irq();
 }
 
 void I2C_RB_init(I2C_RB *rb)
