@@ -9,6 +9,7 @@
 
 #include "obc_board.h"
 #include "..\mod\cli\cli.h"
+#include "..\layer1\I2C\obc_i2c.h"
 
 #define LED_GREEN_WD_GPIO_PORT_NUM               1
 #define LED_GREEN_WD_GPIO_BIT_NUM               18
@@ -43,6 +44,16 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 
 	{1, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* CLOCKOUT */
 
+	{0, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SDA */
+	{0, 28, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SCL */
+
+	{0, 19, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SDA */
+	{0, 20, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SCL */
+
+	{0, 10, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SDA */
+	{0, 11, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SCL */
+
+
 };
 
 
@@ -75,15 +86,17 @@ void ObcClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM, false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM, false);
 
-	// Decide the UART to use for comand line interface.
+	// UART for comand line interface init
 	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
+
+	// Init I2c bus for Onboard devices (3xEEProm, 1xTemp, 1x FRAM)
+	InitOnboardI2C(ONBOARD_I2C);
+
 }
 
-// This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.
 void UART2_IRQHandler(void) {
 	CliUartIRQHandler(LPC_UART2);
 }
-
 
 void ObcLedToggle(uint8_t ledNr) {
 	if (ledNr == 0) {
@@ -113,8 +126,6 @@ bool ObcLedTest(uint8_t ledNr)
 }
 
 
-// Read the 2 IO lines which show the status of the Debug HW Switch and the reset-flipflop.
-// TODO: make some general routines for 'debouncing' IO Read access to avoid getting wrong spike reads....
 bootmode_t ObcGetBootmode(){
 	bool boot = Chip_GPIO_ReadPortBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM);
 	if (Chip_GPIO_ReadPortBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM)) {

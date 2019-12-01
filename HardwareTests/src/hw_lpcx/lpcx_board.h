@@ -10,6 +10,10 @@
 
 #include "chip.h"
 
+/* Onboard I2C adresses */
+#define ONBOARD_I2C				LPC_I2C1			// ist doich die selbe wie am obc
+#define I2C_ADR_EEPROM1				0x50			// lpcx hat nur ein eeprom
+
 // Module API (all as Aliases pointing to own implementation)
 #define ClimbBoardInit 			LpcxClimbBoardInit
 #define ClimbBoardSystemInit	LpcxClimbBoardSystemInit

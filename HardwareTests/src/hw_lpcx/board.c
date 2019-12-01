@@ -9,6 +9,7 @@
 
 #include "lpcx_board.h"
 #include "..\mod\cli\cli.h"
+#include "..\layer1\I2C\obc_i2c.h"
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22
@@ -42,6 +43,12 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0, 16, IOCON_MODE_INACT | IOCON_FUNC0},	/* JOYSTICK_RIGHT */
 	{0, 17, IOCON_MODE_INACT | IOCON_FUNC0},	/* JOYSTICK_PRESS */
 
+	{0, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SDA */		// this has nothing connected (only pull ups) and is
+	{0, 28, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SCL */      // available on PAD10/PAD16
+	{0, 19, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SDA */		// this connects to eeprom with adr 0x50
+	{0, 20, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SCL */      // and is also on PAD2/PAD8
+
+
 };
 
 //
@@ -71,6 +78,10 @@ void LpcxClimbBoardInit() {
 
 	// Decide the UART to use for command line interface.
 	CliInitUart(LPC_UART3, UART3_IRQn);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
+
+	// Init I2c bus for Onboard device(s) (1xEEProm)
+	InitOnboardI2C(ONBOARD_I2C);
+
 }
 
 // This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.

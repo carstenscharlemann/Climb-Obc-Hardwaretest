@@ -6,6 +6,7 @@
  */
 
 #include <chip.h>
+#include <stdio.h>		// for printf()
 #include <string.h>		// for strcmp()
 #include <stdlib.h>		// for atoi()
 
@@ -58,9 +59,9 @@ void TimInit() {
 	// We use clockout but disable after reset.
 	Chip_Clock_DisableCLKOUT();
 
+
 	// Register module Commands
 	RegisterCommand("clkOut", TimOutputClockCmd);
-
 }
 
 // This 'overwrites' the weak definition of this IRQ in cr_startup_lpc175x_6x.c
@@ -124,7 +125,7 @@ void TimOutputClockCmd(int argc, char *argv[]) {
 	if (on) {
 		Chip_Clock_SetCLKOUTSource(src, div);
 		Chip_Clock_EnableCLKOUT();
-		printf("CLKOUT (P1.27) enabled. Devider: %d \n", div);
+		printf("CLKOUT (P1.27) enabled. Divider: %d \n", div);
 	} else {
 		printf("CLKOUT (P1.27) disabled\n");
 	}

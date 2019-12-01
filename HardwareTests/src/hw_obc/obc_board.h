@@ -10,6 +10,14 @@
 
 #include "chip.h"
 
+/* Onboard I2C bus and conected adresses */
+#define ONBOARD_I2C				LPC_I2C1
+#define I2C_ADR_EEPROM1				0x57
+#define I2C_ADR_EEPROM2				0x53
+#define I2C_ADR_EEPROM3				0x51
+#define I2C_ADR_TEMP				0x90
+#define I2C_ADR_FRAM				0x50
+
 // Module API (all as Aliases pointing to implementation)
 #define ClimbBoardInit 			ObcClimbBoardInit
 #define ClimbBoardSystemInit 	ObcClimbBoardSystemInit
