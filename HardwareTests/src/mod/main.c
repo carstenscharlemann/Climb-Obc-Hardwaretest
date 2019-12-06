@@ -17,7 +17,7 @@
 
 // Call all Module Inits
 void MainInit() {
-	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
+	printf("Hello Alex %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
 	CliInit();
 	ThrInit();
