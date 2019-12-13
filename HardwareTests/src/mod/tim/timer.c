@@ -86,6 +86,20 @@ bool TimMain(){
 	return false;
 }
 
+void TimBlockMs(uint8_t ms) {
+	uint32_t cr = Chip_Clock_GetPeripheralClockRate(MAINLOOP_TIMER_PCLK);
+	uint32_t cntToWait = ms * cr/1000 ;
+
+	LPC_TIMER_T *mlTimer = MAINLOOP_TIMER;
+	uint32_t currTimerReg = mlTimer->TC;
+	uint32_t waitFor = currTimerReg + cntToWait;
+	if (waitFor < currTimerReg) {
+		// we have to wait for the TC to overflow first
+		while (mlTimer->TC > currTimerReg);
+	}
+	while (mlTimer->TC < waitFor);
+}
+
 // Command to switch one of the internal Clock signals to the output PIN43 P1[27] 'CLKOUT'
 // In OBC there is the 'Probe CLKO' pad connected. In LPCX this is on 'C16' - 'PAD16'
 //

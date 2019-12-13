@@ -15,5 +15,7 @@
 void TimInit();						    // Module Init called once prior mainloop
 bool TimMain();							// Module routine participating each mainloop.
 
+void TimBlockMs(uint8_t ms);			// This really blocks. So use carefully.
+
 
 #endif /* MOD_TIM_TIMER_H_ */

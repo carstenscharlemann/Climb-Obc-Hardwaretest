@@ -32,9 +32,13 @@ void MainMain() {
 	bool tick = TimMain();
 
 	if (tick) {
-		ClimbLedToggle(0);
+		//ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
 		EepromMain();
+
+		ClimbLedToggle(0);
+		//TimBlockMs(5);
+		//ClimbLedToggle(0);
 	}
 
 }

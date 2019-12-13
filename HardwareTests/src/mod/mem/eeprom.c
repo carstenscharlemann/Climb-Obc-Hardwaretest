@@ -175,6 +175,13 @@ void EepromMain() {
 				uint16_t pagenr = (writePageTx[0] << 8 | writePageTx[1]) / 32;
 				printf("Page %d (ID:%x) written.", pagenr, writePageTx[2]);
 			}
+			// Our Main-tick is 250ms, so it is very unlikely that we have not had the 5ms Page Write time for our EEPROMS when we are here.
+			// to be 100%sure
+			// either wait another tick here -> wastes 250ms
+			// 		-> ...set another bit and return to wait until write in Progress can be deleted..
+			// or lets waste this 5ms here now. (and block the main loop for this time).
+			TimBlockMs(5);
+
 			writeInProgress = false;
 		}
 	}
