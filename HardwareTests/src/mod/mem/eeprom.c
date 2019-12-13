@@ -13,6 +13,7 @@
 #include "../../layer1/I2C/obc_i2c.h"
 #include "../main.h"
 #include "../cli/cli.h"
+#include "../tim/timer.h"
 
 
 // module variables

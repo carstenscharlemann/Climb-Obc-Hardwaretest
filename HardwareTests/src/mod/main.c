@@ -32,14 +32,19 @@ void MainMain() {
 	bool tick = TimMain();
 
 	if (tick) {
-		//ClimbLedToggle(0);
+		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
 		EepromMain();
-
-		ClimbLedToggle(0);
-		//TimBlockMs(5);
-		//ClimbLedToggle(0);
 	}
+
+//  Test timer delay function....
+//	static uint32_t counter = 0;
+//	if ((counter++ % 100000) == 0) {
+//		ClimbLedToggle(0);
+//		TimBlockMs(10);
+//		ClimbLedToggle(0);
+//	}
+
 
 }
 
