@@ -6,6 +6,7 @@
   */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "eeprom.h"
 #include "../../globals.h"
@@ -32,9 +33,11 @@ bool readInProgress = false;
 void (*readFinishedHandler)(eeprom_page_t *page) = 0;
 
 // Prototypes
-void TestEeprom(uint8_t adr);
 void WriteStatusCmd(int argc, char *argv[]);
 void ReadStatusCmd(int argc, char *argv[]);
+void ReadPageCmd(int argc, char *argv[]);
+void ReadPageFinished(eeprom_page_t *page);
+void ReadStatusReceived(eeprom_page_t *page);
 uint32_t crc32(uint8_t *data, uint32_t len);
 
 //void delay_ms(uint32_t i)
@@ -52,11 +55,73 @@ void EepromInit() {
 	// Register module Commands
 	RegisterCommand("eeWriteName", WriteStatusCmd);
 	RegisterCommand("eeStatus", ReadStatusCmd);
+	RegisterCommand("readPage", ReadPageCmd);
+	//RegisterCommand("erfrWriteBlock", WritePageCmd);
 }
 
-//void TestEepromCmd(int argc, char *argv[]) {
-//	TestEeprom(I2C_ADR_EEPROM1);
-//}
+void ReadPageCmd(int argc, char *argv[]) {
+	if (argc != 2) {
+		printf("uasge: cmd <mem> <pageNr> where mem i one of EE1, EE2, ...\n" );
+		return;
+	}
+
+	// CLI params to binary params
+	uint8_t chipAdr = GetI2CAddrForMemoryDeviceName(argv[0]);
+	uint16_t pageNr = atoi(argv[1]);
+
+	// Binary Command
+	if (! ReadPageAsync(chipAdr, pageNr, ReadPageFinished)) {
+		printf("Not possible to initialize the block read operation! (currently used?)\n");
+	}
+}
+
+void ReadPageFinished(eeprom_page_t *page) {
+	printf("Page read Id: %02X, WriteCycl: %d, CS: %08X \nRawData:  ", page->id, (page->cycles_high<<8 | page->cycles_low), page->cs);
+	for (int i=0; i<EEPROM_PAGE_SIZE; i++ ) {
+		printf("%02X ", ((uint8_t*)page)[i]);
+		if ((i+1)%8 == 0) {
+			printf("   ");
+		}
+	}
+	printf("\n");
+}
+
+void ReadStatusCmd(int argc, char *argv[]) {
+	if (! ReadPageAsync(I2C_ADR_EEPROM1, EEPROM_STATUS_PAGE, ReadStatusReceived)) {
+		printf("Not possible to initialize the block read operation! (currently used?)\n");
+	}
+}
+
+void ReadStatusReceived(eeprom_page_t *page) {
+	memcpy(&statusPage1, page, EEPROM_PAGE_SIZE);
+	printf("Name: %s\n", statusPage1.obc_name);
+	printf("HWRev: %s\n", statusPage1.obc_hardware_version);
+	printf("ResetCnt %d %d %d\n", statusPage1.reset_counter1, statusPage1.reset_counter2, statusPage1.reset_counter3 );
+	printf("Write cycles: %d\n",(statusPage1.cycles_high << 16) | statusPage1.cycles_low );
+}
+
+
+bool ReadPageAsync(uint8_t chipAdress, uint16_t pageNr, void (*finishedHandler)(eeprom_page_t *page)) {
+	if (readInProgress) {
+		return false;
+	}
+	readInProgress = true;
+
+	readPageJob.device = ONBOARD_I2C;
+	readPageJob.tx_size = 2;
+	readPageJob.tx_data = readPageTx;
+	readPageJob.rx_size = EEPROM_PAGE_SIZE;
+	readPageJob.rx_data = readPageRx;
+
+	readPageJob.adress = chipAdress;
+	readPageTx[0] = ((pageNr * EEPROM_PAGE_SIZE) >> 8); 	// Addr. high
+	readPageTx[1] = ((pageNr * EEPROM_PAGE_SIZE) & 0xFF); 	// Addr. low
+
+	readFinishedHandler = finishedHandler;
+	i2c_add_job(&readPageJob);
+
+	return true;
+}
 
 
 void WriteStatusCmd(int argc, char *argv[]) {
@@ -97,33 +162,7 @@ void WriteStatusCmd(int argc, char *argv[]) {
 }
 
 
-void ReadStatusReceived(eeprom_page_t *page) {
-	memcpy(&statusPage1, page, EEPROM_PAGE_SIZE);
-	printf("Name: %s\n", statusPage1.obc_name);
-	printf("HWRev: %s\n", statusPage1.obc_hardware_version);
-	printf("ResetCnt %d %d %d\n", statusPage1.reset_counter1, statusPage1.reset_counter2, statusPage1.reset_counter3 );
-	printf("Write cycles: %d\n",(statusPage1.cycles_high << 16) | statusPage1.cycles_low );
-}
 
-
-
-void ReadStatusCmd(int argc, char *argv[]) {
-	if (!readInProgress) {
-		readInProgress = true;
-		readPageJob.device = ONBOARD_I2C;
-		readPageJob.tx_size = 2;
-		readPageJob.tx_data = readPageTx;
-		readPageJob.rx_size = EEPROM_PAGE_SIZE;
-		readPageJob.rx_data = readPageRx;
-
-		readPageJob.adress = I2C_ADR_EEPROM1;
-		readPageTx[0] = ((EEPROM_STATUS_PAGE * 32) >> 8); 		// Addr. high
-		readPageTx[1] = ((EEPROM_STATUS_PAGE * 32) & 0xFF); 	// Addr. low
-
-		readFinishedHandler = ReadStatusReceived;
-		i2c_add_job(&readPageJob);
-	}
-}
 
 
 void EepromMain() {
@@ -143,8 +182,11 @@ void EepromMain() {
 	if (readInProgress) {
 		if (readPageJob.job_done == 1) {
 			// Result is finshed -> call handler routine
-			if (readFinishedHandler != 0) {
+			if (readFinishedHandler != 0 && readPageJob.error == I2C_ERROR_NO_ERROR) {
 				readFinishedHandler((eeprom_page_t *)readPageRx);
+			}
+			if (readPageJob.error != I2C_ERROR_NO_ERROR) {
+				printf("I2C Error '%d'. No received handler called!", readPageJob.error);
 			}
 			readInProgress = false;
 		}
@@ -176,45 +218,4 @@ uint32_t crc32(uint8_t *data, uint32_t len)
 }
 
 
-//void TestEeprom(uint8_t adr) {
-//	static I2C_Data job;
-//	static uint8_t tx[5];
-//	static uint8_t rx[200];
-//	volatile uint32_t counter;
-//
-//	job.adress = adr;
-//
-//	tx[0] = ((EEPROM_STATUS_PAGE * 32) >> 8); 		// Addr. high
-//	tx[1] = ((EEPROM_STATUS_PAGE * 32) & 0xFF); 	// Addr. low
-//
-//	// Read testdata
-//	job.device = ONBOARD_I2C;
-//	job.tx_data = tx;
-//	job.tx_size = 2;
-//	job.rx_data = rx;
-//	job.rx_size = 128;
-//
-//	i2c_add_job(&job);
-//
-//	counter = 0;
-//	while (job.job_done != 1)
-//	{
-//		counter++;
-//		delay_ms(100);
-//		if (counter > 100000)
-//		{
-//			return;
-//		}
-//	}
-//
-//	if (job.error != 0)
-//	{
-//		return;
-//	}
-//
-//	printf("Rx: %d\n", job.rx_count);
-//	printf("Data: %s\n", &rx[20]);
-//
-//	/* Everything fine. */
-//	return;
-//}
+

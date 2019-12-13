@@ -7,6 +7,8 @@
  *      Author: Robert
  */
 
+#include <string.h>
+
 #include "obc_board.h"
 #include "..\mod\cli\cli.h"
 #include "..\layer1\I2C\obc_i2c.h"
@@ -157,4 +159,17 @@ char* ObcGetBootmodeStr() {
 	return "Unknown";
 }
 
+uint8_t ObcGetI2CAddrForMemoryDeviceName(char* name) {
+    if (strcmp(name,C_MEM_EEPROM1_NAME) == 0) {
+    	return I2C_ADR_EEPROM1;
+    } else if (strcmp(name,C_MEM_EEPROM2_NAME) == 0) {
+    	return I2C_ADR_EEPROM2;
+    } else if (strcmp(name,C_MEM_EEPROM3_NAME) == 0) {
+    	return I2C_ADR_EEPROM3;
+    } else if (strcmp(name,C_MEM_FRAM_NAME) == 0) {
+    	return I2C_ADR_FRAM;
+    }
+
+    return 0;
+}
 

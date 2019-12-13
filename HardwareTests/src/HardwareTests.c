@@ -28,7 +28,6 @@ int main(void) {
 #if defined (__USE_LPCOPEN)
 #if defined (HW_USED)
 	// Our own board abstraction.
-
 	ClimbBoardInit();
 #endif
 	// The original LpcOpen way of Chip initialize if no board is defined.

@@ -151,9 +151,10 @@ int CliGetChar() {
 void RegisterCommand(char* cmdStr, void (*callback)(int argc, char *argv[])) {
 	// TODO check if duplicate entry !!!
 	if ( cliRegisteredCommands < CLI_MAX_COMMANDS) {
-		 strcpy(commands[cliRegisteredCommands].cmdStr,cmdStr);
-		 commands[cliRegisteredCommands].func = callback;
-		 cliRegisteredCommands++;
+
+		strncpy(commands[cliRegisteredCommands].cmdStr,cmdStr,C_MAX_CMDSTR_LEN);
+		commands[cliRegisteredCommands].func = callback;
+		cliRegisteredCommands++;
 	} else {
 		printf("No Command slot left for registering new command.");
 	}
