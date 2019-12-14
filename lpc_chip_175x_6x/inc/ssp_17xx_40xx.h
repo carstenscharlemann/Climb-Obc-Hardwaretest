@@ -168,9 +168,11 @@ typedef enum _SSP_RAWINTSTATUS {
 	SSP_RAW_INT_STAT_BITMASK = ((uint32_t)(0xF)),
 } SSP_RAWINTSTATUS_T;
 
+// RKR 14.12.2019 IMHO this enum is a bug. I use the SSP_MASKINTSTATUS_T to clear ISC!!!!
+// added _du to find if its used somewhere ....
 typedef enum _SSP_INTCLEAR {
-	SSP_RORIC = 0x0,
-	SSP_RTIC = 0x1,
+	SSP_RORIC_du = 0x0,
+	SSP_RTIC_du = 0x1,
 	SSP_INT_CLEAR_BITMASK = 0x3,
 } SSP_INTCLEAR_T;
 
