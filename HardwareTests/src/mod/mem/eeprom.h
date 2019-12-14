@@ -97,6 +97,7 @@ void EepromMain();							// Module routine participating each mainloop.
 
 
 bool ReadPageAsync(uint8_t chipAdress, uint16_t pageNr, void (*finishedHandler)(eeprom_page_t *page));
+bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data);
 
 //RetVal eeprom_increment_reset_counter(void);
 //RetVal eeprom_write_page(uint8_t page, eeprom_page_t * data);

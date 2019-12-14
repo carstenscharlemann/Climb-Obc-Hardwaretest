@@ -35,29 +35,19 @@ void (*readFinishedHandler)(eeprom_page_t *page) = 0;
 
 // Prototypes
 void WriteStatusCmd(int argc, char *argv[]);
+void WritePageCmd(int argc, char *argv[]);
 void ReadStatusCmd(int argc, char *argv[]);
 void ReadPageCmd(int argc, char *argv[]);
 void ReadPageFinished(eeprom_page_t *page);
 void ReadStatusReceived(eeprom_page_t *page);
 uint32_t crc32(uint8_t *data, uint32_t len);
 
-//void delay_ms(uint32_t i)
-//{
-//	/* This delay shall only be used without the scheduler running, except you are exactly knowing, what you are doing */
-//	volatile uint32_t j = 0;
-//	i *= SystemCoreClock / 12000; /* Grob empirisch ermittelter Wert f�r ca 1 ms */
-//
-//	for (j = 0; j < i; j++)
-//		;
-//}
-
-
 void EepromInit() {
 	// Register module Commands
 	RegisterCommand("eeWriteName", WriteStatusCmd);
 	RegisterCommand("eeStatus", ReadStatusCmd);
 	RegisterCommand("readPage", ReadPageCmd);
-	//RegisterCommand("erfrWriteBlock", WritePageCmd);
+	RegisterCommand("writePage", WritePageCmd);
 }
 
 void ReadPageCmd(int argc, char *argv[]) {
@@ -125,46 +115,93 @@ bool ReadPageAsync(uint8_t chipAdress, uint16_t pageNr, void (*finishedHandler)(
 }
 
 
-void WriteStatusCmd(int argc, char *argv[]) {
-	if (!writeInProgress) {
-		writeInProgress = true;
-
-		eeprom_status_page_t page;
-		page.id = EEPROM_STATUS_PAGE_ID;
-		page.reset_counter1 = statusPage1.reset_counter1;
-		page.reset_counter2 = statusPage1.reset_counter2;
-		page.reset_counter3 = statusPage1.reset_counter3;
-		uint32_t cycles = (statusPage1.cycles_high << 16) | statusPage1.cycles_low;
-		cycles++;
-		page.cycles_low = cycles & 0x0000FFFF;
-		page.cycles_high = (uint8_t)(cycles >> 16);
-		strncpy(page.obc_name,"<nset>",7);
-		strncpy(page.obc_hardware_version,"-.-",4);
-		if (argc >= 1) {
-			strncpy( page.obc_name, argv[0], 7);
-			if (argc >= 2) {
-				strncpy(page.obc_hardware_version, argv[1], 4);
-			}
-		}
-		/* Calculate checksum */
-		page.cs = crc32((uint8_t *)(&page), 28);
-
-		writePageJob.device = ONBOARD_I2C;
-		writePageJob.adress = I2C_ADR_EEPROM1;
-		writePageTx[0] = ((EEPROM_STATUS_PAGE * 32) >> 8); 		// Address high
-		writePageTx[1] = ((EEPROM_STATUS_PAGE * 32) & 0xFF); 	// Address low
-		memcpy(&(writePageTx[2]),&page, 32);			// Data
-		writePageJob.tx_size = 34;
-		writePageJob.tx_data = writePageTx;
-		writePageJob.rx_data = NULL;
-		writePageJob.rx_size = 0;
-		i2c_add_job(&writePageJob);
+void WritePageCmd(int argc, char *argv[]) {
+	uint8_t fillByte = 0xAA;
+	if (argc < 2) {
+		printf("uasge: cmd <mem> <pageNr> <pattenCode> where mem is one of EE1, EE2, ... and patternCode = A,B or <byte>.\n" );
+		return;
 	}
+	// CLI params to binary params
+	uint8_t chipAdr = GetI2CAddrForMemoryDeviceName(argv[0]);
+	uint16_t pageNr = atoi(argv[1]);
+
+	if (argc >= 3) {
+		 if (strcmp(argv[2],"A") == 0) {
+			 fillByte = 0xAA;
+		 } else if (strcmp(argv[2],"B") == 0) {
+			 fillByte = 0x55;
+		 } else {
+			 fillByte = atoi(argv[2]);
+		 }
+	}
+
+	char data[EEPROM_PAGE_SIZE];
+	for (int i=0; i < EEPROM_PAGE_SIZE; i++ ){
+		data[i] = fillByte;
+	}
+
+	// Binary Command
+	if (! WritePageAsync(chipAdr, pageNr, data)) {
+		printf("Not possible to initialize the page write operation! (currently used?)\n");
+	}
+
+}
+
+bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data) {
+	if (writeInProgress) {
+		return false;
+	}
+	writeInProgress = true;
+
+	writePageJob.device = ONBOARD_I2C;
+	writePageJob.adress = chipAdress;
+	writePageTx[0] = ((pageNr * EEPROM_PAGE_SIZE) >> 8); 		// Address high
+	writePageTx[1] = ((pageNr * EEPROM_PAGE_SIZE) & 0xFF); 	// Address low
+	memcpy(&(writePageTx[2]),data, EEPROM_PAGE_SIZE);			// Data
+	writePageJob.tx_size = EEPROM_PAGE_SIZE + 2;
+	writePageJob.tx_data = writePageTx;
+	writePageJob.rx_data = NULL;
+	writePageJob.rx_size = 0;
+	i2c_add_job(&writePageJob);
+
+	return true;
 }
 
 
+void WriteStatusCmd(int argc, char *argv[]) {
+	eeprom_status_page_t page;
+	page.id = EEPROM_STATUS_PAGE_ID;
+	page.reset_counter1 = statusPage1.reset_counter1;
+	page.reset_counter2 = statusPage1.reset_counter2;
+	page.reset_counter3 = statusPage1.reset_counter3;
+	uint32_t cycles = (statusPage1.cycles_high << 16) | statusPage1.cycles_low;
+	cycles++;
+	page.cycles_low = cycles & 0x0000FFFF;
+	page.cycles_high = (uint8_t)(cycles >> 16);
+	strncpy(page.obc_name,"<nset>",7);
+	strncpy(page.obc_hardware_version,"-.-",4);
+	if (argc >= 1) {
+		strncpy( page.obc_name, argv[0], 7);
+		if (argc >= 2) {
+			strncpy(page.obc_hardware_version, argv[1], 4);
+		}
+	}
+	/* Calculate checksum */
+	page.cs = crc32((uint8_t *)(&page), 28);
 
-
+	WritePageAsync(I2C_ADR_EEPROM1, EEPROM_STATUS_PAGE, (char *)&page);
+//		writePageJob.device = ONBOARD_I2C;
+//		writePageJob.adress = I2C_ADR_EEPROM1;
+//		writePageTx[0] = ((EEPROM_STATUS_PAGE * 32) >> 8); 		// Address high
+//		writePageTx[1] = ((EEPROM_STATUS_PAGE * 32) & 0xFF); 	// Address low
+//		memcpy(&(writePageTx[2]),&page, 32);			// Data
+//		writePageJob.tx_size = 34;
+//		writePageJob.tx_data = writePageTx;
+//		writePageJob.rx_data = NULL;
+//		writePageJob.rx_size = 0;
+//		i2c_add_job(&writePageJob);
+//	}
+}
 
 void EepromMain() {
 	if (writeInProgress) {
@@ -179,8 +216,8 @@ void EepromMain() {
 			// Our Main-tick is 250ms, so it is very unlikely that we have not had the 5ms Page Write time for our EEPROMS when we are here.
 			// to be 100%sure
 			// either wait another tick here -> wastes 250ms
-			// 		-> ...set another bit and return to wait until write in Progress can be deleted..
-			// or lets waste this 5ms here now. (and block the main loop for this time).
+			//
+			// or lets waste this 5ms here now (and block the main loop for this time).
 			TimBlockMs(5);
 
 			writeInProgress = false;
