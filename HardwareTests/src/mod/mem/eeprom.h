@@ -8,6 +8,7 @@
 #define MOD_MEM_EEPROM_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define EEPROM_SIZE 			8192 	/* Bytes */
 #define EEPROM_PAGE_SIZE 		32 		/* Bytes */
@@ -94,6 +95,9 @@ typedef struct eeprom_status_page_s
 void EepromInit();						    // Module Init called once prior mainloop
 void EepromMain();							// Module routine participating each mainloop.
 
+
+bool ReadPageAsync(uint8_t chipAdress, uint16_t pageNr, void (*finishedHandler)(eeprom_page_t *page));
+bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data);
 
 //RetVal eeprom_increment_reset_counter(void);
 //RetVal eeprom_write_page(uint8_t page, eeprom_page_t * data);

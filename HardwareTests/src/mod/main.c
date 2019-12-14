@@ -37,5 +37,14 @@ void MainMain() {
 		EepromMain();
 	}
 
+//  Test timer delay function....
+//	static uint32_t counter = 0;
+//	if ((counter++ % 100000) == 0) {
+//		ClimbLedToggle(0);
+//		TimBlockMs(10);
+//		ClimbLedToggle(0);
+//	}
+
+
 }
 

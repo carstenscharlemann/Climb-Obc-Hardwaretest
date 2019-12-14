@@ -23,7 +23,7 @@ void CliPutChar(char ch);
 int  CliGetChar();
 
 // Command Interface
-#define C_MAX_CMDSTR_LEN	10
+#define C_MAX_CMDSTR_LEN	16
 typedef struct cliCommand {
 	char	cmdStr[C_MAX_CMDSTR_LEN];
 	void (*func)(int argc, char *argv[]);

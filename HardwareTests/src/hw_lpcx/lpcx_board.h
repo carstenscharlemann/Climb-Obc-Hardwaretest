@@ -14,6 +14,9 @@
 #define ONBOARD_I2C				LPC_I2C1			// ist doich die selbe wie am obc
 #define I2C_ADR_EEPROM1				0x50			// lpcx hat nur ein eeprom
 
+//typedef enum {memEeprom1 } memdev_t;
+//#define C_MEM_EEPROM1_NAME 		"EE1"
+
 // Module API (all as Aliases pointing to own implementation)
 #define ClimbBoardInit 			LpcxClimbBoardInit
 #define ClimbBoardSystemInit	LpcxClimbBoardSystemInit
@@ -23,6 +26,8 @@
 #define ClimbLedToggle(x)		LpcxLedToggle(x)
 #define ClimbLedSet(x,y)		LpcxLedSet(x,y)
 #define ClimbLedTest(x)			LpcxLedTest(x)
+
+#define GetI2CAddrForMemoryDeviceName(x) I2C_ADR_EEPROM1		// no need to implement code here its obvious, we only have one memory chip.
 
 // Module Implementation Prototypes
 void LpcxClimbBoardSystemInit();
