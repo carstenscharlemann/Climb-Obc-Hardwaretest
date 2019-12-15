@@ -316,6 +316,7 @@ void SSP0_IRQHandler(void)
 						//GPIO_SetValue(FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 						//xSemaphoreGiveFromISR(flash2_semaphore, &xHigherPriorityTaskWoken);
+						// TOdo ....
 						flash2_busy = false;
 						break;
 
