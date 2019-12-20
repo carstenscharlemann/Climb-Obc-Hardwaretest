@@ -47,18 +47,20 @@ typedef enum flash_ret_e
 	FLASH_RET_INVALID_ADR,
 	FLASH_RET_INVALID_SECTOR,
 	FLASH_RET_SEMAPHORE_CREATE_ERROR,
-	FLASH_RET_JOB_ADD_ERROR
+	FLASH_RET_JOB_ADD_ERROR,
+	FLASH_RET_WRONG_FLASHNR
 } flash_ret;
 
 
 // prototypes
-bool flash2_init(void);
-flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length);
+bool flash_init(void);
+flash_ret flash12_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length);
 void ReadFlashPageCmd(int argc, char *argv[]);
-void ReadFlashFinished(char *data, uint16_t len);
-bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len, void (*finishedHandler)(char *data, uint16_t len));
+void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len);
+bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len,  void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len));
 
 // local variables
+bool flash1_initialized = false;
 bool flash2_initialized = false;
 
 
@@ -66,23 +68,25 @@ bool flash2_initialized = false;
 
 
 void FlashInit() {
+	flash1_initialized = false;
 	flash2_initialized = false;
-	if (! flash2_init()) {
-		printf("Init Fehler für Flash 2.\n");
-	} else {
-		RegisterCommand("fRead", ReadFlashPageCmd);
+
+	if (! flash_init()) {
+		printf("Init Fehler für Flash.\n");
+		return;
 	}
+	RegisterCommand("fRead", ReadFlashPageCmd);
 }
 
 
 void ReadFlashPageCmd(int argc, char *argv[]) {
 	if (argc != 3) {
-		printf("uasge: cmd <mem> <adr> <len> where mem i one of F1, F2\n" );
+		printf("uasge: cmd <mem> <adr> <len> where mem i one of 1, 2\n" );
 		return;
 	}
 
 	// CLI params to binary params
-	uint8_t flashNr = 2; //GetI2CAddrForMemoryDeviceName(argv[0]);
+	uint8_t flashNr = atoi(argv[0]);
 	uint16_t adr = atoi(argv[1]);
 	uint16_t len = atoi(argv[2]);
 	if (len > FLASH_MAX_READ_SIZE) {
@@ -97,19 +101,19 @@ void ReadFlashPageCmd(int argc, char *argv[]) {
 
 static uint8_t FlashReadData[FLASH_MAX_READ_SIZE+10];
 
-bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len, void (*finishedHandler)(char *data, uint16_t len)) {
-	if (flashNr == 2) {
-		flash_ret ret =  flash2_read(adr, FlashReadData, len);
-		if (ret == FLASH_RET_SUCCESS) {
-			ReadFlashFinished(FlashReadData, len);
-			return true;
-		}
-		return false;
+bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len, void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len)) {
+
+	flash_ret ret =  flash12_read(flashNr, adr, FlashReadData, len);
+	if (ret == FLASH_RET_SUCCESS) {
+		finishedHandler(flashNr, adr, FlashReadData, len);
+		return true;
 	}
+	return false;
+
 }
 
-void ReadFlashFinished(char *data, uint16_t len) {
-	printf("Flash read:");
+void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len) {
+	printf("Flash %d read at %04X:\n", flashNr, adr);
 	for (int i=0; i<len; i++ ) {
 		printf("%02X ", ((uint8_t*)data)[i]);
 		if ((i+1)%8 == 0) {
@@ -130,8 +134,10 @@ void ReadFlashFinished(char *data, uint16_t len) {
  * Program and erase suspend possible
  */
 
-bool flash2_init(void)
+bool flash_init(void)
 {
+	ssp01_init();
+
 	/* Init flash 1 and read ID register
 	 * Parameters: none
 	 * Return value: 0 in case of success, != 0 in case of error
@@ -141,7 +147,7 @@ bool flash2_init(void)
 	uint8_t *job_status = NULL;
 	volatile uint32_t helper;
 
-	ssp0_init();
+
 
 //  -> should be checked with add_job (same as eeprom) !?
 //	if (obc_status.ssp0_initialized == 0)
@@ -164,12 +170,11 @@ bool flash2_init(void)
 //			return FLASH_RET_SEMAPHORE_CREATE_ERROR;
 //		}
 //	}
-
 	/* Read flash ID register */
 	tx[0] = 0x9F; /* 0x9F */
 	rx[0] = 0x00;
 
-	if (ssp0_add_job(SSP0_DEV_FLASH2_1, tx, 1, rx, 1, &job_status))
+	if (ssp_add_job(SSP_BUS1 , SSPx_DEV_FLASH1_1, tx, 1, rx, 1, &job_status))
 	{
 		/* Error while adding job */
 		//return FLASH_RET_JOB_ADD_ERROR;
@@ -194,7 +199,63 @@ bool flash2_init(void)
 	tx[0] = 0x9F; /* 0x9F */
 	rx[0] = 0x00;
 
-	if (ssp0_add_job(SSP0_DEV_FLASH2_2, tx, 1, rx, 1, &job_status))
+	if (ssp_add_job(SSP_BUS1, SSPx_DEV_FLASH1_2, tx, 1, rx, 1, &job_status))
+	{
+		/* Error while adding job */
+		//return FLASH_RET_JOB_ADD_ERROR;
+		return false;
+	}
+
+	helper = 0;
+	while ((*job_status != SSP_JOB_STATE_DONE) && (helper < 1000000))
+	{
+		/* Wait for job to finish */
+		helper++;
+	}
+
+	if (rx[0] != 0x01)
+	{
+		/* Error - Flash could not be accessed */
+//		obc_status.flash2_initialized = 0;
+//		return FLASH_RET_INIT_ERROR;
+		return false;
+	}
+
+	/* Everything ok */
+	flash1_initialized = true;
+
+
+
+	/* Read flash ID register */
+	tx[0] = 0x9F; /* 0x9F */
+	rx[0] = 0x00;
+
+	if (ssp_add_job(SSP_BUS0 , SSPx_DEV_FLASH2_1, tx, 1, rx, 1, &job_status))
+	{
+		/* Error while adding job */
+		//return FLASH_RET_JOB_ADD_ERROR;
+		return false;
+	}
+	helper = 0;
+	while ((*job_status != SSP_JOB_STATE_DONE) && (helper < 1000000))
+	{
+		/* Wait for job to finish */
+		helper++;
+	}
+
+	if (rx[0] != 0x01)
+	{
+		/* Error - Flash could not be accessed */
+		//obc_status.flash2_initialized = 0;
+		//return FLASH_RET_INIT_ERROR;
+		return false;
+	}
+
+	/* Read flash ID register */
+	tx[0] = 0x9F; /* 0x9F */
+	rx[0] = 0x00;
+
+	if (ssp_add_job(SSP_BUS0, SSPx_DEV_FLASH2_2, tx, 1, rx, 1, &job_status))
 	{
 		/* Error while adding job */
 		//return FLASH_RET_JOB_ADD_ERROR;
@@ -374,7 +435,7 @@ bool flash2_init(void)
 //
 
 
-flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length)
+flash_ret flash12_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length)
 {
 	uint8_t tx[5];
 	uint8_t rx[1];
@@ -382,7 +443,23 @@ flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length)
 	uint8_t *job_status;
 	/* Achtung -> SSP Frequenz für read maximal 50MHz! */
 
-	if (! flash2_initialized)
+	bool *initializedFlag;
+	volatile bool *busyFlag;
+	uint8_t busNr;
+
+	if (flashNr == 1) {
+		initializedFlag = &flash1_initialized;
+		busyFlag = &flash1_busy;
+		busNr = 1;
+	} else if (flashNr == 2) {
+		initializedFlag = &flash2_initialized;
+		busyFlag = &flash2_busy;
+		busNr = 0;
+	} else {
+		return FLASH_RET_WRONG_FLASHNR;
+	}
+
+	if (! *initializedFlag)
 	{
 		// Flash was not initialized correctly
 		return FLASH_RET_INIT_ERROR;
@@ -400,11 +477,19 @@ flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length)
 
 	if (adr < FLASH_DIE_SIZE)
 	{
-		flash_dev = SSP0_DEV_FLASH2_1;
+		if (flashNr == 2) {
+			flash_dev = SSPx_DEV_FLASH2_1;
+		} else {
+			flash_dev = SSPx_DEV_FLASH1_1;
+		}
 	}
 	else if (adr < FLASH_SIZE)
 	{
-		flash_dev = SSP0_DEV_FLASH2_2;
+		if (flashNr == 2) {
+			flash_dev = SSPx_DEV_FLASH2_2;
+		} else {
+			flash_dev = SSPx_DEV_FLASH1_2;
+		}
 		adr = adr - FLASH_DIE_SIZE;
 	}
 	else
@@ -419,16 +504,16 @@ flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length)
 
 
 	//xSemaphoreTake(flash2_semaphore, (TickType_t) 0); /* Free semaphore */
-	if (! flash2_busy ) {
-		flash2_busy = true;
+	if (! *busyFlag) {
+		*busyFlag = true;
 
-		if (ssp0_add_job(flash_dev, tx, 1, rx, 1, NULL)) {
+		if (ssp_add_job(busNr, flash_dev, tx, 1, rx, 1, NULL)) {
 				/* Error while adding job */
 				return FLASH_RET_JOB_ADD_ERROR;
 		}
 
 		// Wir wartebn bis zu 250 ms bis das busy ausgeht -> TODO make mainloop atate engine
-		if (!TimWaitForFalseMs(&flash2_busy, 250)) {
+		if (!TimWaitForFalseMs(busyFlag, 250)) {
 			return FLASH_RET_SEMAPHORE_TIMEOUT;
 		}
 //		if (xSemaphoreTake(flash2_semaphore, (TickType_t) 250) == pdFALSE)	{
@@ -449,10 +534,10 @@ flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length)
 		tx[4] = (adr & 0x000000ff);
 
 		//xSemaphoreTake(flash2_semaphore, (TickType_t) 0); /* Free semaphore */
-		flash2_busy = true;
+		*busyFlag = true;
 
 
-		if (ssp0_add_job(flash_dev, tx, 5, rx_data, length, &job_status))
+		if (ssp_add_job(busNr, flash_dev, tx, 5, rx_data, length, &job_status))
 		{
 			/* Error while adding job */
 			return FLASH_RET_JOB_ADD_ERROR;
@@ -463,7 +548,7 @@ flash_ret flash2_read(uint32_t adr, uint8_t *rx_data, uint32_t length)
 //			/* Semaphore was not given in the specified time intervall - rx data is not valid */
 //			return FLASH_RET_SEMAPHORE_TIMEOUT;
 //		}
-		if (!TimWaitForFalseMs(&flash2_busy, 500)) {
+		if (!TimWaitForFalseMs(busyFlag, (uint8_t)500)) {
 			return FLASH_RET_SEMAPHORE_TIMEOUT;
 		}
 

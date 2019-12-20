@@ -11,7 +11,7 @@
 void FlashInit();						    // Module Init called once prior mainloop
 void FlashMain();							// Module routine participating each mainloop.
 
-bool ReadPageAsync(uint8_t flashNr, uint16_t pageNr, void (*finishedHandler)(void *pagePtr));
+bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len, void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len));
 bool WritePageAsync(uint8_t flashNr, uint16_t pageNr, char *data);
 
 

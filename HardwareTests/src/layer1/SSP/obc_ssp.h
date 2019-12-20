@@ -18,15 +18,27 @@
 /* Max SPI buffer length */
 #define SPI_MAX_JOBS 16
 
-enum
-{ /* SSP1 sensors */
-	SSP1_DEV_FLASH1_1, SSP1_DEV_FLASH1_2, SSP1_DEV_MPU
-};
+//enum
+//{ /* SSP1 sensors */
+//	SSP1_DEV_FLASH1_1, SSP1_DEV_FLASH1_2, SSP1_DEV_MPU
+//};
+//
+//enum
+//{
+//	SSP0_DEV_FLASH2_1, SSP0_DEV_FLASH2_2
+//};
 
 enum
 {
-	SSP0_DEV_FLASH2_1, SSP0_DEV_FLASH2_2
+	SSPx_DEV_FLASH1_1, SSPx_DEV_FLASH1_2, SSPx_DEV_FLASH2_1, SSPx_DEV_FLASH2_2
 };
+
+
+enum
+{
+	SSP_BUS0, SSP_BUS1
+};
+
 
 enum
 {
@@ -35,7 +47,7 @@ enum
 
 enum
 { /* Return values for ssp_add_job */
-	SSP_JOB_ADDED = 0, SSP_JOB_BUFFER_OVERFLOW, SSP_JOB_MALLOC_FAILED, SSP_JOB_ERROR, SSP_JOB_NOT_INITIALIZED
+	SSP_JOB_ADDED = 0, SSP_JOB_BUFFER_OVERFLOW, SSP_JOB_MALLOC_FAILED, SSP_JOB_ERROR, SSP_JOB_NOT_INITIALIZED, SSP_WRONG_BUSNR
 };
 
 typedef struct ssp_job_s
@@ -174,16 +186,14 @@ typedef struct tmp_status_s
 }
 volatile tmp_status_t;
 
+extern volatile bool flash1_busy;		// temp 'ersatz' für semaphor
 extern volatile bool flash2_busy;		// temp 'ersatz' für semaphor
 
-void ssp1_init(void);
-void SSP1_IRQHandler(void);
-uint32_t ssp1_add_job(uint8_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
-		uint8_t **job_status);
+void ssp01_init(void);
+//uint32_t ssp1_add_job(uint8_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
+//		uint8_t **job_status);
 
-void ssp0_init(void);
-void SSP0_IRQHandler(void);
-uint32_t ssp0_add_job(uint8_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
+uint32_t ssp_add_job(uint8_t busNr, uint8_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
 		uint8_t **job_status);
 
 #endif /* STC_SPI_H_ */

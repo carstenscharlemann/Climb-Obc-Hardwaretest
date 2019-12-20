@@ -6,14 +6,15 @@
  */
 #include <stdio.h>
 
-#include "..\globals.h"
+#include "../globals.h"
 #include "main.h"
 
 // include Modules used here
-#include "cli\cli.h"
-#include "thr\thruster.h"
-#include "tim\timer.h"
+#include "cli/cli.h"
+#include "thr/thruster.h"
+#include "tim/timer.h"
 #include "mem/eeprom.h"
+#include "mem/flash.h"
 
 // Call all Module Inits
 void MainInit() {
