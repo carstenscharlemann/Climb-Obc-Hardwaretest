@@ -22,6 +22,7 @@ void MainInit() {
 	CliInit();
 	ThrInit();
 	EepromInit();
+	FlashInit();
 }
 
 // Poll all Modules from Main loop

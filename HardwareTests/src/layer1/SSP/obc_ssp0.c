@@ -57,7 +57,6 @@ tmp_status_t obc_status;
 
 volatile bool flash2_busy;		// temp 'ersatz' für semaphor
 
-
 void ssp0_init(void)
 {
 	/* SSP Init */

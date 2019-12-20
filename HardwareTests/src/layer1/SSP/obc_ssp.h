@@ -174,7 +174,7 @@ typedef struct tmp_status_s
 }
 volatile tmp_status_t;
 
-
+extern volatile bool flash2_busy;		// temp 'ersatz' für semaphor
 
 void ssp1_init(void);
 void SSP1_IRQHandler(void);
