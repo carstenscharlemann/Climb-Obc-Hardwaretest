@@ -31,6 +31,7 @@ void MainMain() {
 	// Call module mains with 'fast - requirement'
 	CliMain();
 	ThrMain();
+	FlashMain();
 	bool tick = TimMain();
 
 	if (tick) {

@@ -55,32 +55,68 @@ typedef enum flash_ret_e
 	FLASH_RET_INVALID_SECTOR,
 	FLASH_RET_SEMAPHORE_CREATE_ERROR,
 	FLASH_RET_JOB_ADD_ERROR,
-	FLASH_RET_WRONG_FLASHNR
+	FLASH_RET_WRONG_FLASHNR,
+
+	FLASH_RET_READ_INITIALIZED					// new ,main loop state machine' returns....
 } flash_ret;
 
 
+typedef enum flash_status_e {
+	FLASH_STAT_NOT_INITIALIZED,
+	FLASH_STAT_IDLE,
+	FLASH_STAT_RX_CHECKWIP,
+	FLASH_STAT_RX_INPROGRESS,
+	FLASH_STAT_TX_CHECKWIP,
+	FLASH_STAT_TX_SETWRITEBIT,
+	FLASH_STAT_TX_TRANSFER_INPROGRESS,
+	FLASH_STAT_TX_WRITE_INPROGRESS,
+	FLASH_STAT_ERROR							// TODO: what specific errors are ther and what too do now ???? -> reinit SSP ???
+} flash_status;
+
+typedef struct flash_worker_s
+{
+	flash_status FlashStatus;
+	uint8_t tx[5];
+	uint8_t rx[1];
+	uint8_t flash_dev;
+	uint8_t *job_status;
+	uint8_t *rxdata;
+	uint32_t rx_len;
+	uint32_t rx_adr;
+	uint8_t  busNr;
+	void (*RxCallback)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len);
+} flash_worker_t;
+
+
 // prototypes
-bool flash_init(void);
-flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length);
+bool flash_init(uint8_t flashNr);
+void FlashMainFor(uint8_t flashNr);
+
+flash_ret flash_read(uint8_t flashNr, flash_address_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len));
 void ReadFlashPageCmd(int argc, char *argv[]);
-void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len);
-bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len,  void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len));
+void ReadFlashFinished(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len);
+bool ReadFlashPageAsync(uint8_t flashNr, flash_address_t adr, uint32_t len,  void (*finishedHandler)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len));
 
 // local variables
-bool flash1_initialized = false;
-bool flash2_initialized = false;
+flash_worker_t flashWorker[2];
+
+//unit8_t flash1_initialized = false;
+//bool flash2_initialized = false;
 
 
 //SemaphoreHandle_t flash2_semaphore;
 
 
 void FlashInit() {
-	flash1_initialized = false;
-	flash2_initialized = false;
+//	flash1_initialized = false;
+//	flash2_initialized = false;
+	ssp01_init();										// TODO: shouldn't each module init be called from main !?.....
 
-	if (! flash_init()) {
-		printf("Init Fehler für Flash.\n");
-		return;
+	if (! flash_init(1)) {
+		printf("Init Fehler für Flash1.\n");
+	}
+	if (! flash_init(2)) {
+		printf("Init Fehler für Flash2.\n");
 	}
 	RegisterCommand("fRead", ReadFlashPageCmd);
 }
@@ -94,8 +130,8 @@ void ReadFlashPageCmd(int argc, char *argv[]) {
 
 	// CLI params to binary params
 	uint8_t flashNr = atoi(argv[0]);
-	uint16_t adr = atoi(argv[1]);
-	uint16_t len = atoi(argv[2]);
+	uint32_t adr = atoi(argv[1]);
+	uint32_t len = atoi(argv[2]);
 	if (len > FLASH_MAX_READ_SIZE) {
 		len = FLASH_MAX_READ_SIZE;
 	}
@@ -108,18 +144,17 @@ void ReadFlashPageCmd(int argc, char *argv[]) {
 
 static uint8_t FlashReadData[FLASH_MAX_READ_SIZE+10];
 
-bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len, void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len)) {
+bool ReadFlashPageAsync(uint8_t flashNr, flash_address_t adr, uint32_t len, void (*finishedHandler)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len)) {
 
-	flash_ret ret =  flash_read(flashNr, adr, FlashReadData, len);
-	if (ret == FLASH_RET_SUCCESS) {
-		finishedHandler(flashNr, adr, FlashReadData, len);
-		return true;
-	}
-	return false;
-
+	flash_ret ret =  flash_read(flashNr, adr, FlashReadData, len, finishedHandler);
+//	if (ret == FLASH_RET_SUCCESS) {
+//		finishedHandler(flashNr, adr, FlashReadData, len);
+//		return true;
+//	}
+	return ret;
 }
 
-void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len) {
+void ReadFlashFinished(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len) {
 	printf("Flash %d read at %04X:\n", flashNr, adr);
 	for (int i=0; i<len; i++ ) {
 		printf("%02X ", ((uint8_t*)data)[i]);
@@ -130,11 +165,31 @@ void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t le
 	printf("\n");
 }
 
-bool flash_init(void)
+bool flash_init(uint8_t flashNr)
 {
-	ssp01_init();
+	uint8_t busNr;
+	uint8_t dev1Nr;
+	uint8_t dev2Nr;
+	flash_worker_t *worker;
 
-	/* Init flash 1 and read ID register
+	if (flashNr == 1) {
+		busNr = SSP_BUS1;
+		dev1Nr = SSPx_DEV_FLASH1_1;
+		dev2Nr = SSPx_DEV_FLASH1_2;
+		worker = &flashWorker[0];
+	} else if (flashNr == 2) {
+		busNr = SSP_BUS0;
+		dev1Nr = SSPx_DEV_FLASH2_1;
+		dev2Nr = SSPx_DEV_FLASH2_2;
+		worker = &flashWorker[1];
+	} else {
+		printf("Not supported flash Number: %d", flashNr);
+		return false;
+	}
+
+	worker->FlashStatus = FLASH_STAT_NOT_INITIALIZED;
+
+	/* Init flash n and read ID register
 	 * Parameters: none
 	 * Return value: 0 in case of success, != 0 in case of error
 	 */
@@ -146,7 +201,7 @@ bool flash_init(void)
 	tx[0] = 0x9F; /* 0x9F */
 	rx[0] = 0x00;
 
-	if (ssp_add_job(SSP_BUS1 , SSPx_DEV_FLASH1_1, tx, 1, rx, 1, &job_status))
+	if (ssp_add_job(busNr , dev1Nr, tx, 1, rx, 1, &job_status))
 	{
 		/* Error while adding job */
 		//return FLASH_RET_JOB_ADD_ERROR;
@@ -171,7 +226,7 @@ bool flash_init(void)
 	tx[0] = 0x9F; /* 0x9F */
 	rx[0] = 0x00;
 
-	if (ssp_add_job(SSP_BUS1, SSPx_DEV_FLASH1_2, tx, 1, rx, 1, &job_status))
+	if (ssp_add_job(busNr, dev2Nr, tx, 1, rx, 1, &job_status))
 	{
 		/* Error while adding job */
 		//return FLASH_RET_JOB_ADD_ERROR;
@@ -188,75 +243,85 @@ bool flash_init(void)
 	if (rx[0] != 0x01)
 	{
 		/* Error - Flash could not be accessed */
-//		obc_status.flash2_initialized = 0;
-//		return FLASH_RET_INIT_ERROR;
+		worker->FlashStatus = FLASH_STAT_ERROR;
 		return false;
 	}
 
 	/* Everything ok */
-	flash1_initialized = true;
-
-
-
-	/* Read flash ID register */
-	tx[0] = 0x9F; /* 0x9F */
-	rx[0] = 0x00;
-
-	if (ssp_add_job(SSP_BUS0 , SSPx_DEV_FLASH2_1, tx, 1, rx, 1, &job_status))
-	{
-		/* Error while adding job */
-		//return FLASH_RET_JOB_ADD_ERROR;
-		return false;
-	}
-	helper = 0;
-	while ((*job_status != SSP_JOB_STATE_DONE) && (helper < 1000000))
-	{
-		/* Wait for job to finish */
-		helper++;
-	}
-
-	if (rx[0] != 0x01)
-	{
-		/* Error - Flash could not be accessed */
-		//obc_status.flash2_initialized = 0;
-		//return FLASH_RET_INIT_ERROR;
-		return false;
-	}
-
-	/* Read flash ID register */
-	tx[0] = 0x9F; /* 0x9F */
-	rx[0] = 0x00;
-
-	if (ssp_add_job(SSP_BUS0, SSPx_DEV_FLASH2_2, tx, 1, rx, 1, &job_status))
-	{
-		/* Error while adding job */
-		//return FLASH_RET_JOB_ADD_ERROR;
-		return false;
-	}
-
-	helper = 0;
-	while ((*job_status != SSP_JOB_STATE_DONE) && (helper < 1000000))
-	{
-		/* Wait for job to finish */
-		helper++;
-	}
-
-	if (rx[0] != 0x01)
-	{
-		/* Error - Flash could not be accessed */
-//		obc_status.flash2_initialized = 0;
-//		return FLASH_RET_INIT_ERROR;
-		return false;
-	}
-
-	/* Everything ok */
-	flash2_initialized = true;
-
-//#if EXTENDED_DEBUG_MESSAGES
-//	debug_transmit("OBC: Flash 2 initialied\n",0);
-//#endif
+	worker->FlashStatus = FLASH_STAT_IDLE;
 	return true;
 }
+
+
+void FlashMain(void) {
+	FlashMainFor(1);
+	FlashMainFor(2);
+}
+
+void FlashMainFor(uint8_t flashNr) {
+	volatile bool *busyFlag;
+	//uint8_t busNr;
+	flash_worker_t *worker;
+
+	if (flashNr == 1) {
+		busyFlag = &flash1_busy;
+		//busNr = 1;
+		worker = &flashWorker[0];
+	} else if (flashNr == 2) {
+		//initializedFlag = &flash2_initialized;
+		busyFlag = &flash2_busy;
+		//busNr = 0;
+		worker = &flashWorker[1];
+	} else {
+		return;
+	}
+
+	if (*busyFlag) {
+		// TODO: make TMO check(s) here !!!
+	} else {
+		// Der job für diesen Flash ist fertig
+		switch (worker->FlashStatus) {
+		case FLASH_STAT_RX_CHECKWIP: {
+			// Der Job zum Lesen des Write in Progree flags ist fertig
+			if (worker->rx[0] & 0x01) {
+				// TODO Eigentlich sollte das hier nie passieren (Weil wir dieses Writze busi beim Schreiben abwarten!),
+				// aber wir könnten hier auch doch ein Zeit warten und das WIP neu lesen. ...
+				worker->FlashStatus = FLASH_STAT_ERROR;
+			}
+			// Wir können jetzt das Lesen aktivieren
+			/* Read Bytes */
+			worker->tx[0] = 0x13; /* CMD fast read */
+			worker->tx[1] = (worker->rx_adr >> 24);
+			worker->tx[2] = ((worker->rx_adr & 0x00ff0000) >> 16);
+			worker->tx[3] = ((worker->rx_adr & 0x0000ff00) >> 8);
+			worker->tx[4] = (worker->rx_adr & 0x000000ff);
+
+			*busyFlag = true;
+			if (ssp_add_job(worker->busNr,worker->flash_dev, worker->tx, 5, worker->rxdata, worker->rx_len, &worker->job_status))
+			{
+				/* Error while adding job */
+				worker->FlashStatus = FLASH_STAT_ERROR;
+			}
+			worker->FlashStatus = FLASH_STAT_RX_INPROGRESS;
+			break;
+
+		}
+		case FLASH_STAT_RX_INPROGRESS: {
+			// Read job is finished. Make Callback
+			worker->FlashStatus = FLASH_STAT_IDLE;
+			worker->RxCallback(flashNr,worker->rx_adr, worker->rxdata, worker->rx_len);
+			break;
+		}
+		case FLASH_STAT_IDLE:
+		default:
+			// nothing to do in main loop.
+			break;
+		} // end switch
+
+	}
+}
+
+
 //
 //flash_ret flash2_write(uint32_t adr, uint8_t *tx_data, uint32_t len)
 //{
@@ -407,33 +472,40 @@ bool flash_init(void)
 //
 
 
-flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length)
+flash_ret flash_read(uint8_t flashNr, flash_address_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len))
 {
-	uint8_t tx[5];
-	uint8_t rx[1];
-	uint8_t flash_dev;
-	uint8_t *job_status;
-	/* Achtung -> SSP Frequenz für read maximal 50MHz! */
+//	uint8_t tx[5];
+//	uint8_t rx[1];
+//	uint8_t flash_dev;
+//	uint8_t *job_status;
 
-	bool *initializedFlag;
+//	/* Achtung -> SSP Frequenz für read maximal 50MHz! */
+
+	//bool *initializedFlag;
 	volatile bool *busyFlag;
 	uint8_t busNr;
+	flash_worker_t *worker;
+
+
 
 	if (flashNr == 1) {
-		initializedFlag = &flash1_initialized;
+		//initializedFlag = &flash1_initialized;
 		busyFlag = &flash1_busy;
 		busNr = 1;
+		worker = &flashWorker[0];
 	} else if (flashNr == 2) {
-		initializedFlag = &flash2_initialized;
+		//initializedFlag = &flash2_initialized;
 		busyFlag = &flash2_busy;
 		busNr = 0;
+		worker = &flashWorker[1];
 	} else {
 		return FLASH_RET_WRONG_FLASHNR;
 	}
 
-	if (! *initializedFlag)
-	{
-		// Flash was not initialized correctly
+	if (worker->FlashStatus != FLASH_STAT_IDLE) {
+//	if (! *initializedFlag)
+//	{
+		// Flash was not initialized correctly		// TODO Hier wird jetzt auch indeirekt auf irgendeinen Flash busy state gecheckt -> ret val name ist falsch....
 		return FLASH_RET_INIT_ERROR;
 	}
 
@@ -450,17 +522,17 @@ flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t l
 	if (adr < FLASH_DIE_SIZE)
 	{
 		if (flashNr == 2) {
-			flash_dev = SSPx_DEV_FLASH2_1;
+			worker->flash_dev = SSPx_DEV_FLASH2_1;
 		} else {
-			flash_dev = SSPx_DEV_FLASH1_1;
+			worker->flash_dev = SSPx_DEV_FLASH1_1;
 		}
 	}
 	else if (adr < FLASH_SIZE)
 	{
 		if (flashNr == 2) {
-			flash_dev = SSPx_DEV_FLASH2_2;
+			worker->flash_dev = SSPx_DEV_FLASH2_2;
 		} else {
-			flash_dev = SSPx_DEV_FLASH1_2;
+			worker->flash_dev = SSPx_DEV_FLASH1_2;
 		}
 		adr = adr - FLASH_DIE_SIZE;
 	}
@@ -471,62 +543,30 @@ flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t l
 	}
 
 	/*--- Check WIP-Bit (Wait for previous write to complete) --- */
-	tx[0] = 0x05; /* 0x05 */
-	rx[0] = 0x00;
-
+	worker->tx[0] = 0x05; /* 0x05 */
+	worker->rx[0] = 0x00;
 
 	//xSemaphoreTake(flash2_semaphore, (TickType_t) 0); /* Free semaphore */
-	if (! *busyFlag) {
+//	if (! *busyFlag) {
 		*busyFlag = true;
-
-		if (ssp_add_job(busNr, flash_dev, tx, 1, rx, 1, NULL)) {
-				/* Error while adding job */
-				return FLASH_RET_JOB_ADD_ERROR;
-		}
-
-		// Wir wartebn bis zu 250 ms !????! bis das busy ausgeht -> TODO make mainloop state engine / make timing between jobs and flash protocoll....
-		if (!TimWaitForFalseMs(busyFlag, 250)) {
-			return FLASH_RET_SEMAPHORE_TIMEOUT;
-		}
-
-		if (rx[0] & 0x01)
-		{
-			return FLASH_RET_WRITE_STILL_ACTIVE;
-		}
-
-		/* Read Bytes */
-		tx[0] = 0x13; /* CMD fast read */
-		tx[1] = (adr >> 24);
-		tx[2] = ((adr & 0x00ff0000) >> 16);
-		tx[3] = ((adr & 0x0000ff00) >> 8);
-		tx[4] = (adr & 0x000000ff);
-
-		//xSemaphoreTake(flash2_semaphore, (TickType_t) 0); /* Free semaphore */
-		*busyFlag = true;
-		if (ssp_add_job(busNr, flash_dev, tx, 5, rx_data, length, &job_status))
-		{
+		if (ssp_add_job(busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL)) {
 			/* Error while adding job */
 			return FLASH_RET_JOB_ADD_ERROR;
 		}
+		worker->rxdata = rx_data;
+		worker->rx_len = length;
+		worker->rx_adr = adr;
+		worker->FlashStatus = FLASH_STAT_RX_CHECKWIP;
+		worker->busNr = busNr;
+		worker->RxCallback = callback;
 
-//		if (xSemaphoreTake(flash2_semaphore, (TickType_t) 500) == pdFALSE)
-//		{
-//			/* Semaphore was not given in the specified time intervall - rx data is not valid */
-//			return FLASH_RET_SEMAPHORE_TIMEOUT;
-//		}
-		if (!TimWaitForFalseMs(busyFlag, (uint8_t)500)) {
-			return FLASH_RET_SEMAPHORE_TIMEOUT;
-		}
+		// TODO: Idee: Wir warten hier einmal nur 5 ms, falls alles ok ist, dann können wir ohne mainloop jitter weitermachen.
+		//if (!TimWaitForFalseMs(busyFlag, 5)) {
+		return FLASH_RET_READ_INITIALIZED;		// Wenn es länger dauert wird das weitere (incl TMO im mainllop gesteuert)
+		//}
+//	}
 
-		if (*job_status != SSP_JOB_STATE_DONE)
-		{
-			return FLASH_RET_SEMAPHORE_TIMEOUT;
-		}
-
-		return FLASH_RET_SUCCESS;
-	}
-
-	return FLASH_RET_SEMAPHORE_CREATE_ERROR;		// TODO: heißt eigentlich 'flash2 ist gerade busy....
+//	return FLASH_RET_SEMAPHORE_CREATE_ERROR;	// da wir oben auf idle checken, sollte hier eigentlich nie ein busy 'stehen bleiben'....
 }
 //
 //flash_ret flash2_sektor_erase(uint32_t adr)

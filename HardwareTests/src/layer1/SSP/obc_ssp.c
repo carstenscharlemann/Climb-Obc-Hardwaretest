@@ -541,7 +541,7 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 		ssp_status[deviceNr].ssp_error_counter++;
 		ssp_status[deviceNr].ssp_buffer_overflow = 1;
 		ssp_jobs[deviceNr].jobs_pending = 0; /* Delete jobs */
-		ssp01_init(); /* Reinit SSP   doch nur tinit 0 hier ???*/
+		ssp01_init(); /* Reinit SSP   make re-init per SSP nr possible here !?*/
 		//taskEXIT_CRITICAL();
 		return SSP_JOB_BUFFER_OVERFLOW;
 	}
