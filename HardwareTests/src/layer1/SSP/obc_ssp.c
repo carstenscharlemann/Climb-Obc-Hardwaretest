@@ -14,12 +14,8 @@
 
 #include "obc_ssp.h"
 
-//ssp_jobs_t ssp_jobs[deviceNr];
 ssp_jobs_t ssp_jobs[2];	
-
-//tmp_status_t obc_status;
-tmp_status_t ssp_status[2];
-
+ssp_status_t ssp_status[2];
 
 #define SSP0_SCK_PIN 20 //ok
 #define SSP0_SCK_PORT 1 //ok
@@ -47,8 +43,6 @@ tmp_status_t ssp_status[2];
 #define FLASH1_CS2_PIN 2
 #define FLASH1_CS2_PORT 2
 
-
-
 // from RTOS
 #define configMAX_LIBRARY_INTERRUPT_PRIORITY    ( 5 )
 #define SSP1_INTERRUPT_PRIORITY         (configMAX_LIBRARY_INTERRUPT_PRIORITY + 3)  /* SSP1 (Flash, MPU) */
@@ -63,9 +57,8 @@ volatile bool flash2_busy;		// temp 'ersatz' für semaphor
 // Prototypes
 void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr);
 
-
-
-void ssp_init(LPC_SSP_T *device, uint8_t deviceNr, IRQn_Type irq, uint32_t irqPrio ) {
+// Common init routine used for both SSP buses
+void ssp_init(LPC_SSP_T *device, uint8_t busNr, IRQn_Type irq, uint32_t irqPrio ) {
 	/* SSP Init */
 	uint32_t helper;
 
@@ -76,10 +69,7 @@ void ssp_init(LPC_SSP_T *device, uint8_t deviceNr, IRQn_Type irq, uint32_t irqPr
 	Chip_SSP_SetFormat(device, SSP_BITS_8, SSP_FRAMEFORMAT_SPI, SSP_CLOCK_CPHA0_CPOL0);
 	Chip_SSP_SetBitRate(device, 4000000);		// -> TODO ergibt 400 kHz Clock rate !???
 
-	//SSP_LoopBackCmd(LPC_SSP0, DISABLE);
 	Chip_SSP_DisableLoopBack(device);
-
-	//SSP_Cmd(LPC_SSP0, ENABLE);
 	Chip_SSP_Enable(device);
 
 	while ((device->SR & SSP_STAT_RNE) != 0) /* Flush RX FIFO */
@@ -90,35 +80,33 @@ void ssp_init(LPC_SSP_T *device, uint8_t deviceNr, IRQn_Type irq, uint32_t irqPr
 	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_RT, ENABLE);
 	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_ROR, ENABLE);
 	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_RX, ENABLE);
-
 	// no function found for this one !?
 	device->IMSC |= SSP_RTIM;
 	device->IMSC |= SSP_RORIM;
 	device->IMSC |= SSP_RXIM;
 
 	/* Clear interrupt flags */
-	//LPC_SSP0->ICR = SSP_INTCLR_ROR;
-	//LPC_SSP0->ICR = SSP_INTCLR_RT;
 	device->ICR = SSP_RORIM;
 	device->ICR = SSP_RTIM;
 
 	/* Reset buffers to default values */
-	ssp_jobs[deviceNr].current_job = 0;
-	ssp_jobs[deviceNr].jobs_pending = 0;
-	ssp_jobs[deviceNr].last_job_added = 0;
+	ssp_jobs[busNr].current_job = 0;
+	ssp_jobs[busNr].jobs_pending = 0;
+	ssp_jobs[busNr].last_job_added = 0;
 
 	NVIC_SetPriority(irq, irqPrio);
 	NVIC_EnableIRQ (irq);
 
-	ssp_status[deviceNr].ssp0_error_counter = 0;
-	ssp_status[deviceNr].ssp0_initialized = 1;
+	ssp_status[busNr].ssp_error_counter = 0;
+	ssp_status[busNr].ssp_initialized = 1;
 
 }
 
+// Module Init
 void ssp01_init(void)
 {
-	ssp_status[0].ssp0_initialized = 0;
-	ssp_status[1].ssp0_initialized = 0;
+	ssp_status[0].ssp_initialized = 0;
+	ssp_status[1].ssp_initialized = 0;
 
 	/* --- SSP0 pins --- */
 	Chip_IOCON_PinMuxSet(LPC_IOCON, SSP0_SCK_PORT, SSP0_SCK_PIN, IOCON_FUNC3 | IOCON_MODE_INACT);
@@ -196,8 +184,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 	if ((int_src & SSP_RORIM))
 	{
 		device->ICR = SSP_RORIM;
-		ssp_status[deviceNr].ssp0_error_counter++;
-		ssp_status[deviceNr].ssp0_interrupt_ror = 1;
+		ssp_status[deviceNr].ssp_error_counter++;
+		ssp_status[deviceNr].ssp_interrupt_ror = 1;
 		return;
 	}
 
@@ -309,8 +297,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 					default: /* Device does not exist */
 						/* Release all devices */
-						ssp_status[deviceNr].ssp0_error_counter++;
-						ssp_status[deviceNr].ssp0_interrupt_unknown_device = 1;
+						ssp_status[deviceNr].ssp_error_counter++;
+						ssp_status[deviceNr].ssp_interrupt_unknown_device = 1;
 						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
 						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
@@ -374,7 +362,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 				default: /* Device does not exist */
 					/* Release all devices */
-					ssp_status[deviceNr].ssp0_interrupt_unknown_device = 1;
+					ssp_status[deviceNr].ssp_interrupt_unknown_device = 1;
 					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
@@ -446,7 +434,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 					break;
 
 				default: /* Device does not exist */
-					ssp_status[deviceNr].ssp0_error_counter++;
+					ssp_status[deviceNr].ssp_error_counter++;
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);		// TODO ??? hier war set obwohl obemn clears sind !? -----
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
@@ -539,7 +527,7 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 		return SSP_WRONG_BUSNR;
 	}
 
-	if (ssp_status[deviceNr].ssp0_initialized == 0)
+	if (ssp_status[deviceNr].ssp_initialized == 0)
 	{
 		/* SSP is not initialized - return */
 		return SSP_JOB_NOT_INITIALIZED;
@@ -550,8 +538,8 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 		/* Maximum amount of jobs stored, job can't be added! */
 		/* This is possibly caused by a locked interrupt -> remove all jobs and re-init SSP */
 		//taskENTER_CRITICAL();
-		ssp_status[deviceNr].ssp0_error_counter++;
-		ssp_status[deviceNr].ssp0_buffer_overflow = 1;
+		ssp_status[deviceNr].ssp_error_counter++;
+		ssp_status[deviceNr].ssp_buffer_overflow = 1;
 		ssp_jobs[deviceNr].jobs_pending = 0; /* Delete jobs */
 		ssp01_init(); /* Reinit SSP   doch nur tinit 0 hier ???*/
 		//taskEXIT_CRITICAL();
@@ -612,7 +600,7 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
 
-					ssp_status[deviceNr].ssp0_error_counter++;
+					ssp_status[deviceNr].ssp_error_counter++;
 
 					/* Set error description */
 					ssp_jobs[deviceNr].job[position].status = SSP_JOB_STATE_DEVICE_ERROR;

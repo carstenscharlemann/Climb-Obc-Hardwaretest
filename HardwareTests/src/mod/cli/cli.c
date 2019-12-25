@@ -25,7 +25,7 @@ char cliRxBuffer[CLI_RXBUFFER_SIZE];
 int cliRxPtrIdx = 0;
 
 // The Tx 'ringbuffer' used for TX with interrupt routine
-#define CLI_TXBUFFER_SIZE 256
+#define CLI_TXBUFFER_SIZE 1024
 bool prtTxInProgress = false;
 int prtBufferRead = 0;
 int prtBufferWrite = 0;

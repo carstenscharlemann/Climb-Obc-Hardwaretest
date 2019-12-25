@@ -3,7 +3,14 @@
  *
  *  Created on: 20.12.2019
  *
- *
+ */
+/* 2x S25FL512
+ * 1 Sector = 256kByte
+ * Sector erase time = 520ms
+ * Page Programming Time = 340us
+ * Page size = 512Byte
+ * One time programmable memory 1024Byte
+ * Program and erase suspend possible
  */
 
 #include <stdio.h>
@@ -30,7 +37,7 @@
 #define FLASH_DIE_PAGE_NUMBER 	131072
 
 
-#define FLASH_MAX_READ_SIZE		64
+#define FLASH_MAX_READ_SIZE		512
 
 
 typedef enum flash_ret_e
@@ -54,7 +61,7 @@ typedef enum flash_ret_e
 
 // prototypes
 bool flash_init(void);
-flash_ret flash12_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length);
+flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length);
 void ReadFlashPageCmd(int argc, char *argv[]);
 void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len);
 bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len,  void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len));
@@ -103,7 +110,7 @@ static uint8_t FlashReadData[FLASH_MAX_READ_SIZE+10];
 
 bool ReadFlashPageAsync(uint8_t flashNr, uint16_t adr, uint16_t len, void (*finishedHandler)(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t len)) {
 
-	flash_ret ret =  flash12_read(flashNr, adr, FlashReadData, len);
+	flash_ret ret =  flash_read(flashNr, adr, FlashReadData, len);
 	if (ret == FLASH_RET_SUCCESS) {
 		finishedHandler(flashNr, adr, FlashReadData, len);
 		return true;
@@ -123,17 +130,6 @@ void ReadFlashFinished(uint8_t flashNr, uint16_t adr, uint8_t *data, uint16_t le
 	printf("\n");
 }
 
-
-
-/* 2x S25FL512
- * 1 Sector = 256kByte
- * Sector erase time = 520ms
- * Page Programming Time = 340us
- * Page size = 512Byte
- * One time programmable memory 1024Byte
- * Program and erase suspend possible
- */
-
 bool flash_init(void)
 {
 	ssp01_init();
@@ -146,30 +142,6 @@ bool flash_init(void)
 	uint8_t rx[1];
 	uint8_t *job_status = NULL;
 	volatile uint32_t helper;
-
-
-
-//  -> should be checked with add_job (same as eeprom) !?
-//	if (obc_status.ssp0_initialized == 0)
-//	{
-//		/* SSP hardware was not initialized correctly */
-//		obc_status.flash2_initialized = 0;
-//		return FLASH_RET_INIT_ERROR;
-//	}
-
-	/* Create binary semaphore if not already done */
-	// Not needed we use a volataile bit flash2_busy
-//	if (flash2_semaphore == NULL)
-//	{
-//		flash2_semaphore = xSemaphoreCreateBinary();
-//
-//		if (flash2_semaphore == NULL)
-//		{
-//			/* Semaphore could not be created - usage of flash driver not possible */
-//			obc_status.flash2_initialized = 0;
-//			return FLASH_RET_SEMAPHORE_CREATE_ERROR;
-//		}
-//	}
 	/* Read flash ID register */
 	tx[0] = 0x9F; /* 0x9F */
 	rx[0] = 0x00;
@@ -435,7 +407,7 @@ bool flash_init(void)
 //
 
 
-flash_ret flash12_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length)
+flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length)
 {
 	uint8_t tx[5];
 	uint8_t rx[1];
@@ -512,14 +484,10 @@ flash_ret flash12_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t
 				return FLASH_RET_JOB_ADD_ERROR;
 		}
 
-		// Wir wartebn bis zu 250 ms bis das busy ausgeht -> TODO make mainloop atate engine
+		// Wir wartebn bis zu 250 ms !????! bis das busy ausgeht -> TODO make mainloop state engine / make timing between jobs and flash protocoll....
 		if (!TimWaitForFalseMs(busyFlag, 250)) {
 			return FLASH_RET_SEMAPHORE_TIMEOUT;
 		}
-//		if (xSemaphoreTake(flash2_semaphore, (TickType_t) 250) == pdFALSE)	{
-//		/* Semaphore was not given in the specified time intervall - rx data is not valid */
-//		return FLASH_RET_SEMAPHORE_TIMEOUT;
-//	}
 
 		if (rx[0] & 0x01)
 		{
@@ -535,8 +503,6 @@ flash_ret flash12_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t
 
 		//xSemaphoreTake(flash2_semaphore, (TickType_t) 0); /* Free semaphore */
 		*busyFlag = true;
-
-
 		if (ssp_add_job(busNr, flash_dev, tx, 5, rx_data, length, &job_status))
 		{
 			/* Error while adding job */
