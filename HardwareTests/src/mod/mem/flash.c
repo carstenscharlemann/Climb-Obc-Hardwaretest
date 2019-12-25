@@ -84,7 +84,7 @@ typedef struct flash_worker_s
 	uint32_t rx_len;
 	uint32_t rx_adr;
 	uint8_t  busNr;
-	void (*RxCallback)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len);
+	void (*RxCallback)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len);
 } flash_worker_t;
 
 
@@ -92,10 +92,10 @@ typedef struct flash_worker_s
 bool flash_init(uint8_t flashNr);
 void FlashMainFor(uint8_t flashNr);
 
-flash_ret flash_read(uint8_t flashNr, flash_address_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len));
+flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len));
 void ReadFlashPageCmd(int argc, char *argv[]);
-void ReadFlashFinished(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len);
-bool ReadFlashPageAsync(uint8_t flashNr, flash_address_t adr, uint32_t len,  void (*finishedHandler)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len));
+void ReadFlashFinished(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len);
+bool ReadFlashPageAsync(uint8_t flashNr, uint32_t adr, uint32_t len,  void (*finishedHandler)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len));
 
 // local variables
 flash_worker_t flashWorker[2];
@@ -144,7 +144,7 @@ void ReadFlashPageCmd(int argc, char *argv[]) {
 
 static uint8_t FlashReadData[FLASH_MAX_READ_SIZE+10];
 
-bool ReadFlashPageAsync(uint8_t flashNr, flash_address_t adr, uint32_t len, void (*finishedHandler)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len)) {
+bool ReadFlashPageAsync(uint8_t flashNr, uint32_t adr, uint32_t len, void (*finishedHandler)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len)) {
 
 	flash_ret ret =  flash_read(flashNr, adr, FlashReadData, len, finishedHandler);
 //	if (ret == FLASH_RET_SUCCESS) {
@@ -154,7 +154,7 @@ bool ReadFlashPageAsync(uint8_t flashNr, flash_address_t adr, uint32_t len, void
 	return ret;
 }
 
-void ReadFlashFinished(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len) {
+void ReadFlashFinished(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len) {
 	printf("Flash %d read at %04X:\n", flashNr, adr);
 	for (int i=0; i<len; i++ ) {
 		printf("%02X ", ((uint8_t*)data)[i]);
@@ -167,7 +167,7 @@ void ReadFlashFinished(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint
 
 bool flash_init(uint8_t flashNr)
 {
-	uint8_t busNr;
+	ssp_busnr_t busNr;
 	uint8_t dev1Nr;
 	uint8_t dev2Nr;
 	flash_worker_t *worker;
@@ -472,7 +472,7 @@ void FlashMainFor(uint8_t flashNr) {
 //
 
 
-flash_ret flash_read(uint8_t flashNr, flash_address_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, flash_address_t adr, uint8_t *data, uint32_t len))
+flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len))
 {
 //	uint8_t tx[5];
 //	uint8_t rx[1];

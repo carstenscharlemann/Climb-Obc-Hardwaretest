@@ -9,14 +9,11 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include <chip.h>
 
 #include "obc_ssp.h"
 
-ssp_jobs_t ssp_jobs[2];	
-ssp_status_t ssp_status[2];
-
+// Module defines
 #define SSP0_SCK_PIN 20 //ok
 #define SSP0_SCK_PORT 1 //ok
 #define SSP0_MISO_PIN 23 //ok
@@ -48,65 +45,82 @@ ssp_status_t ssp_status[2];
 #define SSP1_INTERRUPT_PRIORITY         (configMAX_LIBRARY_INTERRUPT_PRIORITY + 3)  /* SSP1 (Flash, MPU) */
 #define SSP0_INTERRUPT_PRIORITY         (SSP1_INTERRUPT_PRIORITY + 1)   /* SSP0 (Flash) - should be lower than SSP1 */
 
-//typedef long BaseType_t;
-//#define pdFALSE			( ( BaseType_t ) 0 )
+typedef struct ssp_job_s
+{
+	uint8_t *array_to_send;
+	uint16_t bytes_to_send;
+	uint16_t bytes_sent;
+	uint16_t bytes_to_read;
+	uint16_t bytes_read;
+	uint8_t *array_to_read;
+	ssp_chip_t device;
+	uint8_t status;
+	uint8_t dir;
+} volatile ssp_job_t;
 
+typedef struct ssp_busstatus_s
+{
+	/* OBC status bits block 1 - 32 Bits */
+	unsigned int ssp_interrupt_ror :1; /* Bit 0 */
+	unsigned int ssp_interrupt_unknown_device :1; /* Bit 1 */
+	unsigned int ssp_buffer_overflow :1; /* Bit 2 */
+	unsigned int ssp_frequent_errors :1; /* Bit 3 */
+	unsigned int :1; /* Bit 4 */
+	unsigned int :1; /* Bit 5 */
+	unsigned int :1; /* Bit 6 */
+	unsigned int :1; /* Bit 7 */
+	unsigned int :1; /* Bit 8 */
+	unsigned int :1; /* Bit 9 */
+	unsigned int :1; /* Bit 10 */
+	unsigned int :1; /* Bit 11 */
+	unsigned int :1; /* Bit 12 */
+	unsigned int :1; /* Bit 13 */
+	unsigned int :1; /* Bit 14 */
+	unsigned int :1; /* Bit 15 */
+	unsigned int :1; /* Bit 16 */
+	unsigned int :1; /* Bit 17 */
+	unsigned int :1; /* Bit 18 */
+	unsigned int :1; /* Bit 19 */
+	unsigned int :1; /* Bit 20 */
+	unsigned int :1; /* Bit 21 */
+	unsigned int :1; /* Bit 22 */
+	unsigned int :1; /* Bit 23 */
+	unsigned int :1; /* Bit 24 */
+	unsigned int :1; /* Bit 25 */
+	unsigned int :1; /* Bit 26 */
+	unsigned int :1; /* Bit 27 */
+	unsigned int :1; /* Bit 28 */
+	unsigned int :1; /* Bit 29 */
+	unsigned int :1; /* Bit 30 */
+	unsigned int ssp_initialized:1;    /* Bit 31 */
+
+	uint8_t ssp_error_counter;
+
+} volatile ssp_busstatus_t;
+
+typedef struct ssp_jobs_s
+{
+	ssp_job_t job[SPI_MAX_JOBS];
+	uint8_t current_job;
+	uint8_t last_job_added;
+	uint8_t jobs_pending;
+	ssp_busstatus_t bus_status;
+} volatile ssp_jobs_t;
+
+// local/module variables
 volatile bool flash1_busy;		// temp 'ersatz' für semaphor
 volatile bool flash2_busy;		// temp 'ersatz' für semaphor
+ssp_jobs_t ssp_jobs[2];
 
 // Prototypes
-void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr);
-
-// Common init routine used for both SSP buses
-void ssp_init(LPC_SSP_T *device, uint8_t busNr, IRQn_Type irq, uint32_t irqPrio ) {
-	/* SSP Init */
-	uint32_t helper;
-
-	/* Prevent compiler warning */
-	(void) helper;
-
-	Chip_SSP_Set_Mode(device, SSP_MODE_MASTER);
-	Chip_SSP_SetFormat(device, SSP_BITS_8, SSP_FRAMEFORMAT_SPI, SSP_CLOCK_CPHA0_CPOL0);
-	Chip_SSP_SetBitRate(device, 4000000);		// -> TODO ergibt 400 kHz Clock rate !???
-
-	Chip_SSP_DisableLoopBack(device);
-	Chip_SSP_Enable(device);
-
-	while ((device->SR & SSP_STAT_RNE) != 0) /* Flush RX FIFO */
-	{
-		helper = device->DR;
-	}
-
-	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_RT, ENABLE);
-	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_ROR, ENABLE);
-	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_RX, ENABLE);
-	// no function found for this one !?
-	device->IMSC |= SSP_RTIM;
-	device->IMSC |= SSP_RORIM;
-	device->IMSC |= SSP_RXIM;
-
-	/* Clear interrupt flags */
-	device->ICR = SSP_RORIM;
-	device->ICR = SSP_RTIM;
-
-	/* Reset buffers to default values */
-	ssp_jobs[busNr].current_job = 0;
-	ssp_jobs[busNr].jobs_pending = 0;
-	ssp_jobs[busNr].last_job_added = 0;
-
-	NVIC_SetPriority(irq, irqPrio);
-	NVIC_EnableIRQ (irq);
-
-	ssp_status[busNr].ssp_error_counter = 0;
-	ssp_status[busNr].ssp_initialized = 1;
-
-}
+void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t busNr);
+void ssp_init(LPC_SSP_T *device, uint8_t busNr, IRQn_Type irq, uint32_t irqPrio );
 
 // Module Init
 void ssp01_init(void)
 {
-	ssp_status[0].ssp_initialized = 0;
-	ssp_status[1].ssp_initialized = 0;
+	ssp_jobs[0].bus_status.ssp_initialized = 0;
+	ssp_jobs[1].bus_status.ssp_initialized = 0;
 
 	/* --- SSP0 pins --- */
 	Chip_IOCON_PinMuxSet(LPC_IOCON, SSP0_SCK_PORT, SSP0_SCK_PIN, IOCON_FUNC3 | IOCON_MODE_INACT);
@@ -153,27 +167,70 @@ void ssp01_init(void)
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_SSP0);
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_SSP1);
 
-	ssp_init(LPC_SSP0, 0, SSP0_IRQn ,SSP0_INTERRUPT_PRIORITY);
-	ssp_init(LPC_SSP1, 1, SSP1_IRQn ,SSP1_INTERRUPT_PRIORITY);
+	ssp_init(LPC_SSP0, SSP_BUS0, SSP0_IRQn, SSP0_INTERRUPT_PRIORITY);
+	ssp_init(LPC_SSP1, SSP_BUS1, SSP1_IRQn, SSP1_INTERRUPT_PRIORITY);
 
 	return;
 }
 
-void SSP1_IRQHandler(void)
-{
-	SSP01_IRQHandler(LPC_SSP1, 1);
+// Common init routine used for both SSP buses
+void ssp_init(LPC_SSP_T *device, uint8_t busNr, IRQn_Type irq, uint32_t irqPrio ) {
+	/* SSP Init */
+	uint32_t helper;
+
+	/* Prevent compiler warning */
+	(void) helper;
+
+	Chip_SSP_Set_Mode(device, SSP_MODE_MASTER);
+	Chip_SSP_SetFormat(device, SSP_BITS_8, SSP_FRAMEFORMAT_SPI, SSP_CLOCK_CPHA0_CPOL0);
+	Chip_SSP_SetBitRate(device, 4000000);		// -> TODO ergibt 400 kHz Clock rate !???
+
+	Chip_SSP_DisableLoopBack(device);
+	Chip_SSP_Enable(device);
+
+	while ((device->SR & SSP_STAT_RNE) != 0) /* Flush RX FIFO */
+	{
+		helper = device->DR;
+	}
+
+	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_RT, ENABLE);
+	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_ROR, ENABLE);
+	//SSP_IntConfig(LPC_SSP0, SSP_INTCFG_RX, ENABLE);
+	// no function found for this one !?
+	device->IMSC |= SSP_RTIM;
+	device->IMSC |= SSP_RORIM;
+	device->IMSC |= SSP_RXIM;
+
+	/* Clear interrupt flags */
+	device->ICR = SSP_RORIM;
+	device->ICR = SSP_RTIM;
+
+	/* Reset buffers to default values */
+	ssp_jobs[busNr].current_job = 0;
+	ssp_jobs[busNr].jobs_pending = 0;
+	ssp_jobs[busNr].last_job_added = 0;
+
+	NVIC_SetPriority(irq, irqPrio);
+	NVIC_EnableIRQ (irq);
+
+	ssp_jobs[busNr].bus_status.ssp_error_counter = 0;
+	ssp_jobs[busNr].bus_status.ssp_initialized = 1;
 }
 
+void SSP1_IRQHandler(void)
+{
+	SSP01_IRQHandler(LPC_SSP1, SSP_BUS1);
+}
 
 void SSP0_IRQHandler(void)
 {
-	SSP01_IRQHandler(LPC_SSP0, 0);
+	SSP01_IRQHandler(LPC_SSP0, SSP_BUS0);
 }
 
-void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
-
-	uint32_t int_src = device->RIS; /* Get interrupt source */
+void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 	volatile uint32_t helper;
+	ssp_jobs_t *jobs = &ssp_jobs[busNr];
+	uint32_t int_src = device->RIS; /* Get interrupt source */
 
 	if (int_src == SSP_TXIM)
 	{
@@ -184,8 +241,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 	if ((int_src & SSP_RORIM))
 	{
 		device->ICR = SSP_RORIM;
-		ssp_status[deviceNr].ssp_error_counter++;
-		ssp_status[deviceNr].ssp_interrupt_ror = 1;
+		jobs->bus_status.ssp_error_counter++;
+		jobs->bus_status.ssp_interrupt_ror = 1;
 		return;
 	}
 
@@ -194,7 +251,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 		device->ICR = SSP_RTIM;
 	}
 
-	if (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].dir)
+	ssp_job_t *cur_job = &(jobs->job[jobs->current_job]);
+	if (cur_job->dir)
 	{
 		/* --- TX ------------------------------------------------------------------------------------------------------------------------ */
 
@@ -206,56 +264,56 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 		/* Fill TX FIFO */
 
-		if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+		if ((cur_job->bytes_to_send - cur_job->bytes_sent) > 7)
 		{
 
-			helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+			helper = cur_job->bytes_sent + 7;
 		}
 		else
 		{
-			helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send;
+			helper = cur_job->bytes_to_send;
 		}
 
 		//while (((LPC_SSP0->SR & SSP_STAT_TXFIFO_NOTFULL)) && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent < helper))
-		while (((device->SR & SSP_STAT_TNF)) && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent < helper))
+		while (((device->SR & SSP_STAT_TNF)) && (cur_job->bytes_sent < helper))
 		{
-			device->DR = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].array_to_send[ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent];
-			ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent++;
+			device->DR = cur_job->array_to_send[cur_job->bytes_sent];
+			cur_job->bytes_sent++;
 		}
 
 		//if (LPC_SSP0->SR & SSP_SR_BSY)
 		if (device->SR & SSP_STAT_BSY)
 			return;
 
-		if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent == ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send))
+		if ((cur_job->bytes_sent == cur_job->bytes_to_send))
 		{
 			/* TX done */
 			/* Check if job includes SSP read */
-			if (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read > 0)
+			if (cur_job->bytes_to_read > 0)
 			{
 				/* RX init */
-				ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].dir = 0; /* set to read */
+				cur_job->dir = 0; /* set to read */
 				while ((device->SR & SSP_STAT_RNE) != 0) /* Flush RX FIFO */
 				{
 					helper = device->DR;
 				}
 
-				ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent = 0;
+				cur_job->bytes_sent = 0;
 
-				if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+				if ((cur_job->bytes_to_read - cur_job->bytes_sent) > 7)
 				{
 
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+					helper = cur_job->bytes_sent + 7;
 				}
 				else
 				{
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read;
+					helper = cur_job->bytes_to_read;
 				}
 
-				while (((device->SR & SSP_STAT_TNF)) && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent < helper))
+				while (((device->SR & SSP_STAT_TNF)) && (cur_job->bytes_sent < helper))
 				{
 					device->DR = 0xFF;
-					ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent++;
+					cur_job->bytes_sent++;
 				}
 
 				helper = 0;
@@ -273,7 +331,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 				}
 
 				/* Unselect device */
-				switch (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].device)
+				switch (cur_job->device)
 				{
 					case SSPx_DEV_FLASH2_1:
 						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
@@ -297,8 +355,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 					default: /* Device does not exist */
 						/* Release all devices */
-						ssp_status[deviceNr].ssp_error_counter++;
-						ssp_status[deviceNr].ssp_interrupt_unknown_device = 1;
+						jobs->bus_status.ssp_error_counter++;
+						jobs->bus_status.ssp_interrupt_unknown_device = 1;
 						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
 						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
@@ -306,7 +364,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 						break;
 				}
 
-				ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].status = SSP_JOB_STATE_DONE;
+				cur_job->status = SSP_JOB_STATE_DONE;
 			}
 		}
 
@@ -319,13 +377,13 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 		//while ((LPC_SSP0->SR & SSP_STAT_RXFIFO_NOTEMPTY)
 		while ((device->SR & SSP_STAT_RNE)
-		        && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_read < ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read))
+		        && (cur_job->bytes_read < cur_job->bytes_to_read))
 		{
-			ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].array_to_read[ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_read] = device->DR;
-			ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_read++;
+			cur_job->array_to_read[cur_job->bytes_read] = device->DR;
+			cur_job->bytes_read++;
 		}
 
-		if (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_read == ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read)
+		if (cur_job->bytes_read == cur_job->bytes_to_read)
 		{
 			/* All bytes read */
 
@@ -336,7 +394,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 				helper++;
 			}
 
-			switch (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].device)
+			switch (cur_job->device)
 			/* Unselect device */
 			{
 
@@ -362,7 +420,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 				default: /* Device does not exist */
 					/* Release all devices */
-					ssp_status[deviceNr].ssp_interrupt_unknown_device = 1;
+					jobs->bus_status.ssp_interrupt_unknown_device = 1;
 					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
@@ -370,40 +428,40 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 					break;
 			}
 
-			ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].status = SSP_JOB_STATE_DONE;
+			cur_job->status = SSP_JOB_STATE_DONE;
 		}
 		else
 		{
 			/* not all bytes read - send dummy data again */
 
-			if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+			if ((cur_job->bytes_to_read - cur_job->bytes_sent) > 7)
 			{
 
-				helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+				helper = cur_job->bytes_sent + 7;
 			}
 			else
 			{
-				helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read;
+				helper = cur_job->bytes_to_read;
 			}
 
-			while ((device->SR & SSP_STAT_TNF) && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent < helper))
+			while ((device->SR & SSP_STAT_TNF) && (cur_job->bytes_sent < helper))
 			{
 				device->DR = 0xFF;
-				ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent++;
+				cur_job->bytes_sent++;
 			}
 		}
 	}
 
-	if (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].status == SSP_JOB_STATE_DONE)
+	if (cur_job->status == SSP_JOB_STATE_DONE)
 	{
 		/* Job is done, increment to next job and execute if pending */
 
-		ssp_jobs[deviceNr].current_job++;
-		ssp_jobs[deviceNr].jobs_pending--;
+		jobs->current_job++;
+		jobs->jobs_pending--;
 
-		if (ssp_jobs[deviceNr].current_job == SPI_MAX_JOBS)
+		if (jobs->current_job == SPI_MAX_JOBS)
 		{
-			ssp_jobs[deviceNr].current_job = 0;
+			jobs->current_job = 0;
 		}
 
 		while ((device->SR & SSP_STAT_RNE) != 0) /* Flush RX FIFO */
@@ -412,9 +470,9 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 		}
 
 		/* Check if jobs are pending */
-		if (ssp_jobs[deviceNr].jobs_pending > 0)
+		if (jobs->jobs_pending > 0)
 		{
-			switch (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].device)
+			switch (cur_job->device)
 			/* Select device */
 			{
 				case SSPx_DEV_FLASH2_1:
@@ -434,22 +492,22 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 					break;
 
 				default: /* Device does not exist */
-					ssp_status[deviceNr].ssp_error_counter++;
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);		// TODO ??? hier war set obwohl obemn clears sind !? -----
+					jobs->bus_status.ssp_error_counter++;
+					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
 
 					/* Set error description */
-					ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].status = SSP_JOB_STATE_DEVICE_ERROR;
+					cur_job->status = SSP_JOB_STATE_DEVICE_ERROR;
 
 					/* Increment to next job */
-					ssp_jobs[deviceNr].current_job++;
-					ssp_jobs[deviceNr].jobs_pending--;
+					jobs->current_job++;
+					jobs->jobs_pending--;
 
-					if (ssp_jobs[deviceNr].current_job == SPI_MAX_JOBS)
+					if (jobs->current_job == SPI_MAX_JOBS)
 					{
-						ssp_jobs[deviceNr].current_job = 0;
+						jobs->current_job = 0;
 					}
 
 					return;
@@ -458,47 +516,47 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 			}
 
-			ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].status = SSP_JOB_STATE_ACTIVE;
+			cur_job->status = SSP_JOB_STATE_ACTIVE;
 
 			/* Fill FIFO */
-			if (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].dir)
+			if (cur_job->dir)
 			{
 				/* TX (+RX) */
-				if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+				if ((cur_job->bytes_to_send - cur_job->bytes_sent) > 7)
 				{
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+					helper = cur_job->bytes_sent + 7;
 				}
 				else
 				{
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send;
+					helper = cur_job->bytes_to_send;
 				}
 
-				while (((device->SR & SSP_STAT_TNF)) && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent < helper))
+				while (((device->SR & SSP_STAT_TNF)) && (cur_job->bytes_sent < helper))
 				{
-					device->DR = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].array_to_send[ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent];
-					ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent++;
+					device->DR = cur_job->array_to_send[cur_job->bytes_sent];
+					cur_job->bytes_sent++;
 				}
 			}
 			else
 			{
 				/* RX only - send dummy data for clock output */
 
-				ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent = 0; /* Use unused bytes_sent for counting sent dummy data bytes */
+				cur_job->bytes_sent = 0; /* Use unused bytes_sent for counting sent dummy data bytes */
 
-				if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+				if ((cur_job->bytes_to_read - cur_job->bytes_sent) > 7)
 				{
 
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+					helper = cur_job->bytes_sent + 7;
 				}
 				else
 				{
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read;
+					helper = cur_job->bytes_to_read;
 				}
 
-				while (((device->SR & SSP_STAT_TNF)) && (ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent < helper))
+				while (((device->SR & SSP_STAT_TNF)) && (cur_job->bytes_sent < helper))
 				{
 					device->DR = 0xFF;
-					ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent++;
+					cur_job->bytes_sent++;
 				}
 			}
 		}
@@ -512,35 +570,36 @@ void SSP01_IRQHandler(LPC_SSP_T *device, uint8_t   deviceNr) {
 
 }
 
-uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
+uint32_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
         uint8_t **job_status)
 {
 	uint32_t helper;
 	uint8_t position;
-
+	ssp_jobs_t *jobs = &ssp_jobs[busNr];
 	LPC_SSP_T *device;
-	if (deviceNr == 0) {
+	
+	if (busNr == SSP_BUS0) {
 		device = LPC_SSP0;
-	} else if (deviceNr == 1) {
+	} else if (busNr == SSP_BUS1) {
 		device = LPC_SSP1;
 	} else {
 		return SSP_WRONG_BUSNR;
 	}
 
-	if (ssp_status[deviceNr].ssp_initialized == 0)
+	if (jobs->bus_status.ssp_initialized == 0)
 	{
 		/* SSP is not initialized - return */
 		return SSP_JOB_NOT_INITIALIZED;
 	}
 
-	if (ssp_jobs[deviceNr].jobs_pending >= SPI_MAX_JOBS)
+	if (jobs->jobs_pending >= SPI_MAX_JOBS)
 	{
 		/* Maximum amount of jobs stored, job can't be added! */
 		/* This is possibly caused by a locked interrupt -> remove all jobs and re-init SSP */
 		//taskENTER_CRITICAL();
-		ssp_status[deviceNr].ssp_error_counter++;
-		ssp_status[deviceNr].ssp_buffer_overflow = 1;
-		ssp_jobs[deviceNr].jobs_pending = 0; /* Delete jobs */
+		jobs->bus_status.ssp_error_counter++;
+		jobs->bus_status.ssp_buffer_overflow = 1;
+		jobs->jobs_pending = 0; /* Delete jobs */
 		ssp01_init(); /* Reinit SSP   make re-init per SSP nr possible here !?*/
 		//taskEXIT_CRITICAL();
 		return SSP_JOB_BUFFER_OVERFLOW;
@@ -548,32 +607,32 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 
 	// taskENTER_CRITICAL();		TODO: need for real multithreading.
 	{
-		position = (ssp_jobs[deviceNr].current_job + ssp_jobs[deviceNr].jobs_pending) % SPI_MAX_JOBS;
+		position = (jobs->current_job + jobs->jobs_pending) % SPI_MAX_JOBS;
 
-		ssp_jobs[deviceNr].job[position].array_to_send = array_to_send;
-		ssp_jobs[deviceNr].job[position].bytes_to_send = bytes_to_send;
-		ssp_jobs[deviceNr].job[position].bytes_sent = 0;
-		ssp_jobs[deviceNr].job[position].array_to_read = array_to_store;
-		ssp_jobs[deviceNr].job[position].bytes_to_read = bytes_to_read;
-		ssp_jobs[deviceNr].job[position].bytes_read = 0;
-		ssp_jobs[deviceNr].job[position].device = sensor;
-		ssp_jobs[deviceNr].job[position].status = SSP_JOB_STATE_PENDING;
+		jobs->job[position].array_to_send = array_to_send;
+		jobs->job[position].bytes_to_send = bytes_to_send;
+		jobs->job[position].bytes_sent = 0;
+		jobs->job[position].array_to_read = array_to_store;
+		jobs->job[position].bytes_to_read = bytes_to_read;
+		jobs->job[position].bytes_read = 0;
+		jobs->job[position].device = sensor;
+		jobs->job[position].status = SSP_JOB_STATE_PENDING;
 
 		if (bytes_to_send > 0)
 		{
 			/* Job contains transfer and read eventually */
-			ssp_jobs[deviceNr].job[position].dir = 1;
+			jobs->job[position].dir = 1;
 		}
 		else
 		{
 			/* Job contains readout only - transfer part is skipped */
-			ssp_jobs[deviceNr].job[position].dir = 0;
+			jobs->job[position].dir = 0;
 		}
 
 		/* Check if SPI in use */
-		if (ssp_jobs[deviceNr].jobs_pending == 0)
+		if (jobs->jobs_pending == 0)
 		{ /* Check if jobs pending */
-			switch (ssp_jobs[deviceNr].job[position].device)
+			switch (jobs->job[position].device)
 			/* Select device */
 			{
 				case SSPx_DEV_FLASH2_1:
@@ -592,7 +651,6 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
 					break;
 
-
 				default: /* Device does not exist */
 					/* Unselect all device */
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
@@ -600,18 +658,18 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
 					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
 
-					ssp_status[deviceNr].ssp_error_counter++;
+					jobs->bus_status.ssp_error_counter++;
 
 					/* Set error description */
-					ssp_jobs[deviceNr].job[position].status = SSP_JOB_STATE_DEVICE_ERROR;
+					jobs->job[position].status = SSP_JOB_STATE_DEVICE_ERROR;
 
 					/* Increment to next job */
-					ssp_jobs[deviceNr].current_job++;
-					ssp_jobs[deviceNr].jobs_pending--;
+					jobs->current_job++;
+					jobs->jobs_pending--;
 
-					if (ssp_jobs[deviceNr].current_job == SPI_MAX_JOBS)
+					if (jobs->current_job == SPI_MAX_JOBS)
 					{
-						ssp_jobs[deviceNr].current_job = 0;
+						jobs->current_job = 0;
 					}
 
 					/* Return error */
@@ -620,7 +678,7 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 
 			}
 
-			ssp_jobs[deviceNr].job[position].status = SSP_JOB_STATE_ACTIVE;
+			jobs->job[position].status = SSP_JOB_STATE_ACTIVE;
 
 			while ((device->SR & SSP_STAT_RNE) != 0) /* Flush RX FIFO */
 			{
@@ -629,24 +687,24 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 
 			/* Fill FIFO */
 
-			if (ssp_jobs[deviceNr].job[position].dir)
+			if (jobs->job[position].dir)
 			{
 				/* TX (+RX) */
 
-				if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+				if ((jobs->job[jobs->current_job].bytes_to_send - jobs->job[jobs->current_job].bytes_sent) > 7)
 				{
 
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+					helper = jobs->job[jobs->current_job].bytes_sent + 7;
 				}
 				else
 				{
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_send;
+					helper = jobs->job[jobs->current_job].bytes_to_send;
 				}
 
-				while (((device->SR & SSP_STAT_TNF)) && (ssp_jobs[deviceNr].job[position].bytes_sent < helper))
+				while (((device->SR & SSP_STAT_TNF)) && (jobs->job[position].bytes_sent < helper))
 				{
-					device->DR = ssp_jobs[deviceNr].job[position].array_to_send[ssp_jobs[deviceNr].job[position].bytes_sent];
-					ssp_jobs[deviceNr].job[position].bytes_sent++;
+					device->DR = jobs->job[position].array_to_send[jobs->job[position].bytes_sent];
+					jobs->job[position].bytes_sent++;
 				}
 			}
 			else
@@ -654,32 +712,32 @@ uint32_t ssp_add_job(uint8_t deviceNr, uint8_t sensor, uint8_t *array_to_send, u
 				/* RX only - send dummy data for clock output */
 				/* Use unused bytes_sent for counting sent dummy data bytes */
 
-				if ((ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read - ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent) > 7)
+				if ((jobs->job[jobs->current_job].bytes_to_read - jobs->job[jobs->current_job].bytes_sent) > 7)
 				{
 
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_sent + 7;
+					helper = jobs->job[jobs->current_job].bytes_sent + 7;
 				}
 				else
 				{
-					helper = ssp_jobs[deviceNr].job[ssp_jobs[deviceNr].current_job].bytes_to_read;
+					helper = jobs->job[jobs->current_job].bytes_to_read;
 				}
 
-				while (((device->SR & SSP_STAT_TNF)) && (ssp_jobs[deviceNr].job[position].bytes_sent < helper))
+				while (((device->SR & SSP_STAT_TNF)) && (jobs->job[position].bytes_sent < helper))
 				{
 					device->DR = 0xFF;
-					ssp_jobs[deviceNr].job[position].bytes_sent++;
+					jobs->job[position].bytes_sent++;
 
 				}
 			}
 		}
 
-		ssp_jobs[deviceNr].jobs_pending++;
+		jobs->jobs_pending++;
 	}
 
-	/* Set pointer to job status if necessary */
+	/* Set pointer to job bus_status if necessary */
 	if (job_status != NULL)
 	{
-		*job_status = (uint8_t *) &(ssp_jobs[deviceNr].job[position].status);
+		*job_status = (uint8_t *) &(jobs->job[position].status);
 	}
 
 	// taskEXIT_CRITICAL();	TODO needed for real multithreading
