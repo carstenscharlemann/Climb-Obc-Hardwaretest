@@ -13,6 +13,9 @@
  * Program and erase suspend possible
  */
 
+//	/* Achtung -> SSP Frequenz für read maximal 50MHz! */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -282,9 +285,9 @@ void FlashMainFor(uint8_t flashNr) {
 		// Der job für diesen Flash ist fertig
 		switch (worker->FlashStatus) {
 		case FLASH_STAT_RX_CHECKWIP: {
-			// Der Job zum Lesen des Write in Progree flags ist fertig
+			// Der Job zum Lesen des Write in Progress flags ist fertig
 			if (worker->rx[0] & 0x01) {
-				// TODO Eigentlich sollte das hier nie passieren (Weil wir dieses Writze busi beim Schreiben abwarten!),
+				// TODO Eigentlich sollte das hier nie passieren (Weil wir dieses Write busy beim Schreiben abwarten!),
 				// aber wir könnten hier auch doch ein Zeit warten und das WIP neu lesen. ...
 				worker->FlashStatus = FLASH_STAT_ERROR;
 			}
@@ -474,19 +477,11 @@ void FlashMainFor(uint8_t flashNr) {
 
 flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t length, void (*callback)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len))
 {
-//	uint8_t tx[5];
-//	uint8_t rx[1];
-//	uint8_t flash_dev;
-//	uint8_t *job_status;
-
-//	/* Achtung -> SSP Frequenz für read maximal 50MHz! */
 
 	//bool *initializedFlag;
 	volatile bool *busyFlag;
 	uint8_t busNr;
 	flash_worker_t *worker;
-
-
 
 	if (flashNr == 1) {
 		//initializedFlag = &flash1_initialized;
@@ -546,28 +541,59 @@ flash_ret flash_read(uint8_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t l
 	worker->tx[0] = 0x05; /* 0x05 */
 	worker->rx[0] = 0x00;
 
-	//xSemaphoreTake(flash2_semaphore, (TickType_t) 0); /* Free semaphore */
-//	if (! *busyFlag) {
-		*busyFlag = true;
-		if (ssp_add_job(busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL)) {
-			/* Error while adding job */
-			return FLASH_RET_JOB_ADD_ERROR;
-		}
-		worker->rxdata = rx_data;
-		worker->rx_len = length;
-		worker->rx_adr = adr;
+	*busyFlag = true;
+	if (ssp_add_job(busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL)) {
+		/* Error while adding job */
+		return FLASH_RET_JOB_ADD_ERROR;
+	}
+	worker->rxdata = rx_data;
+	worker->rx_len = length;
+	worker->rx_adr = adr;
+	worker->busNr = busNr;
+	worker->RxCallback = callback;
+
+#if false
+	//  Idee: Wir warten hier einmal nur kurz, falls alles ok ist, dann können wir ohne mainloop jitter weitermachen.
+	//       nach dem read byte vergehen im normalfall nur ca. 12 us bis das busy flag wieder gelöscht wird.
+	//       Derzeit (2019-12-25) gewinnen wir aber nur ca. 8us gegenüber dem Mainloop wait. Vieleicht ist dieser code aber bessser, wenn unser mainloop
+	//       später einmal mehr code enthält und dieser jitter deshalb um einiges größer wird als die (derzeitigen ca. 10us).
+	uint32_t i = 0;
+	while (i++ < 500 ); // && (*busyFlag == true));	// Wir warten hier maximal ca. 60us, ob das busy flag ausgeht.
+
+	if (i>=500) {
+		// Wenn nicht, überlassen wir den nächsten Schritt unserem Main loop.
 		worker->FlashStatus = FLASH_STAT_RX_CHECKWIP;
-		worker->busNr = busNr;
-		worker->RxCallback = callback;
+	} else {
+		// Wir checken in der  Antwort, ob der Chip Lesebereit ist und setzen den Lesejob auf.
+		if (worker->rx[0] & 0x01) {
+			// TODO Eigentlich sollte das hier nie passieren (Weil wir dieses Write busy beim Schreiben abwarten!),
+			// aber wir könnten hier auch doch ein Zeit warten und das WIP neu lesen. ...
+			worker->FlashStatus = FLASH_STAT_ERROR;
+		}
+		// Wir können jetzt das Lesen aktivieren
+		/* Read Bytes */
+		worker->tx[0] = 0x13; /* CMD fast read */
+		worker->tx[1] = (worker->rx_adr >> 24);
+		worker->tx[2] = ((worker->rx_adr & 0x00ff0000) >> 16);
+		worker->tx[3] = ((worker->rx_adr & 0x0000ff00) >> 8);
+		worker->tx[4] = (worker->rx_adr & 0x000000ff);
 
-		// TODO: Idee: Wir warten hier einmal nur 5 ms, falls alles ok ist, dann können wir ohne mainloop jitter weitermachen.
-		//if (!TimWaitForFalseMs(busyFlag, 5)) {
-		return FLASH_RET_READ_INITIALIZED;		// Wenn es länger dauert wird das weitere (incl TMO im mainllop gesteuert)
-		//}
-//	}
-
-//	return FLASH_RET_SEMAPHORE_CREATE_ERROR;	// da wir oben auf idle checken, sollte hier eigentlich nie ein busy 'stehen bleiben'....
+		*busyFlag = true;
+		if (ssp_add_job(worker->busNr,worker->flash_dev, worker->tx, 5, worker->rxdata, worker->rx_len, &worker->job_status))
+		{
+			/* Error while adding job */
+			worker->FlashStatus = FLASH_STAT_ERROR;
+		}
+		worker->FlashStatus = FLASH_STAT_RX_INPROGRESS;
+		// Der Main loop wartet auf das Ende dieses Jobs....
+	}
+#else
+	// wir überlassen den nächsten Schritt unserem Main loop.
+	worker->FlashStatus = FLASH_STAT_RX_CHECKWIP;
+#endif
+	return FLASH_RET_READ_INITIALIZED;		// Wenn es länger dauert wird das weitere (incl TMO im mainllop gesteuert)
 }
+
 //
 //flash_ret flash2_sektor_erase(uint32_t adr)
 //{
