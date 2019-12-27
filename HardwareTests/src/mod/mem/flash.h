@@ -19,14 +19,16 @@ typedef enum flash_res_e
 	FLASH_RES_WIPCHECK_ERROR,
 	FLASH_RES_TX_ERROR,
 	FLASH_RES_TX_WRITE_TOO_LONG,
-	FLASH_RES_WRONG_FLASHNR
+	FLASH_RES_WRONG_FLASHNR,
+	FLASH_RES_RX_LEN_OVERFLOW
 } flash_res_t;
 
 void FlashInit();						    // Module Init called once prior mainloop
 void FlashMain();							// Module routine participating each mainloop.
 
-bool ReadFlashPageAsync(uint8_t flashNr, uint32_t adr, uint32_t len, void (*finishedHandler)(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len));
+void ReadFlashAsync(uint8_t flashNr, uint32_t adr, uint32_t len, void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len));
 void WriteFlashAsync(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len,  void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint32_t len));
+void EraseFlashAsync(uint8_t flashNr, uint32_t adr, void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint32_t len));
 
 
 #endif /* MOD_MEM_FLASH_H_ */
