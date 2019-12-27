@@ -23,12 +23,18 @@ typedef enum flash_res_e
 	FLASH_RES_RX_LEN_OVERFLOW
 } flash_res_t;
 
+typedef enum flash_nr_e
+{
+	FLASH_NR1 = 1,
+	FLASH_NR2 = 2
+} flash_nr_t;
+
+
 void FlashInit();						    // Module Init called once prior mainloop
 void FlashMain();							// Module routine participating each mainloop.
 
-void ReadFlashAsync(uint8_t flashNr, uint32_t adr, uint32_t len, void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len));
-void WriteFlashAsync(uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len,  void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint32_t len));
-void EraseFlashAsync(uint8_t flashNr, uint32_t adr, void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint32_t len));
-
+void ReadFlashAsync(flash_nr_t flashNr, uint32_t adr,  uint8_t *rx_data,  uint32_t len, void (*finishedHandler)(flash_res_t result, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len));
+void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t len,  void (*finishedHandler)(flash_res_t result, uint8_t flashNr, uint32_t adr, uint32_t len));
+void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(flash_res_t result, uint8_t flashNr, uint32_t adr, uint32_t len));
 
 #endif /* MOD_MEM_FLASH_H_ */
