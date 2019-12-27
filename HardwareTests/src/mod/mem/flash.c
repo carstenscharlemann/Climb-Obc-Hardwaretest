@@ -25,21 +25,6 @@
 #include "../cli/cli.h"
 #include "../tim/timer.h"
 
-/* Whole flash */
-#define FLASH_SIZE 			134217728 			/* Bytes (2 * 2^26)*/
-//#define FLASH_PAGE_SIZE		((uint32_t) 512)	/* Bytes */
-//#define FLASH_SECTOR_SIZE	262144				/* Bytes (2^18) */
-//#define FLASH_PAGE_NUMBER 	262144
-//#define FLASH_SECTOR_NUMBER	512
-
-/* Single DIE only */
-#define FLASH_DIE_SIZE			67108864		/* Bytes (2^26)*/
-//#define FLASH_DIE_SECTOR_NUMBER 256
-//#define FLASH_DIE_PAGE_NUMBER 	131072
-
-#define FLASH_MAX_READ_SIZE		512				// bytes
-#define FLASH_MAX_WRITE_SIZE	512				// bytes
-
 typedef enum flash_status_e {
 	FLASH_STAT_NOT_INITIALIZED,
 	FLASH_STAT_IDLE,
@@ -89,8 +74,8 @@ void EraseFlashFinished(flash_res_t rxtxResult, flash_nr_t flashNr, uint32_t adr
 
 // local variables
 flash_worker_t flashWorker[2];
-uint8_t FlashWriteData[FLASH_MAX_WRITE_SIZE+10];
-uint8_t FlashReadData[FLASH_MAX_READ_SIZE+10];
+uint8_t FlashWriteData[FLASH_MAX_WRITE_SIZE+5];
+uint8_t FlashReadData[FLASH_MAX_READ_SIZE];
 
 void FlashInit() {
 	ssp01_init();										// TODO: shouldn't each module init be called from main !?.....
@@ -294,12 +279,10 @@ void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_
 	flash_worker_t *worker;
 
 	if (flashNr == 1) {
-		//initializedFlag = &flash1_initialized;
 		busyFlag = &flash1_busy;
 		busNr = 1;
 		worker = &flashWorker[0];
 	} else if (flashNr == 2) {
-		//initializedFlag = &flash2_initialized;
 		busyFlag = &flash2_busy;
 		busNr = 0;
 		worker = &flashWorker[1];
@@ -368,7 +351,7 @@ void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_
 	worker->busNr = busNr;
 	worker->RxCallback = finishedHandler;
 
-	// wir überlassen den nächsten Schritt unserem Main loop.
+	// next step(s) is/are done in mainloop
 	worker->FlashStatus = FLASH_STAT_RX_CHECKWIP;
 	return;
 }
@@ -446,7 +429,7 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 	worker->busNr = busNr;
 	worker->TxEraseCallback = finishedHandler;
 	worker->FlashStatus = FLASH_STAT_TX_CHECKWIP;
-	worker->DelayValue = 1;
+	worker->DelayValue = 1;			// Write in Progress check will be executed each mainloop for 25 tries.
 }
 
 void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint32_t len)){
@@ -507,8 +490,7 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 	worker->adr = adr;
 	worker->busNr = busNr;
 	worker->len = 0;
-	worker->DelayValue = 20000;		// TODO: make real timing here. At this moment with 20.000 mainloops for one WIP polling delay (-> aprx. 90ms)
-								    //       we get the sector erase finished after 6..7 tries. -> apx. 600 ms !!
+	worker->DelayValue = 20000;		// Write in Progress check will be executed every 20000th mainloop for 25 tries.
 	worker->TxEraseCallback = finishedHandler;
 	worker->FlashStatus = FLASH_STAT_ERASE_CHECKWIP;
 }
@@ -639,8 +621,12 @@ void FlashMainFor(flash_nr_t flashNr) {
 												// one delaying the next WIP read job (takes aprx. 34 us) for aprx. 12 us only. So idle state is reached after
 												// aprx. 130/140 us  ( 3 * ( 12 + 34 )! Increasing this value here would slow down polling but increase the
 												// timeout we wait here ( 25*delay ).
-				worker->DelayCounter = worker->DelayValue;		// This depends on write/erase.
 
+				// For erase we use:
+				//worker->DelayCounter = 20000;	 // TODO: make real timing here. At this moment with 20.000 mainloops for one WIP polling delay (-> aprx. 90ms)
+												 //       we get the sector erase finished after 6..7 tries. -> apx. 600 ms !!
+
+				worker->DelayCounter = worker->DelayValue;		// This depends on write/erase.
 				worker->FlashStatus = FLASH_STAT_WRITE_ERASE_INPROGRESS_DELAY;
 			} else {
 				// Write/erase process over, check for error bits
@@ -745,75 +731,6 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->FlashStatus = FLASH_STAT_TX_ERASE_TRANSFER_INPROGRESS;		// From here on its same as write process (wait for WIP to be cleared)
 			break;
 		}
-
-			//	/*--- Write - Page Program --- */
-			//	tx[0] = 0xDC; /* 0xDC sector erase, 4 byte address */
-			//	tx[1] = (adr >> 24);
-			//	tx[2] = ((adr & 0x00ff0000) >> 16);
-			//	tx[3] = ((adr & 0x0000ff00) >> 8);
-			//	tx[4] = (adr & 0x000000ff);
-			//
-			//	if (ssp0_add_job(flash_dev, tx, 5, NULL, 0, &job_status))
-			//	{
-			//		/* Error while adding job */
-			//		return FLASH_RET_JOB_ADD_ERROR;
-			//	}
-			//
-			//	xSemaphoreTake(flash2_semaphore, (TickType_t) 80);
-			//	i = 0;
-			//	while ((*job_status != SSP_JOB_STATE_DONE) && (i < 500))
-			//	{
-			//		xSemaphoreTake(flash2_semaphore, (TickType_t) 5);
-			//		/* Wait for job to finish */
-			//		i++;
-			//	}
-			//
-			//	/*--- Check WIP-Bit and Error bits --- */
-			//	tx[0] = 0x05; /* 0x05 */
-			//
-			//	i = 0;
-			//
-			//	do
-			//	{
-			//		vTaskDelay(WAIT_MS(50)); /* Timeout size? */
-			//		if (ssp0_add_job(flash_dev, tx, 1, rx, 1, &job_status))
-			//		{
-			//			/* Error while adding job */
-			//			return FLASH_RET_JOB_ADD_ERROR;
-			//		}
-			//
-			//		i++;
-			//		/* Wait for job to be executed and check result afterwards */
-			//		xSemaphoreTake(flash2_semaphore, (TickType_t) 80);
-			//
-			//	} while (((rx[0] & 0x01)) && (i < 20));
-			//
-			//	if (rx[0] & 0x01)
-			//	{
-			//		return FLASH_RET_WRITE_STILL_ACTIVE;
-			//		/* write process takes unusually long */
-			//	}
-			//
-			//	if (rx[0] & 0x20) /* EERR-Bit �berpr�fen (Bit 5 im Status Register) */
-			//	{
-			//		/* Error during write process */
-			//
-			//		/*--- Clear status register --- */
-			//		tx[0] = 0x30;
-			//		if (ssp0_add_job(flash_dev, tx, 1, NULL, 0, NULL))
-			//		{
-			//			/* Error while adding job */
-			//			return FLASH_RET_JOB_ADD_ERROR;
-			//		}
-			//
-			//		return FLASH_RET_ERASE_ERROR;
-			//	}
-			//
-			//	return FLASH_RET_SUCCESS;
-
-
-
-
 
 		case FLASH_STAT_IDLE:
 		default:
