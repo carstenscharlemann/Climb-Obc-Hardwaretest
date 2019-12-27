@@ -379,16 +379,19 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 	if (worker->FlashStatus != FLASH_STAT_IDLE) {
 		// TODO this also checks for all other busy states now  -> make own values for 'unitialized', 'Error', .... !?
 		finishedHandler(FLASH_RES_BUSY, flashNr, adr, len);
+		return;
 	}
 
 	if (data == NULL)
 	{
 		finishedHandler(FLASH_RES_DATA_PTR_INVALID, flashNr, adr, len);
+		return;
 	}
 
 	if (len > FLASH_MAX_WRITE_SIZE)
 	{
 		finishedHandler(FLASH_RES_TX_OVERFLOW, flashNr, adr, len); // return FLASH_RET_TX_OVERFLOW;
+		return;
 	}
 
 	if (adr < FLASH_DIE_SIZE)
@@ -412,6 +415,7 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 	{
 		/* Sector address overrun  */
 		finishedHandler(FLASH_RES_INVALID_ADR, flashNr, adr, len); //return FLASH_RET_INVALID_ADR;
+		return;
 	}
 
 	/*--- Check WIP-Bit (Wait for previous write to complete) --- */
@@ -455,6 +459,7 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 	if (worker->FlashStatus != FLASH_STAT_IDLE) {
 		// TODO this also checks for all other busy states now  -> make own values for 'unitialized', 'Error', .... !?
 		finishedHandler(FLASH_RES_BUSY, flashNr, adr, 0);
+		return;
 	}
 
 	if (adr < FLASH_DIE_SIZE) {
@@ -475,6 +480,7 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 	else {
 		/* Sector address overrun  */
 		finishedHandler(FLASH_RES_INVALID_ADR, flashNr, adr, 0); //return FLASH_RET_INVALID_ADR;
+		return;
 	}
 
 	/*--- Check WIP-Bit (Wait for previous write to complete) --- */
