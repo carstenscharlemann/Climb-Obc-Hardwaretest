@@ -6,14 +6,15 @@
  */
 #include <stdio.h>
 
-#include "..\globals.h"
+#include "../globals.h"
 #include "main.h"
 
 // include Modules used here
-#include "cli\cli.h"
-#include "thr\thruster.h"
-#include "tim\timer.h"
+#include "cli/cli.h"
+#include "thr/thruster.h"
+#include "tim/timer.h"
 #include "mem/eeprom.h"
+#include "mem/flash.h"
 
 // Call all Module Inits
 void MainInit() {
@@ -22,6 +23,7 @@ void MainInit() {
 	CliInit();
 	ThrInit();
 	EepromInit();
+	FlashInit();
 }
 
 // Poll all Modules from Main loop
@@ -29,6 +31,7 @@ void MainMain() {
 	// Call module mains with 'fast - requirement'
 	CliMain();
 	ThrMain();
+	FlashMain();
 	bool tick = TimMain();
 
 	if (tick) {

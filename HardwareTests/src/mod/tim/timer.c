@@ -87,6 +87,41 @@ bool TimMain(){
 }
 
 
+bool TimWaitForFalseMs(volatile bool *flag, uint8_t ms) {
+	uint32_t cr = Chip_Clock_GetPeripheralClockRate(MAINLOOP_TIMER_PCLK);
+	uint32_t cntToWait = ms * cr/1000 ;
+
+	LPC_TIMER_T *mlTimer = MAINLOOP_TIMER;
+	uint32_t currTimerReg = mlTimer->TC;
+
+	uint32_t waitFor = currTimerReg + cntToWait;
+	if (waitFor >= cr/1000 * TIM_MAIN_TICK_MS) {
+		// This is higher than the max value which TC gets before the match for the interrupt resets it to 0!
+		// so we correct the wait time for the time left after the 'overrun/reset'.
+		waitFor = cntToWait - (cr/1000 * TIM_MAIN_TICK_MS - currTimerReg);
+		// wait until TC gets reset
+		while (mlTimer->TC > currTimerReg && (*flag == true) );
+		// and then ...
+	} else if (waitFor < currTimerReg) {
+		// This only can happen when there is no Match reseting the TC. And the current TC + TimeToWait has an uint32 overrun.
+		// As coded now this will/should never happen (until somebody sets TIM_MAIN_TICK_MS to > 178000....)
+		// if it happens we first wait for the TC to overflow
+		while (mlTimer->TC > currTimerReg  && (*flag == true) );
+		// and then ...
+	}
+
+
+	// ... lets wait until calculated time is reached.
+	while (mlTimer->TC < waitFor  && (*flag == true) );
+
+	if (*flag == false) {
+		return true;		// Condition was met
+	} else {
+		return false;		// timeout occured.
+	}
+}
+
+
 void TimBlockMs(uint8_t ms) {
 	uint32_t cr = Chip_Clock_GetPeripheralClockRate(MAINLOOP_TIMER_PCLK);
 	uint32_t cntToWait = ms * cr/1000 ;
