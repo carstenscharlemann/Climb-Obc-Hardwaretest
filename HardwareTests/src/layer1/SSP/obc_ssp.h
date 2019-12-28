@@ -38,7 +38,7 @@ extern volatile bool flash1_busy;		// temp 'ersatz' für semaphor
 extern volatile bool flash2_busy;		// temp 'ersatz' für semaphor
 
 void ssp01_init(void);
-ssp_jobdef_ret_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t chip, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read, uint8_t **job_status);
+//ssp_jobdef_ret_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t chip, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read, uint8_t **job_status);
 
 ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 		                       ssp_chip_t chip,
