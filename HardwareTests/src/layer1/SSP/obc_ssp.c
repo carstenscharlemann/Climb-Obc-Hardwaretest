@@ -53,10 +53,10 @@ typedef struct ssp_job_s
 	uint16_t bytes_to_read;
 	uint16_t bytes_read;
 	uint8_t *array_to_read;
-	ssp_chip_t device;
+	//ssp_chip_t device;
 	uint8_t status;
 	uint8_t dir;
-	bool(*chipSelectHandler)(ssp_chip_t chip, bool select);
+	bool(*chipSelectHandler)(bool select);
 } volatile ssp_job_t;
 
 typedef struct ssp_busstatus_s
@@ -413,7 +413,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 					helper++;
 				}
 
-				cur_job->chipSelectHandler(cur_job->device, false);
+				/* Unselect device */
+				cur_job->chipSelectHandler(false);
 				//ssp_unselect_device(cur_job->device);
 //				/* Unselect device */
 //				switch (cur_job->device)
@@ -479,7 +480,8 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 				helper++;
 			}
 
-			cur_job->chipSelectHandler(cur_job->device, false);
+			/* Unselect device */
+			cur_job->chipSelectHandler(false);
 			//ssp_unselect_device(cur_job->device);
 //			switch (cur_job->device)
 //			/* Unselect device */
@@ -559,7 +561,9 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 		/* Check if jobs are pending */
 		if (jobs->jobs_pending > 0)
 		{
-			if (!cur_job->chipSelectHandler(cur_job->device, true)) {
+			/* Select device */
+			if (!cur_job->chipSelectHandler(true)) {
+			//if (!cur_job->chipSelectHandler(cur_job->device, true)) {
 				jobs->bus_status.ssp_error_counter++;
 				/* Set error description */
 				cur_job->status = SSP_JOB_STATE_DEVICE_ERROR;
@@ -685,13 +689,12 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 //}
 
 ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
-		                       ssp_chip_t chip,
 							   uint8_t *array_to_send,
 							   uint16_t bytes_to_send,
 							   uint8_t *array_to_store,
 							   uint16_t bytes_to_read,
 							   uint8_t **job_status,
-							   bool(*chipSelectHandler)(ssp_chip_t chip, bool select)) {
+							   bool(*chipSelectHandler)(bool select)) {
 
 	uint32_t helper;
 	uint8_t position;
@@ -735,7 +738,7 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 		jobs->job[position].array_to_read = array_to_store;
 		jobs->job[position].bytes_to_read = bytes_to_read;
 		jobs->job[position].bytes_read = 0;
-		jobs->job[position].device = chip;
+		//jobs->job[position].device = chip;
 		jobs->job[position].chipSelectHandler = chipSelectHandler;
 		jobs->job[position].status = SSP_JOB_STATE_PENDING;
 
@@ -755,7 +758,8 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 		{ /* Check if jobs pending */
 
 			/* Select device */
-			if (!chipSelectHandler(jobs->job[position].device, true)) {
+			if (!chipSelectHandler(true)) {
+			//if (!chipSelectHandler(jobs->job[position].device, true)) {
 				jobs->bus_status.ssp_error_counter++;
 
 				/* Set error description */

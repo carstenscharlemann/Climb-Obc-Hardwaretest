@@ -48,7 +48,7 @@ typedef struct flash_worker_s
 	flash_status FlashStatus;
 	uint8_t tx[5];
 	uint8_t rx[1];
-	uint8_t flash_dev;
+	bool (*ChipSelect)(bool select);
 	uint8_t *job_status;
 	uint8_t *data;
 	uint32_t len;
@@ -74,7 +74,7 @@ typedef struct flash_worker_s
 
 
 // prototypes
-bool flash_init(uint8_t flashNr);
+bool flash_init(ssp_busnr_t busNr, flash_worker_t *worker, bool (*ChipSelect)(bool select) );
 void FlashMainFor(uint8_t flashNr);
 
 void ReadFlashCmd(int argc, char *argv[]);
@@ -91,91 +91,40 @@ flash_worker_t flashWorker[2];
 uint8_t FlashWriteData[FLASH_MAX_WRITE_SIZE+5];
 uint8_t FlashReadData[FLASH_MAX_READ_SIZE];
 
-
-void ssp_unselect_device(ssp_chip_t chip) {
-			switch (chip)
-			/* Unselect device */
-			{
-				case SSPx_DEV_FLASH2_1:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					flash2_busy = false;
-					break;
-
-				case SSPx_DEV_FLASH2_2:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					flash2_busy = false;
-					break;
-
-				case SSPx_DEV_FLASH1_1:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					flash1_busy = false;
-					break;
-
-				case SSPx_DEV_FLASH1_2:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-					flash1_busy = false;
-					break;
-
-				default: /* Device does not exist */
-					/* Release all devices */
-					// jobs->bus_status.ssp_interrupt_unknown_device = 1;
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-					/* Release all busy flags*/
-					flash1_busy = false;
-					flash2_busy = false;
-					break;
-			}
-}
-
-bool ssp_select_device(ssp_chip_t chip) {
-	switch (chip)
-	/* Select device */
-	{
-		case SSPx_DEV_FLASH2_1:
-			Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-			break;
-
-		case SSPx_DEV_FLASH2_2:
-			Chip_GPIO_ClearValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-			break;
-
-		case SSPx_DEV_FLASH1_1:
-			Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-			break;
-
-		case SSPx_DEV_FLASH1_2:
-			Chip_GPIO_ClearValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-			break;
-
-		default: /* Device does not exist */
-			// Unselect all known devices
-			//jobs->bus_status.ssp_error_counter++;
-			Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-			Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-			Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-			Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-			return false;
+//
+// Be careful here! This Callbacks are called from IRQ !!!
+// Do not do any complicated logic here!!!
+bool FlashChipSelect_1_CS1( bool select) {
+	Chip_GPIO_SetPinState(LPC_GPIO, FLASH1_CS1_PORT, FLASH1_CS1_PIN, !select);
+	if (!select) {
+		flash1_busy = false;
 	}
 	return true;
 }
 
-bool ssp_chip_select(ssp_chip_t chip, bool select) {
-	bool retVal = true;
-	if (select) {
-		retVal = ssp_select_device(chip);
-	} else {
-		ssp_unselect_device(chip);
+bool FlashChipSelect_1_CS2( bool select) {
+	Chip_GPIO_SetPinState(LPC_GPIO, FLASH1_CS2_PORT, FLASH1_CS2_PIN, !select);
+	if (!select) {
+		flash1_busy = false;
 	}
-	return retVal;
+	return true;
 }
 
+bool FlashChipSelect_2_CS1( bool select) {
+	Chip_GPIO_SetPinState(LPC_GPIO, FLASH2_CS1_PORT, FLASH2_CS1_PIN, !select);
+	if (!select) {
+		flash2_busy = false;
+	}
+	return true;
+}
 
-
-
-
+bool FlashChipSelect_2_CS2( bool select) {
+	Chip_GPIO_SetPinState(LPC_GPIO, FLASH2_CS2_PORT, FLASH2_CS2_PIN, !select);
+	if (!select) {
+		flash2_busy = false;
+	}
+	return true;
+}
 
 
 void FlashInit() {
@@ -202,12 +151,28 @@ void FlashInit() {
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLASH1_CS2_PORT, FLASH1_CS2_PIN);
 	Chip_GPIO_SetPinState(LPC_GPIO, FLASH1_CS2_PORT, FLASH1_CS2_PIN, true);
 
-	if (! flash_init(FLASH_NR1)) {
-		printf("Init Fehler für Flash1.\n");
+	flashWorker[0].FlashStatus = FLASH_STAT_NOT_INITIALIZED;
+	if (flash_init(SSP_BUS1, &flashWorker[0], FlashChipSelect_1_CS1 )) {
+		if (flash_init(SSP_BUS1, &flashWorker[0], FlashChipSelect_1_CS2 )) {
+			flashWorker[0].FlashStatus = FLASH_STAT_IDLE;
+		} else {
+			printf("Init Fehler für Flash1 CS2.\n");
+		}
+	} else {
+		printf("Init Fehler für Flash1 CS1.\n");
 	}
-	if (! flash_init(FLASH_NR2)) {
-		printf("Init Fehler für Flash2.\n");
+
+	flashWorker[1].FlashStatus = FLASH_STAT_NOT_INITIALIZED;
+	if (flash_init(SSP_BUS0, &flashWorker[1], FlashChipSelect_2_CS1 )) {
+		if (flash_init(SSP_BUS0, &flashWorker[1], FlashChipSelect_2_CS2 )) {
+			flashWorker[1].FlashStatus = FLASH_STAT_IDLE;
+		} else {
+			printf("Init Fehler für Flash2 CS2.\n");
+		}
+	} else {
+		printf("Init Fehler für Flash2 CS1.\n");
 	}
+
 	RegisterCommand("fRead", ReadFlashCmd);
 	RegisterCommand("fWrite", WriteFlashCmd);
 	RegisterCommand("fErase", EraseFlashCmd);
@@ -218,29 +183,29 @@ void FlashMain(void) {
 	FlashMainFor(FLASH_NR2);
 }
 
-bool flash_init(flash_nr_t flashNr)
+bool flash_init(ssp_busnr_t busNr, flash_worker_t *worker, bool (*ChipSelect)(bool select) )
 {
-	ssp_busnr_t busNr;
-	uint8_t dev1Nr;
-	uint8_t dev2Nr;
-	flash_worker_t *worker;
+//	ssp_busnr_t busNr;
+//	uint8_t dev1Nr;
+//	uint8_t dev2Nr;
+//	flash_worker_t *worker;
+//
+//	if (flashNr == FLASH_NR1) {
+//		busNr = SSP_BUS1;
+//		dev1Nr = SSPx_DEV_FLASH1_1;
+//		dev2Nr = SSPx_DEV_FLASH1_2;
+//		worker = &flashWorker[0];
+//	} else if (flashNr == FLASH_NR2) {
+//		busNr = SSP_BUS0;
+//		dev1Nr = SSPx_DEV_FLASH2_1;
+//		dev2Nr = SSPx_DEV_FLASH2_2;
+//		worker = &flashWorker[1];
+//	} else {
+//		printf("Not supported flash Number: %d", flashNr);
+//		return false;
+//	}
 
-	if (flashNr == FLASH_NR1) {
-		busNr = SSP_BUS1;
-		dev1Nr = SSPx_DEV_FLASH1_1;
-		dev2Nr = SSPx_DEV_FLASH1_2;
-		worker = &flashWorker[0];
-	} else if (flashNr == FLASH_NR2) {
-		busNr = SSP_BUS0;
-		dev1Nr = SSPx_DEV_FLASH2_1;
-		dev2Nr = SSPx_DEV_FLASH2_2;
-		worker = &flashWorker[1];
-	} else {
-		printf("Not supported flash Number: %d", flashNr);
-		return false;
-	}
-
-	worker->FlashStatus = FLASH_STAT_NOT_INITIALIZED;
+	//worker->FlashStatus = FLASH_STAT_NOT_INITIALIZED;
 
 	/* Init flash n and read ID register
 	 * Parameters: none
@@ -254,7 +219,7 @@ bool flash_init(flash_nr_t flashNr)
 	tx[0] = 0x9F; /* 0x9F */
 	rx[0] = 0x00;
 
-	if (ssp_add_job2(busNr , dev1Nr, tx, 1, rx, 1, &job_status, ssp_chip_select))
+	if (ssp_add_job2(busNr , tx, 1, rx, 1, &job_status, ChipSelect))
 	{
 		/* Error while adding job */
 		//return FLASH_RET_JOB_ADD_ERROR;
@@ -274,34 +239,6 @@ bool flash_init(flash_nr_t flashNr)
 		worker->FlashStatus = FLASH_STAT_ERROR;
 		return false;
 	}
-
-	/* Read flash ID register */
-	tx[0] = 0x9F; /* 0x9F */
-	rx[0] = 0x00;
-
-	if (ssp_add_job2(busNr, dev2Nr, tx, 1, rx, 1, &job_status, ssp_chip_select))
-	{
-		/* Error while adding job */
-		//return FLASH_RET_JOB_ADD_ERROR;
-		return false;
-	}
-
-	helper = 0;
-	while ((*job_status != SSP_JOB_STATE_DONE) && (helper < 1000000))
-	{
-		/* Wait for job to finish */
-		helper++;
-	}
-
-	if (rx[0] != 0x01)
-	{
-		/* Error - Flash could not be accessed */
-		worker->FlashStatus = FLASH_STAT_ERROR;
-		return false;
-	}
-
-	/* Everything ok */
-	worker->FlashStatus = FLASH_STAT_IDLE;
 	return true;
 }
 
@@ -437,17 +374,21 @@ void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_
 	if (adr < FLASH_DIE_SIZE)
 	{
 		if (flashNr == 2) {
-			worker->flash_dev = SSPx_DEV_FLASH2_1;
+			//worker->flash_dev = SSPx_DEV_FLASH2_1;
+			worker->ChipSelect = FlashChipSelect_2_CS1;
 		} else {
-			worker->flash_dev = SSPx_DEV_FLASH1_1;
+			//worker->flash_dev = SSPx_DEV_FLASH1_1;
+			worker->ChipSelect = FlashChipSelect_1_CS1;
 		}
 	}
 	else if (adr < FLASH_SIZE)
 	{
 		if (flashNr == 2) {
-			worker->flash_dev = SSPx_DEV_FLASH2_2;
+			//worker->flash_dev = SSPx_DEV_FLASH2_2;
+			worker->ChipSelect = FlashChipSelect_2_CS2;
 		} else {
-			worker->flash_dev = SSPx_DEV_FLASH1_2;
+			//worker->flash_dev = SSPx_DEV_FLASH1_2;
+			worker->ChipSelect = FlashChipSelect_1_CS2;
 		}
 		adr = adr - FLASH_DIE_SIZE;
 	}
@@ -463,7 +404,7 @@ void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_
 	worker->rx[0] = 0x00;
 
 	*busyFlag = true;
-	if (ssp_add_job2(busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL, ssp_chip_select)) {
+	if (ssp_add_job2(busNr,  worker->tx, 1, worker->rx, 1, NULL, worker->ChipSelect)) {
 		/* Error while adding job */
 		finishedHandler(FLASH_RES_JOB_ADD_ERROR, flashNr, adr, 0, len);
 		return;
@@ -520,17 +461,21 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 	if (adr < FLASH_DIE_SIZE)
 	{
 		if (flashNr == 2) {
-			worker->flash_dev = SSPx_DEV_FLASH2_1;
+			//worker->flash_dev = SSPx_DEV_FLASH2_1;
+			worker->ChipSelect = FlashChipSelect_2_CS1;
 		} else {
-			worker->flash_dev = SSPx_DEV_FLASH1_1;
+			//worker->flash_dev = SSPx_DEV_FLASH1_1;
+			worker->ChipSelect = FlashChipSelect_1_CS1;
 		}
 	}
 	else if (adr < FLASH_SIZE)
 	{
 		if (flashNr == 2) {
-			worker->flash_dev = SSPx_DEV_FLASH2_2;
+			//worker->flash_dev = SSPx_DEV_FLASH2_2;
+			worker->ChipSelect = FlashChipSelect_2_CS2;
 		} else {
-			worker->flash_dev = SSPx_DEV_FLASH1_2;
+			//worker->flash_dev = SSPx_DEV_FLASH1_2;
+			worker->ChipSelect = FlashChipSelect_1_CS2;
 		}
 		adr = adr - FLASH_DIE_SIZE;
 	}
@@ -546,7 +491,7 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 	worker->rx[0] = 0x00;
 
 	*busyFlag = true;
-	if (ssp_add_job2(busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL, ssp_chip_select)) {
+	if (ssp_add_job2(busNr,  worker->tx, 1, worker->rx, 1, NULL, worker->ChipSelect)) {
 		/* Error while adding job */
 		finishedHandler(FLASH_RES_JOB_ADD_ERROR, flashNr, adr, len); //return FLASH_RET_JOB_ADD_ERROR;
 	}
@@ -585,18 +530,24 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 		return;
 	}
 
-	if (adr < FLASH_DIE_SIZE) {
+	if (adr < FLASH_DIE_SIZE)
+	{
 		if (flashNr == 2) {
-			worker->flash_dev = SSPx_DEV_FLASH2_1;
+			//worker->flash_dev = SSPx_DEV_FLASH2_1;
+			worker->ChipSelect = FlashChipSelect_2_CS1;
 		} else {
-			worker->flash_dev = SSPx_DEV_FLASH1_1;
+			//worker->flash_dev = SSPx_DEV_FLASH1_1;
+			worker->ChipSelect = FlashChipSelect_1_CS1;
 		}
 	}
-	else if (adr < FLASH_SIZE) {
+	else if (adr < FLASH_SIZE)
+	{
 		if (flashNr == 2) {
-			worker->flash_dev = SSPx_DEV_FLASH2_2;
+			//worker->flash_dev = SSPx_DEV_FLASH2_2;
+			worker->ChipSelect = FlashChipSelect_2_CS2;
 		} else {
-			worker->flash_dev = SSPx_DEV_FLASH1_2;
+			//worker->flash_dev = SSPx_DEV_FLASH1_2;
+			worker->ChipSelect = FlashChipSelect_1_CS2;
 		}
 		adr = adr - FLASH_DIE_SIZE;
 	}
@@ -611,7 +562,7 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 	worker->rx[0] = 0x00;
 
 	*busyFlag = true;
-	if (ssp_add_job2(busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL, ssp_chip_select)) {
+	if (ssp_add_job2(busNr,  worker->tx, 1, worker->rx, 1, NULL, worker->ChipSelect)) {
 		/* Error while adding job */
 		finishedHandler(FLASH_RES_JOB_ADD_ERROR, flashNr, adr, 0); //return FLASH_RET_JOB_ADD_ERROR;
 	}
@@ -663,7 +614,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->tx[4] = (worker->adr & 0x000000ff);
 
 			*busyFlag = true;
-			if (ssp_add_job2(worker->busNr,worker->flash_dev, worker->tx, 5, worker->data, worker->len, &worker->job_status, ssp_chip_select))
+			if (ssp_add_job2(worker->busNr, worker->tx, 5, worker->data, worker->len, &worker->job_status, worker->ChipSelect))
 			{
 				/* Error while adding job */
 				worker->FlashStatus = FLASH_STAT_ERROR;
@@ -693,7 +644,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->tx[0] = 0x06; /* 0x06 WREN */
 
 			*busyFlag = true;
-			if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->tx, 1, NULL, 0, NULL, ssp_chip_select))
+			if (ssp_add_job2(worker->busNr,  worker->tx, 1, NULL, 0, NULL,  worker->ChipSelect))
 			{
 				worker->FlashStatus = FLASH_STAT_ERROR;
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
@@ -713,7 +664,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->data[4] = (worker->adr & 0x000000ff);
 
 			*busyFlag = true;
-			if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->data, (5 + worker->len), NULL, 0, &worker->job_status, ssp_chip_select))
+			if (ssp_add_job2(worker->busNr, worker->data, (5 + worker->len), NULL, 0, &worker->job_status,  worker->ChipSelect))
 			{
 				/* Error while adding job */
 				worker->FlashStatus = FLASH_STAT_ERROR;
@@ -730,7 +681,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->tx[0] = 0x05; /* 0x05 */
 			worker->CheckTxCounter = 25;				// We now wait 25 * 4 ms to get a cleared WIP bit and check for errors !?
 			*busyFlag = true;
-			if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL, ssp_chip_select)) {
+			if (ssp_add_job2(worker->busNr,  worker->tx, 1, worker->rx, 1, NULL,  worker->ChipSelect)) {
 				/* Error while adding job */
 				worker->FlashStatus = FLASH_STAT_ERROR;
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
@@ -767,7 +718,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 					/*--- Clear status register --- */
 					worker->tx[0] = 0x30;
 					*busyFlag = true;
-					if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->tx, 1, NULL, 0, NULL, ssp_chip_select)) {
+					if (ssp_add_job2(worker->busNr, worker->tx, 1, NULL, 0, NULL,  worker->ChipSelect)) {
 						/* Error while adding job */
 						worker->FlashStatus = FLASH_STAT_ERROR;
 						worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
@@ -798,7 +749,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 					worker->TxEraseCallback(FLASH_RES_TX_WRITE_TOO_LONG,flashNr, worker->adr, worker->len);
 				} else {
 					*busyFlag = true;
-					if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->tx, 1, worker->rx, 1, NULL, ssp_chip_select)) {
+					if (ssp_add_job2(worker->busNr, worker->tx, 1, worker->rx, 1, NULL,  worker->ChipSelect)) {
 						/* Error while adding job */
 						worker->FlashStatus = FLASH_STAT_ERROR;
 						worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
@@ -830,7 +781,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->tx[0] = 0x06; /* 0x06 WREN */
 
 			*busyFlag = true;
-			if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->tx, 1, NULL, 0, NULL, ssp_chip_select))
+			if (ssp_add_job2(worker->busNr, worker->tx, 1, NULL, 0, NULL,  worker->ChipSelect))
 			{
 				worker->FlashStatus = FLASH_STAT_ERROR;
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, 0);
@@ -850,7 +801,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 			worker->tx[4] = (worker->adr & 0x000000ff);
 
 			*busyFlag = true;
-			if (ssp_add_job2(worker->busNr, worker->flash_dev, worker->tx, 5, NULL, 0, &worker->job_status, ssp_chip_select))
+			if (ssp_add_job2(worker->busNr, worker->tx, 5, NULL, 0, &worker->job_status,  worker->ChipSelect))
 			{
 				/* Error while adding job */
 				worker->FlashStatus = FLASH_STAT_ERROR;

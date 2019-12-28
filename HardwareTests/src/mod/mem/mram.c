@@ -50,7 +50,7 @@ void WriteMramFinished (mram_res_t result, uint32_t adr, uint8_t *data, uint32_t
 //
 // Be careful here! This Callback is sometimes called from IRQ !!!
 // Do not do any complicated logic here!!!
-bool MramChipSelect(uint8_t device, bool select) {
+bool MramChipSelect(bool select) {
 	Chip_GPIO_SetPinState(LPC_GPIO, MRAM_CS_PORT, MRAM_CS_PIN, !select);
 	if (!select) {
 		busyFlag = false;
@@ -82,7 +82,7 @@ void MramInit() {
 	tx[0] = 0x05;
 	rx[0] = 0xFF;
 
-	if (ssp_add_job2(SSP_BUS0, 55, tx, 1, rx, 1, &job_status, MramChipSelect))
+	if (ssp_add_job2(SSP_BUS0, tx, 1, rx, 1, &job_status, MramChipSelect))
 	{
 		/* Error while adding job */
 		mramStatus = MRAM_STAT_ERROR;
@@ -125,7 +125,7 @@ void MramMain() {
 			mramData[3] = (mramAdr & 0x000000ff);
 
 			busyFlag = true;
-			if (ssp_add_job2(SSP_BUS0, 55, mramData, mramLen+4, NULL, 0, NULL, MramChipSelect)) {
+			if (ssp_add_job2(SSP_BUS0, mramData, mramLen+4, NULL, 0, NULL, MramChipSelect)) {
 				/* Error while adding job */
 				mramCallback(MRAM_RES_JOB_ADD_ERROR, mramAdr, 0, mramLen);
 				return;
@@ -138,7 +138,7 @@ void MramMain() {
 			tx[0] = 0x04;
 
 			busyFlag = true;
-			if (ssp_add_job2(SSP_BUS0, 55, tx, 1, NULL, 0, NULL, MramChipSelect)) {
+			if (ssp_add_job2(SSP_BUS0, tx, 1, NULL, 0, NULL, MramChipSelect)) {
 				/* Error while adding job */
 				mramCallback(MRAM_RES_JOB_ADD_ERROR, mramAdr, 0, mramLen);
 				return;
@@ -244,7 +244,7 @@ void ReadMramAsync(uint32_t adr,  uint8_t *rx_data,  uint32_t len, void (*finish
 	tx[3] = (adr & 0x000000ff);
 
 	busyFlag = true;
-	if (ssp_add_job2(SSP_BUS0, 55, tx, 4, rx_data, len, NULL, MramChipSelect)) {
+	if (ssp_add_job2(SSP_BUS0,  tx, 4, rx_data, len, NULL, MramChipSelect)) {
 		/* Error while adding job */
 		finishedHandler(MRAM_RES_JOB_ADD_ERROR, adr, 0, len);
 		return;
@@ -285,7 +285,7 @@ void WriteMramAsync(uint32_t adr, uint8_t *data, uint32_t len,  void (*finishedH
 	tx[0] = 0x06;
 
 	busyFlag = true;
-	if (ssp_add_job2(SSP_BUS0, 55, tx, 1, NULL, 0, NULL, MramChipSelect)) {
+	if (ssp_add_job2(SSP_BUS0, tx, 1, NULL, 0, NULL, MramChipSelect)) {
 		/* Error while adding job */
 		finishedHandler(MRAM_RES_JOB_ADD_ERROR, adr, 0, len);
 		return;
