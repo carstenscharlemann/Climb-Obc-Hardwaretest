@@ -15,6 +15,8 @@
 #include "tim/timer.h"
 #include "mem/eeprom.h"
 #include "mem/flash.h"
+#include "mem/mram.h"
+
 
 // Call all Module Inits
 void MainInit() {
@@ -24,6 +26,7 @@ void MainInit() {
 	ThrInit();
 	EepromInit();
 	FlashInit();
+	MramInit();
 }
 
 // Poll all Modules from Main loop
@@ -32,8 +35,8 @@ void MainMain() {
 	CliMain();
 	ThrMain();
 	FlashMain();
+	MramMain();
 	bool tick = TimMain();
-
 	if (tick) {
 		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'

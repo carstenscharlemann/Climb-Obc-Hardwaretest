@@ -56,6 +56,7 @@ typedef struct ssp_job_s
 	ssp_chip_t device;
 	uint8_t status;
 	uint8_t dir;
+	bool(*chipSelectHandler)(ssp_chip_t chip, bool select);
 } volatile ssp_job_t;
 
 typedef struct ssp_busstatus_s
@@ -412,7 +413,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 					helper++;
 				}
 
-				ssp_chip_select(cur_job->device, false);
+				cur_job->chipSelectHandler(cur_job->device, false);
 				//ssp_unselect_device(cur_job->device);
 //				/* Unselect device */
 //				switch (cur_job->device)
@@ -478,7 +479,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 				helper++;
 			}
 
-			ssp_chip_select(cur_job->device, false);
+			cur_job->chipSelectHandler(cur_job->device, false);
 			//ssp_unselect_device(cur_job->device);
 //			switch (cur_job->device)
 //			/* Unselect device */
@@ -558,7 +559,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 		/* Check if jobs are pending */
 		if (jobs->jobs_pending > 0)
 		{
-			if (!ssp_chip_select(cur_job->device, true)) {
+			if (!cur_job->chipSelectHandler(cur_job->device, true)) {
 				jobs->bus_status.ssp_error_counter++;
 				/* Set error description */
 				cur_job->status = SSP_JOB_STATE_DEVICE_ERROR;
@@ -671,9 +672,22 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 
 }
 
-uint32_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
+
+ssp_jobdef_ret_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t sensor, uint8_t *array_to_send, uint16_t bytes_to_send, uint8_t *array_to_store, uint16_t bytes_to_read,
         uint8_t **job_status)
 {
+	return ssp_add_job2(busNr, sensor, array_to_send, bytes_to_send, array_to_store, bytes_to_read, job_status, ssp_chip_select);
+}
+
+ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
+		                       ssp_chip_t chip,
+							   uint8_t *array_to_send,
+							   uint16_t bytes_to_send,
+							   uint8_t *array_to_store,
+							   uint16_t bytes_to_read,
+							   uint8_t **job_status,
+							   bool(*chipSelectHandler)(ssp_chip_t chip, bool select)) {
+
 	uint32_t helper;
 	uint8_t position;
 	ssp_jobs_t *jobs = &ssp_jobs[busNr];
@@ -716,7 +730,8 @@ uint32_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t sensor, uint8_t *array_to_sen
 		jobs->job[position].array_to_read = array_to_store;
 		jobs->job[position].bytes_to_read = bytes_to_read;
 		jobs->job[position].bytes_read = 0;
-		jobs->job[position].device = sensor;
+		jobs->job[position].device = chip;
+		jobs->job[position].chipSelectHandler = chipSelectHandler;
 		jobs->job[position].status = SSP_JOB_STATE_PENDING;
 
 		if (bytes_to_send > 0)
@@ -735,7 +750,7 @@ uint32_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t sensor, uint8_t *array_to_sen
 		{ /* Check if jobs pending */
 
 			/* Select device */
-			if (!ssp_chip_select(jobs->job[position].device, true)) {
+			if (!chipSelectHandler(jobs->job[position].device, true)) {
 				jobs->bus_status.ssp_error_counter++;
 
 				/* Set error description */

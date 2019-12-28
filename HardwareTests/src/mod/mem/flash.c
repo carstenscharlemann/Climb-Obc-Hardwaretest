@@ -211,7 +211,7 @@ void ReadFlashFinished(flash_res_t result,  flash_nr_t flashNr, uint32_t adr, ui
 		}
 		printf("\n");
 	} else {
-		printf("Error while attempting to write to FlashNr %d: %d\n", flashNr, result);
+		printf("Error while reading from FlashNr %d: %d\n", flashNr, result);
 	}
 }
 
