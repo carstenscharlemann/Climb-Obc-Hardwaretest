@@ -217,6 +217,88 @@ void ssp_init(LPC_SSP_T *device, uint8_t busNr, IRQn_Type irq, uint32_t irqPrio 
 	ssp_jobs[busNr].bus_status.ssp_initialized = 1;
 }
 
+
+void ssp_unselect_device(ssp_chip_t chip) {
+			switch (chip)
+			/* Unselect device */
+			{
+				case SSPx_DEV_FLASH2_1:
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+					flash2_busy = false;
+					break;
+
+				case SSPx_DEV_FLASH2_2:
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+					flash2_busy = false;
+					break;
+
+				case SSPx_DEV_FLASH1_1:
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+					flash1_busy = false;
+					break;
+
+				case SSPx_DEV_FLASH1_2:
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+					flash1_busy = false;
+					break;
+
+				default: /* Device does not exist */
+					/* Release all devices */
+					// jobs->bus_status.ssp_interrupt_unknown_device = 1;
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+					/* Release all busy flags*/
+					flash1_busy = false;
+					flash2_busy = false;
+					break;
+			}
+}
+
+bool ssp_select_device(ssp_chip_t chip) {
+	switch (chip)
+	/* Select device */
+	{
+		case SSPx_DEV_FLASH2_1:
+			Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+			break;
+
+		case SSPx_DEV_FLASH2_2:
+			Chip_GPIO_ClearValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+			break;
+
+		case SSPx_DEV_FLASH1_1:
+			Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+			break;
+
+		case SSPx_DEV_FLASH1_2:
+			Chip_GPIO_ClearValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+			break;
+
+		default: /* Device does not exist */
+			// Unselect all known devices
+			//jobs->bus_status.ssp_error_counter++;
+			Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+			Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+			Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+			Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+			return false;
+	}
+	return true;
+}
+
+bool ssp_chip_select(ssp_chip_t chip, bool select) {
+	bool retVal = true;
+	if (select) {
+		retVal = ssp_select_device(chip);
+	} else {
+		ssp_unselect_device(chip);
+	}
+	return retVal;
+}
+
+
 void SSP1_IRQHandler(void)
 {
 	SSP01_IRQHandler(LPC_SSP1, SSP_BUS1);
@@ -330,39 +412,41 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 					helper++;
 				}
 
-				/* Unselect device */
-				switch (cur_job->device)
-				{
-					case SSPx_DEV_FLASH2_1:
-						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-						flash2_busy = false;
-						break;
-
-					case SSPx_DEV_FLASH2_2:
-						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-						flash2_busy = false;
-						break;
-
-					case SSPx_DEV_FLASH1_1:
-						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-						flash1_busy = false;
-						break;
-
-					case SSPx_DEV_FLASH1_2:
-						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-						flash1_busy = false;
-						break;
-
-					default: /* Device does not exist */
-						/* Release all devices */
-						jobs->bus_status.ssp_error_counter++;
-						jobs->bus_status.ssp_interrupt_unknown_device = 1;
-						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-						break;
-				}
+				ssp_chip_select(cur_job->device, false);
+				//ssp_unselect_device(cur_job->device);
+//				/* Unselect device */
+//				switch (cur_job->device)
+//				{
+//					case SSPx_DEV_FLASH2_1:
+//						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//						flash2_busy = false;
+//						break;
+//
+//					case SSPx_DEV_FLASH2_2:
+//						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//						flash2_busy = false;
+//						break;
+//
+//					case SSPx_DEV_FLASH1_1:
+//						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//						flash1_busy = false;
+//						break;
+//
+//					case SSPx_DEV_FLASH1_2:
+//						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//						flash1_busy = false;
+//						break;
+//
+//					default: /* Device does not exist */
+//						/* Release all devices */
+//						jobs->bus_status.ssp_error_counter++;
+//						jobs->bus_status.ssp_interrupt_unknown_device = 1;
+//						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//						Chip_GPIO_SetPortValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//						Chip_GPIO_SetPortValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//						break;
+//				}
 
 				cur_job->status = SSP_JOB_STATE_DONE;
 			}
@@ -394,39 +478,41 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 				helper++;
 			}
 
-			switch (cur_job->device)
-			/* Unselect device */
-			{
-
-				case SSPx_DEV_FLASH2_1:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					flash2_busy = false;
-					break;
-
-				case SSPx_DEV_FLASH2_2:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					flash2_busy = false;
-					break;
-
-				case SSPx_DEV_FLASH1_1:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					flash1_busy = false;
-					break;
-
-				case SSPx_DEV_FLASH1_2:
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-					flash1_busy = false;
-					break;
-
-				default: /* Device does not exist */
-					/* Release all devices */
-					jobs->bus_status.ssp_interrupt_unknown_device = 1;
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-					break;
-			}
+			ssp_chip_select(cur_job->device, false);
+			//ssp_unselect_device(cur_job->device);
+//			switch (cur_job->device)
+//			/* Unselect device */
+//			{
+//
+//				case SSPx_DEV_FLASH2_1:
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//					flash2_busy = false;
+//					break;
+//
+//				case SSPx_DEV_FLASH2_2:
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//					flash2_busy = false;
+//					break;
+//
+//				case SSPx_DEV_FLASH1_1:
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//					flash1_busy = false;
+//					break;
+//
+//				case SSPx_DEV_FLASH1_2:
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//					flash1_busy = false;
+//					break;
+//
+//				default: /* Device does not exist */
+//					/* Release all devices */
+//					jobs->bus_status.ssp_interrupt_unknown_device = 1;
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//					break;
+//			}
 
 			cur_job->status = SSP_JOB_STATE_DONE;
 		}
@@ -472,49 +558,64 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 		/* Check if jobs are pending */
 		if (jobs->jobs_pending > 0)
 		{
-			switch (cur_job->device)
-			/* Select device */
-			{
-				case SSPx_DEV_FLASH2_1:
-					Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					break;
+			if (!ssp_chip_select(cur_job->device, true)) {
+				jobs->bus_status.ssp_error_counter++;
+				/* Set error description */
+				cur_job->status = SSP_JOB_STATE_DEVICE_ERROR;
 
-				case SSPx_DEV_FLASH2_2:
-					Chip_GPIO_ClearValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					break;
+				/* Increment to next job */
+				jobs->current_job++;
+				jobs->jobs_pending--;
 
-				case SSPx_DEV_FLASH1_1:
-					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					break;
-
-				case SSPx_DEV_FLASH1_2:
-					Chip_GPIO_ClearValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-					break;
-
-				default: /* Device does not exist */
-					jobs->bus_status.ssp_error_counter++;
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-
-					/* Set error description */
-					cur_job->status = SSP_JOB_STATE_DEVICE_ERROR;
-
-					/* Increment to next job */
-					jobs->current_job++;
-					jobs->jobs_pending--;
-
-					if (jobs->current_job == SPI_MAX_JOBS)
-					{
-						jobs->current_job = 0;
-					}
-
-					return;
-
-					break;
-
+				if (jobs->current_job == SPI_MAX_JOBS)
+				{
+					jobs->current_job = 0;
+				}
+				return;
 			}
+//			switch (cur_job->device)
+//			/* Select device */
+//			{
+//				case SSPx_DEV_FLASH2_1:
+//					Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//					break;
+//
+//				case SSPx_DEV_FLASH2_2:
+//					Chip_GPIO_ClearValue(LPC_GPIO,FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//					break;
+//
+//				case SSPx_DEV_FLASH1_1:
+//					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//					break;
+//
+//				case SSPx_DEV_FLASH1_2:
+//					Chip_GPIO_ClearValue(LPC_GPIO,FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//					break;
+//
+//				default: /* Device does not exist */
+//					jobs->bus_status.ssp_error_counter++;
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//
+//					/* Set error description */
+//					cur_job->status = SSP_JOB_STATE_DEVICE_ERROR;
+//
+//					/* Increment to next job */
+//					jobs->current_job++;
+//					jobs->jobs_pending--;
+//
+//					if (jobs->current_job == SPI_MAX_JOBS)
+//					{
+//						jobs->current_job = 0;
+//					}
+//
+//					return;
+//
+//					break;
+//
+//			}
 
 			cur_job->status = SSP_JOB_STATE_ACTIVE;
 
@@ -632,51 +733,71 @@ uint32_t ssp_add_job(ssp_busnr_t busNr, ssp_chip_t sensor, uint8_t *array_to_sen
 		/* Check if SPI in use */
 		if (jobs->jobs_pending == 0)
 		{ /* Check if jobs pending */
-			switch (jobs->job[position].device)
+
 			/* Select device */
-			{
-				case SSPx_DEV_FLASH2_1:
-					Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					break;
+			if (!ssp_chip_select(jobs->job[position].device, true)) {
+				jobs->bus_status.ssp_error_counter++;
 
-				case SSPx_DEV_FLASH2_2:
-					Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					break;
+				/* Set error description */
+				jobs->job[position].status = SSP_JOB_STATE_DEVICE_ERROR;
 
-				case SSPx_DEV_FLASH1_1:
-					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					break;
+				/* Increment to next job */
+				jobs->current_job++;
+				jobs->jobs_pending--;
 
-				case SSPx_DEV_FLASH1_2:
-					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-					break;
+				if (jobs->current_job == SPI_MAX_JOBS)
+				{
+					jobs->current_job = 0;
+				}
 
-				default: /* Device does not exist */
-					/* Unselect all device */
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
-					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
-
-					jobs->bus_status.ssp_error_counter++;
-
-					/* Set error description */
-					jobs->job[position].status = SSP_JOB_STATE_DEVICE_ERROR;
-
-					/* Increment to next job */
-					jobs->current_job++;
-					jobs->jobs_pending--;
-
-					if (jobs->current_job == SPI_MAX_JOBS)
-					{
-						jobs->current_job = 0;
-					}
-
-					/* Return error */
-					return SSP_JOB_ERROR;
-					break;
-
+				/* Return error */
+				return SSP_JOB_ERROR;
 			}
+//			switch (jobs->job[position].device)
+//			/* Select device */
+//			{
+//				case SSPx_DEV_FLASH2_1:
+//					Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//					break;
+//
+//				case SSPx_DEV_FLASH2_2:
+//					Chip_GPIO_ClearValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//					break;
+//
+//				case SSPx_DEV_FLASH1_1:
+//					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//					break;
+//
+//				case SSPx_DEV_FLASH1_2:
+//					Chip_GPIO_ClearValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//					break;
+//
+//				default: /* Device does not exist */
+//					/* Unselect all device */
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS1_PORT, 1 << FLASH2_CS1_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH2_CS2_PORT, 1 << FLASH2_CS2_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS1_PORT, 1 << FLASH1_CS1_PIN);
+//					Chip_GPIO_SetValue(LPC_GPIO, FLASH1_CS2_PORT, 1 << FLASH1_CS2_PIN);
+//
+//					jobs->bus_status.ssp_error_counter++;
+//
+//					/* Set error description */
+//					jobs->job[position].status = SSP_JOB_STATE_DEVICE_ERROR;
+//
+//					/* Increment to next job */
+//					jobs->current_job++;
+//					jobs->jobs_pending--;
+//
+//					if (jobs->current_job == SPI_MAX_JOBS)
+//					{
+//						jobs->current_job = 0;
+//					}
+//
+//					/* Return error */
+//					return SSP_JOB_ERROR;
+//					break;
+//
+//			}
 
 			jobs->job[position].status = SSP_JOB_STATE_ACTIVE;
 
