@@ -74,7 +74,7 @@ typedef struct flash_worker_s
 
 
 // prototypes
-bool flash_init(ssp_busnr_t busNr, flash_worker_t *worker, bool (*ChipSelect)(bool select) );
+bool flash_init(ssp_busnr_t busNr, bool (*ChipSelect)(bool select) );
 void FlashMainFor(uint8_t flashNr);
 
 void ReadFlashCmd(int argc, char *argv[]);
@@ -87,6 +87,8 @@ void EraseFlashCmd(int argc, char *argv[]);
 void EraseFlashFinished(flash_res_t rxtxResult, flash_nr_t flashNr, uint32_t adr, uint32_t len);
 
 // local variables
+volatile bool flash1_busy;
+volatile bool flash2_busy;
 flash_worker_t flashWorker[2];
 uint8_t FlashWriteData[FLASH_MAX_WRITE_SIZE+5];
 uint8_t FlashReadData[FLASH_MAX_READ_SIZE];
@@ -94,6 +96,7 @@ uint8_t FlashReadData[FLASH_MAX_READ_SIZE];
 //
 // Be careful here! This Callbacks are called from IRQ !!!
 // Do not do any complicated logic here!!!
+// Transfer all things to be done to next mainloop....
 bool FlashChipSelect_1_CS1( bool select) {
 	Chip_GPIO_SetPinState(LPC_GPIO, FLASH1_CS1_PORT, FLASH1_CS1_PIN, !select);
 	if (!select) {
@@ -126,8 +129,10 @@ bool FlashChipSelect_2_CS2( bool select) {
 	return true;
 }
 
-
 void FlashInit() {
+	flashWorker[0].FlashStatus = FLASH_STAT_NOT_INITIALIZED;
+	flashWorker[1].FlashStatus = FLASH_STAT_NOT_INITIALIZED;
+
 	ssp01_init();										// TODO: shouldn't each module init be called from main !?.....
 
 	/* --- Chip selects IOs --- */
@@ -151,26 +156,28 @@ void FlashInit() {
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLASH1_CS2_PORT, FLASH1_CS2_PIN);
 	Chip_GPIO_SetPinState(LPC_GPIO, FLASH1_CS2_PORT, FLASH1_CS2_PIN, true);
 
-	flashWorker[0].FlashStatus = FLASH_STAT_NOT_INITIALIZED;
-	if (flash_init(SSP_BUS1, &flashWorker[0], FlashChipSelect_1_CS1 )) {
-		if (flash_init(SSP_BUS1, &flashWorker[0], FlashChipSelect_1_CS2 )) {
+	// Each Flash has 2 Dyes with separate CS line
+	if (flash_init(SSP_BUS1, FlashChipSelect_1_CS1 )) {
+		if (flash_init(SSP_BUS1, FlashChipSelect_1_CS2 )) {
+			// init ok
 			flashWorker[0].FlashStatus = FLASH_STAT_IDLE;
 		} else {
-			printf("Init Fehler für Flash1 CS2.\n");
+			printf("Initialization Error Flash1 CS2.\n");
 		}
 	} else {
-		printf("Init Fehler für Flash1 CS1.\n");
+		printf("Initialization Error Flash1 CS1.\n");
 	}
 
-	flashWorker[1].FlashStatus = FLASH_STAT_NOT_INITIALIZED;
-	if (flash_init(SSP_BUS0, &flashWorker[1], FlashChipSelect_2_CS1 )) {
-		if (flash_init(SSP_BUS0, &flashWorker[1], FlashChipSelect_2_CS2 )) {
+
+	if (flash_init(SSP_BUS0, FlashChipSelect_2_CS1 )) {
+		if (flash_init(SSP_BUS0, FlashChipSelect_2_CS2 )) {
+			// init ok
 			flashWorker[1].FlashStatus = FLASH_STAT_IDLE;
 		} else {
-			printf("Init Fehler für Flash2 CS2.\n");
+			printf("Initialization Error Flash2 CS2.\n");
 		}
 	} else {
-		printf("Init Fehler für Flash2 CS1.\n");
+		printf("Initialization Error Flash2 CS1.\n");
 	}
 
 	RegisterCommand("fRead", ReadFlashCmd);
@@ -183,30 +190,8 @@ void FlashMain(void) {
 	FlashMainFor(FLASH_NR2);
 }
 
-bool flash_init(ssp_busnr_t busNr, flash_worker_t *worker, bool (*ChipSelect)(bool select) )
+bool flash_init(ssp_busnr_t busNr, bool (*ChipSelect)(bool select) )
 {
-//	ssp_busnr_t busNr;
-//	uint8_t dev1Nr;
-//	uint8_t dev2Nr;
-//	flash_worker_t *worker;
-//
-//	if (flashNr == FLASH_NR1) {
-//		busNr = SSP_BUS1;
-//		dev1Nr = SSPx_DEV_FLASH1_1;
-//		dev2Nr = SSPx_DEV_FLASH1_2;
-//		worker = &flashWorker[0];
-//	} else if (flashNr == FLASH_NR2) {
-//		busNr = SSP_BUS0;
-//		dev1Nr = SSPx_DEV_FLASH2_1;
-//		dev2Nr = SSPx_DEV_FLASH2_2;
-//		worker = &flashWorker[1];
-//	} else {
-//		printf("Not supported flash Number: %d", flashNr);
-//		return false;
-//	}
-
-	//worker->FlashStatus = FLASH_STAT_NOT_INITIALIZED;
-
 	/* Init flash n and read ID register
 	 * Parameters: none
 	 * Return value: 0 in case of success, != 0 in case of error
@@ -222,7 +207,6 @@ bool flash_init(ssp_busnr_t busNr, flash_worker_t *worker, bool (*ChipSelect)(bo
 	if (ssp_add_job2(busNr , tx, 1, rx, 1, &job_status, ChipSelect))
 	{
 		/* Error while adding job */
-		//return FLASH_RET_JOB_ADD_ERROR;
 		return false;
 	}
 	helper = 0;
@@ -235,8 +219,6 @@ bool flash_init(ssp_busnr_t busNr, flash_worker_t *worker, bool (*ChipSelect)(bo
 	if (rx[0] != 0x01)
 	{
 		/* Error - Flash could not be accessed */
-		//return FLASH_RET_INIT_ERROR;
-		worker->FlashStatus = FLASH_STAT_ERROR;
 		return false;
 	}
 	return true;
@@ -330,7 +312,6 @@ void EraseFlashFinished(flash_res_t rxtxResult, flash_nr_t flashNr, uint32_t adr
 		printf("Error while attempting to erase FlashNr %d: %d\n", flashNr, rxtxResult);
 	}
 }
-
 
 
 void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_t len, void (*finishedHandler)(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len)) {
@@ -577,17 +558,13 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 
 void FlashMainFor(flash_nr_t flashNr) {
 	volatile bool *busyFlag;
-	//uint8_t busNr;
 	flash_worker_t *worker;
 
 	if (flashNr == 1) {
 		busyFlag = &flash1_busy;
-		//busNr = 1;
 		worker = &flashWorker[0];
 	} else if (flashNr == 2) {
-		//initializedFlag = &flash2_initialized;
 		busyFlag = &flash2_busy;
-		//busNr = 0;
 		worker = &flashWorker[1];
 	} else {
 		return;
@@ -596,18 +573,18 @@ void FlashMainFor(flash_nr_t flashNr) {
 	if (*busyFlag) {
 		// TODO: make TMO check(s) here !!!
 	} else {
-		// Der job für diesen Flash ist fertig
+		// pending job was finished
 		switch (worker->FlashStatus) {
 		case FLASH_STAT_RX_CHECKWIP: {
-			// Der Job zum Lesen des Write in Progress flags ist fertig
+			// Write in Progress read job finished
 			if (worker->rx[0] & 0x01) {
 				// TODO Eigentlich sollte das hier nie passieren (Weil wir dieses Write busy beim Schreiben abwarten!),
 				// aber wir könnten hier auch doch ein Zeit warten und das WIP neu lesen. ...
 				worker->FlashStatus = FLASH_STAT_ERROR;
 			}
-			// Wir können jetzt das Lesen aktivieren
+			// next job is to ...
 			/* Read Bytes */
-			worker->tx[0] = 0x13; /* CMD fast read */
+			worker->tx[0] = 0x13; 	/* CMD fast read */
 			worker->tx[1] = (worker->adr >> 24);
 			worker->tx[2] = ((worker->adr & 0x00ff0000) >> 16);
 			worker->tx[3] = ((worker->adr & 0x0000ff00) >> 8);
@@ -618,6 +595,8 @@ void FlashMainFor(flash_nr_t flashNr) {
 			{
 				/* Error while adding job */
 				worker->FlashStatus = FLASH_STAT_ERROR;
+				worker->RxCallback(FLASH_RES_JOB_ADD_ERROR, flashNr,worker->adr, worker->data, worker->len);
+				break;
 			}
 			worker->FlashStatus = FLASH_STAT_RX_INPROGRESS;
 			break;
@@ -631,9 +610,9 @@ void FlashMainFor(flash_nr_t flashNr) {
 		}
 
 		case FLASH_STAT_TX_CHECKWIP: {
-			// Der Job zum Lesen des Write in Progress flags ist fertig
+			// Write in Progress read job finished
 			if (worker->rx[0] & 0x01) {
-				// Fehler an Aufrufer melden und selbst in ERROR !?
+				// WIP flag is still active !? -> error
 				worker->FlashStatus = FLASH_STAT_ERROR;
 				worker->TxEraseCallback(FLASH_RES_WIPCHECK_ERROR,flashNr, worker->adr, worker->len);
 				break;
@@ -710,9 +689,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->FlashStatus = FLASH_STAT_WRITE_ERASE_INPROGRESS_DELAY;
 			} else {
 				// Write/erase process over, check for error bits
-				// if (rx[0] & 0x20) 				/* EERR-Bit �berpr�fen (Bit 5 im Status Register) */
-				//if (worker->rx[0] & (1 << 6)) 	/* PERR-Bit �berpr�fen (Bit 6 im Status Register) */
-				if (worker->rx[0] & 0x60)		// EERR and PERR must be clear.
+				if (worker->rx[0] & 0x60)		// EERR (bit5) and PERR (bit6) must be clear.
 				{
 					/* Error during write/erase process */
 					/*--- Clear status register --- */
@@ -742,7 +719,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				// its time to make a new WIP read job
 				// ClimbLedToggle(0);
 				/*--- Check WIP-Bit and Error bits --- */
-				worker->tx[0] = 0x05; /* 0x05 */
+				worker->tx[0] = 0x05;
 				worker->CheckTxCounter--;
 				if (worker->CheckTxCounter <= 0) {
 					worker->FlashStatus = FLASH_STAT_ERROR;
@@ -770,7 +747,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 		case FLASH_STAT_ERASE_CHECKWIP: {
 			// ssp job to read the WIP bit ist ready
 			if (worker->rx[0] & 0x01) {
-				// The WIP bit is not clear. As we should waoit for it to be ok when writing this is an unexpected error here.
+				// The WIP bit is not clear. As we should wait for it to be ok when writing, this is an unexpected error here.
 				worker->FlashStatus = FLASH_STAT_ERROR;
 				worker->TxEraseCallback(FLASH_RES_WIPCHECK_ERROR,flashNr, worker->adr, 0);
 				break;
