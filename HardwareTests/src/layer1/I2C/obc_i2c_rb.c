@@ -1,17 +1,20 @@
+#include <Chip.h>
+
 #include "obc_i2c_rb.h"
 
-static inline void __enable_irq() { __asm volatile ("cpsie i"); }
-static inline void __disable_irq() { __asm volatile ("cpsid i"); }
-
-void taskDISABLE_INTERRUPTS() {
-	// in peg here is some ASM inline code called from RTOS
-	__disable_irq();
-}
-
-void taskENABLE_INTERRUPTS() {
-	// in peg here is some ASM inline code called from RTOS
-	__enable_irq();
-}
+//
+//static inline void __enable_irq() { __asm volatile ("cpsie i"); }
+//static inline void __disable_irq() { __asm volatile ("cpsid i"); }
+//
+//void taskDISABLE_INTERRUPTS() {
+//	// in peg here is some ASM inline code called from RTOS
+//	__disable_irq();
+//}
+//
+//void taskENABLE_INTERRUPTS() {
+//	// in peg here is some ASM inline code called from RTOS
+//	__enable_irq();
+//}
 
 void I2C_RB_init(I2C_RB *rb)
 {
@@ -22,7 +25,7 @@ void I2C_RB_init(I2C_RB *rb)
 
 void I2C_RB_put(I2C_RB *rb, void* daten)
 {
-	taskDISABLE_INTERRUPTS();
+	__disable_irq();
 	rb->buffer[rb->end] = daten;
 	rb->end = (rb->end + 1) & (I2C_RB_Size - 1);
 
@@ -32,7 +35,7 @@ void I2C_RB_put(I2C_RB *rb, void* daten)
 //		obc_status_extended.i2c_rb_overflow = 1;
 		rb->start = (rb->start + 1) & (I2C_RB_Size - 1);
 	}
-	taskENABLE_INTERRUPTS();
+	__enable_irq();
 }
 
 uint8_t I2C_RB_full(I2C_RB *rb)
@@ -57,10 +60,10 @@ void* I2C_RB_read(I2C_RB *rb)
 {
 	void *daten;
 
-	taskDISABLE_INTERRUPTS();
+	__disable_irq();
 	daten = rb->buffer[rb->start];
 	rb->start = (rb->start + 1) & (I2C_RB_Size - 1);
-	taskENABLE_INTERRUPTS();
+	__enable_irq();
 
 	return daten;
 }

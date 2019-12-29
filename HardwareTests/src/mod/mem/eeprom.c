@@ -14,6 +14,7 @@
 #include "../main.h"
 #include "../cli/cli.h"
 #include "../tim/timer.h"
+#include "../crc/obc_checksums.h"
 
 
 // module variables
@@ -40,7 +41,6 @@ void ReadStatusCmd(int argc, char *argv[]);
 void ReadPageCmd(int argc, char *argv[]);
 void ReadPageFinished(eeprom_page_t *page);
 void ReadStatusReceived(eeprom_page_t *page);
-uint32_t crc32(uint8_t *data, uint32_t len);
 
 void EepromInit() {
 	// Register module Commands
@@ -236,30 +236,6 @@ void EepromMain() {
 			readInProgress = false;
 		}
 	}
-}
-
-
-uint32_t crc32(uint8_t *data, uint32_t len)
-{
-    unsigned int i;
-    int j;
-    unsigned int byte, crc, mask;
-
-    i = 0;
-    crc = 0xFFFFFFFF;
-
-    while (i < len)
-    {
-        byte = data[i];            // Get next byte.
-        crc = crc ^ byte;
-        for (j = 7; j >= 0; j--)
-        {    // Do eight times.
-            mask = -(crc & 1);
-            crc = (crc >> 1) ^ (0xEDB88320 & mask);
-        }
-        i = i + 1;
-    }
-    return ~crc;
 }
 
 
