@@ -18,7 +18,7 @@
 //
 //#include "main.h"
 // From RTOS
-typedef long BaseType_t;
+//typedef long BaseType_t;
 
 #define configMAX_LIBRARY_INTERRUPT_PRIORITY    ( 5 )
 #define RTC_INTERRUPT_PRIORITY  (configMAX_LIBRARY_INTERRUPT_PRIORITY + 1)  /* RTC - highest priority after watchdog! */
@@ -36,7 +36,7 @@ typedef struct rtc_status_s
 	uint8_t rtc_synchronized;
 } rtc_status_t;
 
-BaseType_t rtc_init(void);
+void rtc_init(void);
 
 void rtc_get_val(RTC_TIME_T *tim);
 uint32_t rtc_get_date(void);

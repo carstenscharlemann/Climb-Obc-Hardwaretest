@@ -5,6 +5,7 @@
 /* Other includes */
 #include "obc_rtc.h"
 #include "../crc/obc_checksums.h"
+#include "../cli/cli.h"
 
 typedef struct obc_status_s
 {
@@ -60,6 +61,14 @@ void taskENABLE_INTERRUPTS() {
 volatile uint32_t rtc_epoch_time;
 
 #define RTC_AUX ((uint32_t *) 0x40024058)
+
+
+void RtcGetTimeCmd(int argc, char *argv[]) {
+	printf("OBC: RTC: Time: %ld\n", rtc_get_time());
+	printf("OBC: RTC: Date: %ld\n", rtc_get_date());
+}
+
+
 
 void RTC_IRQHandler(void)
 {
@@ -157,7 +166,7 @@ void rtc_correct_by_offset(int32_t offset_in_seconds)
 	return;
 }
 
-BaseType_t rtc_init(void)
+void rtc_init(void)
 {
 	RTC_TIME_T tim;
 
@@ -243,14 +252,17 @@ BaseType_t rtc_init(void)
 
 	rtc_calculate_epoch_time();
 
-	Chip_RTC_CntIncrIntConfig(LPC_RTC, RTC_TIMETYPE_SECOND, ENABLE);
+	Chip_RTC_CntIncrIntConfig(LPC_RTC, RTC_AMR_CIIR_IMSEC,  ENABLE);
 	NVIC_SetPriority(RTC_IRQn, RTC_INTERRUPT_PRIORITY);
 	NVIC_EnableIRQ(RTC_IRQn); /* Enable interrupt */
 
 	Chip_RTC_Enable(LPC_RTC, ENABLE);
 
 	obc_status.rtc_initialized = 1;
-	return DONE;
+
+	RegisterCommand("getTim", RtcGetTimeCmd);
+
+	return;
 }
 
 void rtc_calculate_epoch_time(void)
