@@ -8,7 +8,6 @@
 #include "../cli/cli.h"
 #include "timer.h"
 
-//
 typedef enum rtc_status_e {
 	RTC_STAT_UNKNOWN		= 0x00,
 	RTC_STAT_SYNCHRONIZED	= 0x11,
@@ -28,32 +27,19 @@ typedef enum rtc_gpridx_e {
 // Prototypes
 uint8_t RtcReadGpr(rtc_gpridx_t idx);
 void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte);
-
+void show_gpregs(void);
 
 //
 // From RTOS
-#define configMAX_LIBRARY_INTERRUPT_PRIORITY    ( 5 )
-#define RTC_INTERRUPT_PRIORITY  (configMAX_LIBRARY_INTERRUPT_PRIORITY + 1)  /* RTC - highest priority after watchdog! */
-
-//TYPEDEF ENUM
-//{
-//	DONE = 0, FAILED = !DONE
-//} RETVAL;
-
-
-//#define RTC_SYNCHRONIZED 0xAB
-
-//typedef struct rtc_status_s
-//{
-//	uint8_t rtc_synchronized;
-//} rtc_status_t;
+//#define configMAX_LIBRARY_INTERRUPT_PRIORITY    ( 5 )
+#define RTC_INTERRUPT_PRIORITY  6 //(configMAX_LIBRARY_INTERRUPT_PRIORITY + 1)  /* RTC - highest priority after watchdog! */
 
 // old prototypes
-void rtc_get_val(RTC_TIME_T *tim);
+//void rtc_get_val(RTC_TIME_T *tim);
 uint32_t rtc_get_date(void);
 uint32_t rtc_get_time(void);
 uint64_t rtc_get_datetime(void);
-uint64_t rtc_get_extended_time(void);
+//uint64_t rtc_get_extended_time(void);
 void rtc_calculate_epoch_time(void);
 uint32_t rtc_get_epoch_time(void);
 //void rtc_set_time(RTC_TIME_Type * etime);
@@ -66,18 +52,18 @@ void rtc_correct_by_offset(int32_t offset_in_seconds);
 //RetVal rtc_backup_reg_read(uint8_t id, uint8_t * val);
 //RetVal rtc_backup_reg_set(uint8_t id, uint8_t val);
 //RetVal rtc_backup_reg_reset(uint8_t go);
-
-typedef enum errors_e
-{
-	EC_NO_ERROR = 0,
-	EC_POWER_SW_ERROR,
-	EC_BROWN_OUT_DETECTED,
-	EC_STACK_OVERFLOW,
-	EC_MANUAL_RESET,
-	EC_HARD_FAULT,
-	EC_SCHEDULER_STOPPED,
-	EC_SIGNATURE_ERROR = 255
-} error_code;
+//
+//typedef enum errors_e
+//{
+//	EC_NO_ERROR = 0,
+//	EC_POWER_SW_ERROR,
+//	EC_BROWN_OUT_DETECTED,
+//	EC_STACK_OVERFLOW,
+//	EC_MANUAL_RESET,
+//	EC_HARD_FAULT,
+//	EC_SCHEDULER_STOPPED,
+//	EC_SIGNATURE_ERROR = 255
+//} error_code;
 
 //
 //typedef struct obc_status_s
@@ -122,45 +108,113 @@ typedef enum errors_e
 //
 //obc_status_t obc_status;
 
-void taskDISABLE_INTERRUPTS() {
-	// in peg here is some ASM inline code called from RTOS
-	__disable_irq();
-}
-
-void taskENABLE_INTERRUPTS() {
-	// in peg here is some ASM inline code called from RTOS
-	__enable_irq();
-}
+//void taskDISABLE_INTERRUPTS() {
+//	// in peg here is some ASM inline code called from RTOS
+//	__disable_irq();
+//}
+//
+//void taskENABLE_INTERRUPTS() {
+//	// in peg here is some ASM inline code called from RTOS
+//	__enable_irq();
+//}
 
 #define EXTENDED_DEBUG_MESSAGES true
 
 volatile uint32_t rtc_epoch_time;
 
-
 void RtcGetTimeCmd(int argc, char *argv[]) {
 	printf("RTC Status: %02X DateTime: %lld\n",RtcReadGpr(RTC_GPRIDX_STATUS), rtc_get_datetime());
+	if (argc > 0) {
+		show_gpregs();
+	}
+}
+
+void RtcSetTimeCmd(int argc, char *argv[]) {
+	// setTime <hours> <minutes> <seconds>
+	uint8_t sec = 0;
+	uint8_t min = 0;
+	uint8_t hrs = 0;
+
+	if (argc > 0) {
+		hrs = atoi(argv[0]);
+	}
+	if (argc > 1) {
+		min = atoi(argv[1]);
+	}
+	if (argc > 2) {
+		sec = atoi(argv[2]);
+	}
+
+	// binary cmd
+	RtcSetTime(hrs, min, sec);
+}
+
+void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds) {
+	if (hours>23 || minutes > 59 || seconds > 59) {
+		return;		// TODO: log 'out of range' event !?
+	}
+
+	uint32_t ccr_val = LPC_RTC->CCR;
+
+	/* Temporarily disable */
+	if (ccr_val & RTC_CCR_CLKEN) {
+		LPC_RTC->CCR = ccr_val & (~RTC_CCR_CLKEN) & RTC_CCR_BITMASK;
+	}
+
+	Chip_RTC_SetTime(LPC_RTC, RTC_TIMETYPE_HOUR, hours);
+	Chip_RTC_SetTime(LPC_RTC, RTC_TIMETYPE_MINUTE, minutes);
+	Chip_RTC_SetTime(LPC_RTC, RTC_TIMETYPE_SECOND, seconds);
+
+	/* Restore to old setting */
+	LPC_RTC->CCR = ccr_val;
 
 }
 
 
-//error_code error_code_get(void)
-//{
-//	uint8_t error;
-//	if (rtc_backup_reg_read(0, &error) == 0)
-//	{
-//		return (error_code) error;
-//	}
-//	else
-//	{
-//		/* Error reading error signature */
-//		return EC_SIGNATURE_ERROR;
-//	}
-//}
+void RtcSetDateCmd(int argc, char *argv[]) {
+	uint16_t year = 0;
+	uint8_t month = 0;
+	uint8_t day = 0;
 
+	if (argc > 0) {
+		year = atoi(argv[0]);
+	}
+	if (argc > 1) {
+		month = atoi(argv[1]);
+	}
+	if (argc > 2) {
+		day = atoi(argv[2]);
+	}
+
+	// binary cmd
+	RtcSetDate(year, month, day);
+
+}
+
+void RtcSetDate(uint16_t year, uint8_t month, uint8_t dayOfMonth) {
+	if (year>4095 || month > 12 || month < 1 || dayOfMonth > 31 || dayOfMonth < 1 ) {
+		return;		// TODO: log 'out of range' event !?
+	}
+
+	uint32_t ccr_val = LPC_RTC->CCR;
+
+	/* Temporarily disable */
+	if (ccr_val & RTC_CCR_CLKEN) {
+		LPC_RTC->CCR = ccr_val & (~RTC_CCR_CLKEN) & RTC_CCR_BITMASK;
+	}
+
+	Chip_RTC_SetTime(LPC_RTC, RTC_TIMETYPE_DAYOFMONTH, dayOfMonth );
+	Chip_RTC_SetTime(LPC_RTC, RTC_TIMETYPE_MONTH, month);
+	Chip_RTC_SetTime(LPC_RTC, RTC_TIMETYPE_YEAR, year);
+
+	/* Restore to old setting */
+	LPC_RTC->CCR = ccr_val;
+
+}
 
 void show_gpregs(void) {
 	char *ptr = (char*) &(LPC_RTC->GPREG);
-	printf("RTC GPR1: ");
+	printf("RTC GPR: ");
 	for (int i=0;i<20;i++) {
 		printf("%02X ", ptr[i]);
 	}
@@ -182,46 +236,12 @@ bool RtcIsGprChecksumOk(void) {
 	return (gprbase[19] == crc);
 }
 
-uint8_t RtcReadGpr(rtc_gpridx_t idx) {
-	uint8_t *gprbase = (uint8_t *)(&(LPC_RTC->GPREG));
-	if (idx>19) {
-		idx = 19;
-	} else if (idx < 0) {
-		idx = 0;
-	}
-	return gprbase[idx];
-}
-
-
-
-/*********************************************************************//**
- * @brief 		Write value to General purpose registers
- * @param[in]	RTCx	RTC peripheral selected, should be LPC_RTC
- * @param[in]	Channel General purpose registers Channel number,
- * 				should be in range from 0 to 4.
- * @param[in]	Value Value to write
- * @return 		None
- * Note: These General purpose registers can be used to store important
- * information when the main power supply is off. The value in these
- * registers is not affected by chip reset.
- **********************************************************************/
-void RTC_WriteGPREG(LPC_RTC_T *RTCx, uint8_t Channel, uint32_t Value)
-{
-	uint32_t *preg;
-
-//	CHECK_PARAM(PARAM_RTCx(RTCx));
-//	CHECK_PARAM(PARAM_RTC_GPREG_CH(Channel));
-
-	preg = (uint32_t *) &(RTCx->GPREG);
-	preg += Channel;
-	*preg = Value;
-}
-
 
 // We use the 5 GPR registers as a byte store with 19 bytes + 1byte CRC8
 void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte) {
 	if ((idx < 19) && (idx >= 0)) {
-		// GPREG only can be written as uint32/4byte at once. (A single uint8_t ptr does not work here :-( )
+		// GPREG only can be written as uint32/4byte at once!
+		// A single uint8_t ptr does not work here :-( -> it writes 4 (same) bytes at once !?
 		uint32_t *gprbase = (uint32_t *)(&(LPC_RTC->GPREG));
 		uint32_t *ptr = gprbase;
 		uint8_t channel = idx /4;
@@ -240,21 +260,27 @@ void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte) {
 	}
 }
 
+uint8_t RtcReadGpr(rtc_gpridx_t idx) {
+	// Other than writing, for reading a uint8 ptr is good enough to get all bytes separately.
+	uint8_t *gprbase = (uint8_t *)(&(LPC_RTC->GPREG));
+	if (idx>19) {
+		//TODO: log an 'out of range' event here !!!
+		idx = 19;
+	} else if (idx < 0) {
+		//TODO: log an 'out of range' event here !!!
+		idx = 0;
+	}
+	return gprbase[idx];
+}
 
 void RtcInit(void) {
-//	rtc_init();
-//}
-//
-//void rtc_init(void)
-//{
 	rtc_status_t status = RTC_STAT_UNKNOWN;
 
 	RTC_TIME_T 	tim;
 
 	Chip_RTC_Init(LPC_RTC);
-	//Chip_RTC_Enable(LPC_RTC, ENABLE);
 
-	show_gpregs();
+	//show_gpregs();	// print all GPREGS for debugging
 
 	/* Init Timer 1 before RTC enable */			// TODO module inits and sequence to be determined ....
 	//timer0_init();
@@ -275,7 +301,6 @@ void RtcInit(void) {
 		tim.time[RTC_TIMETYPE_MONTH] = 1;
 		tim.time[RTC_TIMETYPE_YEAR] = 1001;
 		Chip_RTC_SetFullTime(LPC_RTC, &tim);
-
 
 		status = RTC_STAT_RESETDEFAULT;
 		//rtc_backup_reg_reset(1);
@@ -340,9 +365,11 @@ void RtcInit(void) {
 	Chip_RTC_Enable(LPC_RTC, ENABLE);
 
 	//obc_status.rtc_initialized = 1;
-	RegisterCommand("getTim", RtcGetTimeCmd);
+	RegisterCommand("getTime", RtcGetTimeCmd);
+	RegisterCommand("setTime", RtcSetTimeCmd);
+	RegisterCommand("setDate", RtcSetDateCmd);
 
-	show_gpregs();
+	//show_gpregs();	// print all GPREGS for debugging
 
 	return;
 }
@@ -355,7 +382,6 @@ void RtcInit(void) {
 void RTC_IRQHandler(void)
 {
 	//LPC_TIM0->TC = 0; // Synchronize ms-timer to RTC seconds
-
 	Chip_RTC_ClearIntPending(LPC_RTC, RTC_INT_COUNTER_INCREASE);
 	Chip_RTC_ClearIntPending(LPC_RTC, RTC_INT_ALARM);
 
@@ -363,14 +389,15 @@ void RTC_IRQHandler(void)
 
 	rtc_status_t status = RtcReadGpr(RTC_GPRIDX_STATUS);
 	if (status == RTC_STAT_XTAL_ERROR) {
-		// There was an error while init (no RTC Clock running, now it seems to be ok (otherwise there would not be an IRQ)
-		// Recheck and clerr the error bit. TODO: ??? is this really okk here !? What if clock is missing now !?
+		// There was an error while init (no RTC Clock running). Now it seems to be ok (otherwise there would not be an IRQ)
+		// clear the error bit now.
 		if (LPC_RTC->RTC_AUX & RTC_AUX_RTC_OSCF)
 		{
-			LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error by writing to this bit.
+			LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error by writing to this bit now.
 		}
+		// TODO: is this assumption here correct. We had an unknown time from init until now but it seems to run from here on.
+		//       For sure it is not synchronised any more.....
 		RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_RUNNING);
-
 	}
 	/* Do powersave modes or other things here */
 	/*if (obc_status.obc_powersave)
@@ -492,11 +519,16 @@ void rtc_calculate_epoch_time(void)
 	return;
 }
 
-void rtc_get_val(RTC_TIME_T *tim)
-{
-	Chip_RTC_GetFullTime(LPC_RTC, tim);
-}
+//void rtc_get_val(RTC_TIME_T *tim)
+//{
+//	Chip_RTC_GetFullTime(LPC_RTC, tim);
+//}
 
+
+/* Returns the current RTC time according to UTC.
+ * Parameters: 	none
+ * Return value: date as uint32 with a decimal number formated as HHMMSS.
+ */
 uint32_t rtc_get_time(void)
 {
 	RTC_TIME_T tim;
@@ -512,7 +544,7 @@ uint32_t rtc_get_date(void)
 {
 	/* Returns the current RTC date according to UTC.
 	 * Parameters: 	none
-	 * Return value: date
+	 * Return value: date as uint32 with a decimal number formated as YYYYmmdd.
 	 */
 	RTC_TIME_T tim;
 	Chip_RTC_GetFullTime(LPC_RTC, &tim);
@@ -520,43 +552,19 @@ uint32_t rtc_get_date(void)
 	return (tim.time[RTC_TIMETYPE_DAYOFMONTH] + tim.time[RTC_TIMETYPE_MONTH] * 100 + (tim.time[RTC_TIMETYPE_YEAR]) * 10000);
 }
 
+/* Returns the current RTC date and time according to UTC.
+ * Parameters: 	none
+ * Return value: date as uint64 with a decimal number formated as YYYYmmddHHMMSS.
+ */
 uint64_t rtc_get_datetime(void) {
 	return ((uint64_t)rtc_get_date()) * 1000000 + (uint64_t)rtc_get_time();
 }
+
 
 uint32_t rtc_get_epoch_time(void)
 {
 	return rtc_epoch_time;
 }
-
-//
-// copied from lpc17xx_rtc.c and adapted to current lpc_chip_175x_6x library
-// @version		3.0
-// @date		18. June. 2010
-/*********************************************************************//**
- * @brief 		Read value from General purpose registers
- * @param[in]	RTCx	RTC peripheral selected, should be LPC_RTC
- * @param[in]	Channel General purpose registers Channel number,
- * 				should be in range from 0 to 4.
- * @return 		Read Value
- * Note: These General purpose registers can be used to store important
- * information when the main power supply is off. The value in these
- * registers is not affected by chip reset.
- **********************************************************************/
-uint32_t RTC_ReadGPREG(LPC_RTC_T *RTCx, uint8_t Channel)
-{
-	uint32_t *preg;
-	uint32_t value;
-
-//	CHECK_PARAM(PARAM_RTCx(RTCx));
-//	CHECK_PARAM(PARAM_RTC_GPREG_CH(Channel));
-
-	preg = (uint32_t *) &(RTCx->GPREG);
-	preg += Channel;
-	value = *preg;
-	return (value);
-}
-
 
 
 //RetVal rtc_backup_reg_set(uint8_t id, uint8_t val)

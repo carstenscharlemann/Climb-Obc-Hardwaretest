@@ -24,12 +24,12 @@
 void MainInit() {
 	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
-	CliInit();
 	RtcInit();
 	ThrInit();
 	EepromInit();
 	FlashInit();
 	MramInit();
+	CliInit();
 }
 
 // Poll all Modules from Main loop
