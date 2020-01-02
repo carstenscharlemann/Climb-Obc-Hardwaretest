@@ -6,45 +6,121 @@
 #include "obc_rtc.h"
 #include "../crc/obc_checksums.h"
 #include "../cli/cli.h"
+#include "timer.h"
 
-typedef struct obc_status_s
+//
+typedef enum rtc_status_e {
+	RTC_STAT_UNKNOWN		= 0x00,
+	RTC_STAT_SYNCHRONIZED	= 0x11,
+	RTC_STAT_RUNNING		= 0x22,
+	RTC_STAT_RESETDEFAULT	= 0x33,
+	RTC_STAT_XTAL_ERROR		= 0xEE
+} rtc_status_t;
+
+// Usage of 19 bytes General Purpose Register
+typedef enum rtc_gpridx_e {
+	RTC_GPRIDX_STATUS = 0,
+
+	RTC_GPRIDX_CRC8 = 19
+} rtc_gpridx_t;
+
+
+// Prototypes
+uint8_t RtcReadGpr(rtc_gpridx_t idx);
+void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte);
+
+
+//
+// From RTOS
+#define configMAX_LIBRARY_INTERRUPT_PRIORITY    ( 5 )
+#define RTC_INTERRUPT_PRIORITY  (configMAX_LIBRARY_INTERRUPT_PRIORITY + 1)  /* RTC - highest priority after watchdog! */
+
+//TYPEDEF ENUM
+//{
+//	DONE = 0, FAILED = !DONE
+//} RETVAL;
+
+
+//#define RTC_SYNCHRONIZED 0xAB
+
+//typedef struct rtc_status_s
+//{
+//	uint8_t rtc_synchronized;
+//} rtc_status_t;
+
+// old prototypes
+void rtc_get_val(RTC_TIME_T *tim);
+uint32_t rtc_get_date(void);
+uint32_t rtc_get_time(void);
+uint64_t rtc_get_datetime(void);
+uint64_t rtc_get_extended_time(void);
+void rtc_calculate_epoch_time(void);
+uint32_t rtc_get_epoch_time(void);
+//void rtc_set_time(RTC_TIME_Type * etime);
+void rtc_correct_by_offset(int32_t offset_in_seconds);
+
+//RetVal rtc_check_if_reset(void);
+//uint8_t rtc_checksum_calc(uint8_t *data);
+//RetVal rtc_sync(RTC_TIME_T *tim);
+
+//RetVal rtc_backup_reg_read(uint8_t id, uint8_t * val);
+//RetVal rtc_backup_reg_set(uint8_t id, uint8_t val);
+//RetVal rtc_backup_reg_reset(uint8_t go);
+
+typedef enum errors_e
 {
-	unsigned int last_reset_source1 :1; /* Bit 0 *//* (source1 source2) POR: 0b00, EXTR: 0b01, WDTR: 0b10; BODR: 0b11 */
-	unsigned int last_reset_source2 :1; /* Bit 1 */
-	unsigned int obc_powersave :1; /* Bit 2 */
-	unsigned int rtc_synchronized :1; /* Bit 3 */
-	unsigned int rtc_initialized :1; /* Bit 4 */
-	unsigned int error_code_before_reset :1; /* Bit 5 */
-	unsigned int :1; /* Bit 6 */
-	unsigned int :1; /* Bit 7 */
-	unsigned int :1; /* Bit 8 */
-	unsigned int :1; /* Bit 9 */
-	unsigned int :1; /* Bit 10 */
-	unsigned int :1; /* Bit 11 */
-	unsigned int :1; /* Bit 12 */
-	unsigned int :1; /* Bit 13 */
-	unsigned int :1; /* Bit 14 */
-	unsigned int :1; /* Bit 15 */
-	unsigned int rtc_oszillator_error :1; /* Bit 16 */
-	unsigned int :1; /* Bit 17 */
-	unsigned int :1; /* Bit 18 */
-	unsigned int :1; /* Bit 19 */
-	unsigned int :1; /* Bit 20 */
-	unsigned int :1; /* Bit 21 */
-	unsigned int :1; /* Bit 22 */
-	unsigned int :1; /* Bit 23 */
-	unsigned int :1; /* Bit 24 */
-	unsigned int :1; /* Bit 25 */
-	unsigned int :1; /* Bit 26 */
-	unsigned int :1; /* Bit 27 */
-	unsigned int :1; /* Bit 28 */
-	unsigned int :1; /* Bit 29 */
-	unsigned int :1; /* Bit 30 */
-	unsigned int :1; /* Bit 31 */
-}
-volatile obc_status_t;
+	EC_NO_ERROR = 0,
+	EC_POWER_SW_ERROR,
+	EC_BROWN_OUT_DETECTED,
+	EC_STACK_OVERFLOW,
+	EC_MANUAL_RESET,
+	EC_HARD_FAULT,
+	EC_SCHEDULER_STOPPED,
+	EC_SIGNATURE_ERROR = 255
+} error_code;
 
-obc_status_t obc_status;
+//
+//typedef struct obc_status_s
+//{
+//	unsigned int last_reset_source1 :1; /* Bit 0 *//* (source1 source2) POR: 0b00, EXTR: 0b01, WDTR: 0b10; BODR: 0b11 */
+//	unsigned int last_reset_source2 :1; /* Bit 1 */
+//	unsigned int obc_powersave :1; /* Bit 2 */
+//	unsigned int rtc_synchronized :1; /* Bit 3 */
+//	unsigned int rtc_initialized :1; /* Bit 4 */
+//	unsigned int :1; /* Bit 5 */
+//	unsigned int :1; /* Bit 6 */
+//	unsigned int :1; /* Bit 7 */
+//	unsigned int :1; /* Bit 8 */
+//	unsigned int :1; /* Bit 9 */
+//	unsigned int :1; /* Bit 10 */
+//	unsigned int :1; /* Bit 11 */
+//	unsigned int :1; /* Bit 12 */
+//	unsigned int :1; /* Bit 13 */
+//	unsigned int :1; /* Bit 14 */
+//	unsigned int :1; /* Bit 15 */
+//	unsigned int rtc_oszillator_error :1; /* Bit 16 */
+//	unsigned int :1; /* Bit 17 */
+//	unsigned int :1; /* Bit 18 */
+//	unsigned int :1; /* Bit 19 */
+//	unsigned int :1; /* Bit 20 */
+//	unsigned int :1; /* Bit 21 */
+//	unsigned int :1; /* Bit 22 */
+//	unsigned int :1; /* Bit 23 */
+//	unsigned int :1; /* Bit 24 */
+//	unsigned int :1; /* Bit 25 */
+//	unsigned int :1; /* Bit 26 */
+//	unsigned int :1; /* Bit 27 */
+//	unsigned int :1; /* Bit 28 */
+//	unsigned int :1; /* Bit 29 */
+//	unsigned int :1; /* Bit 30 */
+//	unsigned int :1; /* Bit 31 */
+//
+//	unsigned int error_code_before_reset ;
+//
+//}
+//volatile obc_status_t;
+//
+//obc_status_t obc_status;
 
 void taskDISABLE_INTERRUPTS() {
 	// in peg here is some ASM inline code called from RTOS
@@ -60,13 +136,219 @@ void taskENABLE_INTERRUPTS() {
 
 volatile uint32_t rtc_epoch_time;
 
-#define RTC_AUX ((uint32_t *) 0x40024058)
-
 
 void RtcGetTimeCmd(int argc, char *argv[]) {
-	printf("OBC: RTC: Time: %ld\n", rtc_get_time());
-	printf("OBC: RTC: Date: %ld\n", rtc_get_date());
+	printf("RTC Status: %02X DateTime: %lld\n",RtcReadGpr(RTC_GPRIDX_STATUS), rtc_get_datetime());
+
 }
+
+
+//error_code error_code_get(void)
+//{
+//	uint8_t error;
+//	if (rtc_backup_reg_read(0, &error) == 0)
+//	{
+//		return (error_code) error;
+//	}
+//	else
+//	{
+//		/* Error reading error signature */
+//		return EC_SIGNATURE_ERROR;
+//	}
+//}
+
+
+void show_gpregs(void) {
+	char *ptr = (char*) &(LPC_RTC->GPREG);
+	printf("RTC GPR1: ");
+	for (int i=0;i<20;i++) {
+		printf("%02X ", ptr[i]);
+	}
+	printf("\n");
+}
+
+void RtcInitializeGpr() {
+	for (int i=0;i<19;i++) {
+		RtcWriteGpr(i, 'a' + i);		// Some Recognizable pattern ;-).
+	}
+}
+
+bool RtcIsGprChecksumOk(void) {
+	uint8_t *gprbase;
+	// The rtc does not change its GPR on itself, does it?
+	// So no need to copy and/or disable the interrupts here !?
+	gprbase = (uint8_t *) &(LPC_RTC->GPREG);
+	uint8_t crc = CRC8(gprbase, 19) + 1;
+	return (gprbase[19] == crc);
+}
+
+uint8_t RtcReadGpr(rtc_gpridx_t idx) {
+	uint8_t *gprbase = (uint8_t *)(&(LPC_RTC->GPREG));
+	if (idx>19) {
+		idx = 19;
+	} else if (idx < 0) {
+		idx = 0;
+	}
+	return gprbase[idx];
+}
+
+
+
+/*********************************************************************//**
+ * @brief 		Write value to General purpose registers
+ * @param[in]	RTCx	RTC peripheral selected, should be LPC_RTC
+ * @param[in]	Channel General purpose registers Channel number,
+ * 				should be in range from 0 to 4.
+ * @param[in]	Value Value to write
+ * @return 		None
+ * Note: These General purpose registers can be used to store important
+ * information when the main power supply is off. The value in these
+ * registers is not affected by chip reset.
+ **********************************************************************/
+void RTC_WriteGPREG(LPC_RTC_T *RTCx, uint8_t Channel, uint32_t Value)
+{
+	uint32_t *preg;
+
+//	CHECK_PARAM(PARAM_RTCx(RTCx));
+//	CHECK_PARAM(PARAM_RTC_GPREG_CH(Channel));
+
+	preg = (uint32_t *) &(RTCx->GPREG);
+	preg += Channel;
+	*preg = Value;
+}
+
+
+// We use the 5 GPR registers as a byte store with 19 bytes + 1byte CRC8
+void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte) {
+	if ((idx < 19) && (idx >= 0)) {
+		// GPREG only can be written as uint32/4byte at once. (A single uint8_t ptr does not work here :-( )
+		uint32_t *gprbase = (uint32_t *)(&(LPC_RTC->GPREG));
+		uint32_t *ptr = gprbase;
+		uint8_t channel = idx /4;
+		uint8_t tmpBytes[4];
+
+		ptr += channel;
+		*((uint32_t *)tmpBytes) = *ptr;
+		tmpBytes[idx % 4] = byte;
+		*ptr = *((uint32_t *)tmpBytes);
+
+		// last byte of word 4 is checksum
+		ptr = gprbase + 4;
+		*((uint32_t *)tmpBytes) = *ptr;
+		tmpBytes[3] = CRC8((uint8_t*)&(LPC_RTC->GPREG), 19) + 1;
+		*ptr = *((uint32_t *)tmpBytes);
+	}
+}
+
+
+void RtcInit(void) {
+//	rtc_init();
+//}
+//
+//void rtc_init(void)
+//{
+	rtc_status_t status = RTC_STAT_UNKNOWN;
+
+	RTC_TIME_T 	tim;
+
+	Chip_RTC_Init(LPC_RTC);
+	//Chip_RTC_Enable(LPC_RTC, ENABLE);
+
+	show_gpregs();
+
+	/* Init Timer 1 before RTC enable */			// TODO module inits and sequence to be determined ....
+	//timer0_init();
+
+	/* Check RTC reset */
+	if (!RtcIsGprChecksumOk()) {
+		printf("RTC GPR Checksum Error\n", 0);
+		RtcInitializeGpr();
+
+		/* RTC module has been reset, time and data invalid */
+		/* Set to default values */
+		tim.time[RTC_TIMETYPE_SECOND] = 0;
+		tim.time[RTC_TIMETYPE_MINUTE] = 0;
+		tim.time[RTC_TIMETYPE_HOUR] = 0;
+		tim.time[RTC_TIMETYPE_DAYOFMONTH] = 1;
+		tim.time[RTC_TIMETYPE_DAYOFWEEK] = 1;
+		tim.time[RTC_TIMETYPE_DAYOFYEAR] = 1;
+		tim.time[RTC_TIMETYPE_MONTH] = 1;
+		tim.time[RTC_TIMETYPE_YEAR] = 1001;
+		Chip_RTC_SetFullTime(LPC_RTC, &tim);
+
+
+		status = RTC_STAT_RESETDEFAULT;
+		//rtc_backup_reg_reset(1);
+		//rtc_backup_reg_set(1, 0x00);	// RTC is definitely not in sync
+		//obc_status.rtc_synchronized = 0;
+	}
+	else
+	{
+		// read status from GPR
+		status = RtcReadGpr(RTC_GPRIDX_STATUS);
+		printf("RTC GPR Checksum ok. Status: %02X\n", status);
+		printf("DateTime: %lld\n", rtc_get_datetime());
+
+		/* RTC was running - check if time is correct */
+//		uint8_t rval = 0x00;
+//		rtc_backup_reg_read(1, &rval);
+//		if (rval == RTC_SYNCHRONIZED)
+//		{
+//			// RTC was running and a previous synchronization was successful -> time is valid
+//			obc_status.rtc_synchronized = 1;
+//#if EXTENDED_DEBUG_MESSAGES
+//
+//			printf("OBC: RTC is synchronized\n", 0);
+//#endif
+//
+//		}
+//		else
+//		{
+//			// RTC was running, but time was out of sync already
+//			obc_status.rtc_synchronized = 0;
+//#if EXTENDED_DEBUG_MESSAGES
+//
+//			printf("OBC: RTC is NOT synchronized\n", 0);
+//#endif
+//
+//		}
+
+		/* Restore last error code from RTC register */
+//		obc_status.error_code_before_reset = error_code_get();
+	}
+	if (LPC_RTC->RTC_AUX & RTC_AUX_RTC_OSCF)
+	{
+		/* RTC oszillator is not running*/
+		//obc_status.rtc_oszillator_error = 1;
+		LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error by writing to this bit.
+		printf("RTC: Oscillator error\n");
+		status = RTC_STAT_XTAL_ERROR;
+		//obc_status.rtc_initialized = 0;
+		//obc_status.rtc_synchronized = 0;
+		//rtc_backup_reg_set(1, 0x55);	// RTC is definitely not in sync
+
+	}
+
+
+	rtc_calculate_epoch_time();
+	RtcWriteGpr(RTC_GPRIDX_STATUS, status);
+
+	Chip_RTC_CntIncrIntConfig(LPC_RTC, RTC_AMR_CIIR_IMSEC,  ENABLE);
+	NVIC_SetPriority(RTC_IRQn, RTC_INTERRUPT_PRIORITY);
+	NVIC_EnableIRQ(RTC_IRQn); /* Enable interrupt */
+
+	Chip_RTC_Enable(LPC_RTC, ENABLE);
+
+	//obc_status.rtc_initialized = 1;
+	RegisterCommand("getTim", RtcGetTimeCmd);
+
+	show_gpregs();
+
+	return;
+}
+
+
+
 
 
 
@@ -79,6 +361,17 @@ void RTC_IRQHandler(void)
 
 	rtc_epoch_time++; /* increment QB50 s epoch variable and calculate UTC time */
 
+	rtc_status_t status = RtcReadGpr(RTC_GPRIDX_STATUS);
+	if (status == RTC_STAT_XTAL_ERROR) {
+		// There was an error while init (no RTC Clock running, now it seems to be ok (otherwise there would not be an IRQ)
+		// Recheck and clerr the error bit. TODO: ??? is this really okk here !? What if clock is missing now !?
+		if (LPC_RTC->RTC_AUX & RTC_AUX_RTC_OSCF)
+		{
+			LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error by writing to this bit.
+		}
+		RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_RUNNING);
+
+	}
 	/* Do powersave modes or other things here */
 	/*if (obc_status.obc_powersave)
 	{
@@ -129,10 +422,11 @@ void rtc_correct_by_offset(int32_t offset_in_seconds)
 	RTC_TIME_T rtc_tim;
 	volatile uint32_t corrected_time;
 
-	if (obc_status.rtc_initialized == 0)
-	{
-		return;
-	}
+//	TODO
+//	if (obc_status.rtc_initialized == 0)
+//	{
+//		return;
+//	}
 
 	/* Current time */
 	Chip_RTC_GetFullTime(LPC_RTC, &rtc_tim);
@@ -166,104 +460,8 @@ void rtc_correct_by_offset(int32_t offset_in_seconds)
 	return;
 }
 
-void rtc_init(void)
-{
-	RTC_TIME_T tim;
 
-	Chip_RTC_Init(LPC_RTC);
 
-	if (*RTC_AUX & RTC_AUX_RTC_OSCF)
-	{
-		/* RTC oszillator is not running*/
-		obc_status.rtc_oszillator_error = 1;
-#if EXTENDED_DEBUG_MESSAGES
-
-		printf("OBC: RTC: Oszillator error\n");
-#endif
-
-		obc_status.rtc_initialized = 0;
-		obc_status.rtc_synchronized = 0;
-		rtc_backup_reg_set(1, 0x00);	// RTC is definitely not in sync
-	}
-
-	/* Init Timer 1 before RTC enable */			// TODO module inits and sequence to be determined ....
-	//timer0_init();
-
-	/* Check RTC reset */
-	if (rtc_check_if_reset())
-	{
-		/* RTC module has been reset, time and data invalid */
-
-#if EXTENDED_DEBUG_MESSAGES
-		printf("OBC: RTC was reset\n", 0);
-#endif
-
-		/* Set to default values */
-		tim.time[RTC_TIMETYPE_SECOND] = 0;
-		tim.time[RTC_TIMETYPE_MINUTE] = 0;
-		tim.time[RTC_TIMETYPE_HOUR] = 0;
-		tim.time[RTC_TIMETYPE_DAYOFMONTH] = 1;
-		tim.time[RTC_TIMETYPE_DAYOFWEEK] = 1;		// ?? stimmt das hier wirklich ??
-		tim.time[RTC_TIMETYPE_DAYOFYEAR] = 1;
-		tim.time[RTC_TIMETYPE_MONTH] = 1;
-		tim.time[RTC_TIMETYPE_YEAR] = 2015;
-
-		Chip_RTC_SetFullTime(LPC_RTC, &tim);
-		rtc_backup_reg_reset(1);
-		rtc_backup_reg_set(1, 0x00);	// RTC is definitely not in sync
-		obc_status.rtc_synchronized = 0;
-	}
-	else
-	{
-#if EXTENDED_DEBUG_MESSAGES
-		printf("OBC: RTC was running\n");
-		printf("OBC: RTC: Time: %ld\n", rtc_get_time());
-		printf("OBC: RTC: Date: %ld\n", rtc_get_date());
-
-#endif
-
-		/* RTC was running - check if time is correct */
-		uint8_t rval = 0x00;
-		rtc_backup_reg_read(1, &rval);
-		if (rval == RTC_SYNCHRONIZED)
-		{
-			// RTC was running and a previous synchronization was successful -> time is valid
-			obc_status.rtc_synchronized = 1;
-#if EXTENDED_DEBUG_MESSAGES
-
-			printf("OBC: RTC is synchronized\n", 0);
-#endif
-
-		}
-		else
-		{
-			// RTC was running, but time was out of sync already
-			obc_status.rtc_synchronized = 0;
-#if EXTENDED_DEBUG_MESSAGES
-
-			printf("OBC: RTC is NOT synchronized\n", 0);
-#endif
-
-		}
-
-		/* Restore last error code from RTC register */
-		//obc_status.error_code_before_reset = error_code_get();		//TODO
-	}
-
-	rtc_calculate_epoch_time();
-
-	Chip_RTC_CntIncrIntConfig(LPC_RTC, RTC_AMR_CIIR_IMSEC,  ENABLE);
-	NVIC_SetPriority(RTC_IRQn, RTC_INTERRUPT_PRIORITY);
-	NVIC_EnableIRQ(RTC_IRQn); /* Enable interrupt */
-
-	Chip_RTC_Enable(LPC_RTC, ENABLE);
-
-	obc_status.rtc_initialized = 1;
-
-	RegisterCommand("getTim", RtcGetTimeCmd);
-
-	return;
-}
 
 void rtc_calculate_epoch_time(void)
 {
@@ -305,7 +503,8 @@ uint32_t rtc_get_time(void)
 	Chip_RTC_GetFullTime(LPC_RTC, &tim);
 
 	// TODO: tim0 is not used for ms counting yet.....
-	return (0 + tim.time[RTC_TIMETYPE_SECOND] * 1000 + tim.time[RTC_TIMETYPE_MINUTE] * 100000 + tim.time[RTC_TIMETYPE_HOUR] * 10000000);
+	return (tim.time[RTC_TIMETYPE_SECOND] + tim.time[RTC_TIMETYPE_MINUTE] * 100 + tim.time[RTC_TIMETYPE_HOUR] * 10000);
+	//return (0 + tim.time[RTC_TIMETYPE_SECOND] * 1000 + tim.time[RTC_TIMETYPE_MINUTE] * 100000 + tim.time[RTC_TIMETYPE_HOUR] * 10000000);
 	//return ((LPC_TIM0->TC) + tim.SEC * 1000 + tim.MIN * 100000 + tim.HOUR * 10000000);
 }
 
@@ -318,7 +517,11 @@ uint32_t rtc_get_date(void)
 	RTC_TIME_T tim;
 	Chip_RTC_GetFullTime(LPC_RTC, &tim);
 
-	return (tim.time[RTC_TIMETYPE_DAYOFMONTH] + tim.time[RTC_TIMETYPE_MONTH] * 100 + (tim.time[RTC_TIMETYPE_YEAR] - 2000) * 10000);
+	return (tim.time[RTC_TIMETYPE_DAYOFMONTH] + tim.time[RTC_TIMETYPE_MONTH] * 100 + (tim.time[RTC_TIMETYPE_YEAR]) * 10000);
+}
+
+uint64_t rtc_get_datetime(void) {
+	return ((uint64_t)rtc_get_date()) * 1000000 + (uint64_t)rtc_get_time();
 }
 
 uint32_t rtc_get_epoch_time(void)
@@ -354,193 +557,171 @@ uint32_t RTC_ReadGPREG(LPC_RTC_T *RTCx, uint8_t Channel)
 	return (value);
 }
 
-/*********************************************************************//**
- * @brief 		Write value to General purpose registers
- * @param[in]	RTCx	RTC peripheral selected, should be LPC_RTC
- * @param[in]	Channel General purpose registers Channel number,
- * 				should be in range from 0 to 4.
- * @param[in]	Value Value to write
- * @return 		None
- * Note: These General purpose registers can be used to store important
- * information when the main power supply is off. The value in these
- * registers is not affected by chip reset.
- **********************************************************************/
-void RTC_WriteGPREG(LPC_RTC_T *RTCx, uint8_t Channel, uint32_t Value)
-{
-	uint32_t *preg;
-
-//	CHECK_PARAM(PARAM_RTCx(RTCx));
-//	CHECK_PARAM(PARAM_RTC_GPREG_CH(Channel));
-
-	preg = (uint32_t *) &(RTCx->GPREG);
-	preg += Channel;
-	*preg = Value;
-}
 
 
+//RetVal rtc_backup_reg_set(uint8_t id, uint8_t val)
+//{
+//	/* Writes one byte to the RTC's buffered registers. The register number is specified with the parameter id.
+//	 * Parameters: 	uint8_t id - Register number to write
+//	 * 				uint8_t val - Value written to the register
+//	 * Return value: SUCCESS/ERROR
+//	 */
+//
+//	uint8_t regs[20] =
+//	{ };
+//
+//	if (id >= 19)
+//	{
+//		/* Register does not exist or is protected. */
+//		return FAILED;
+//	}
+//
+//	/* Prevent all other tasks and interrupts from altering the register contents */
+//	taskDISABLE_INTERRUPTS();
+//
+//	/* Read all registers */
+//	*((uint32_t *) &regs[0]) = RTC_ReadGPREG(LPC_RTC, 0);
+//	*((uint32_t *) &regs[4]) = RTC_ReadGPREG(LPC_RTC, 1);
+//	*((uint32_t *) &regs[8]) = RTC_ReadGPREG(LPC_RTC, 2);
+//	*((uint32_t *) &regs[12]) = RTC_ReadGPREG(LPC_RTC, 3);
+//	*((uint32_t *) &regs[16]) = RTC_ReadGPREG(LPC_RTC, 4);
+//
+//	/* Set given value */
+//	regs[id] = val;
+//
+//	/* Calculate and store new checksum */
+//	regs[19] = rtc_checksum_calc(&regs[0]);
+//
+//	/* Store values */
+//	RTC_WriteGPREG(LPC_RTC, 0, *((uint32_t *) (&regs[0])));
+//	RTC_WriteGPREG(LPC_RTC, 1, *((uint32_t *) (&regs[4])));
+//	RTC_WriteGPREG(LPC_RTC, 2, *((uint32_t *) (&regs[8])));
+//	RTC_WriteGPREG(LPC_RTC, 3, *((uint32_t *) (&regs[12])));
+//	RTC_WriteGPREG(LPC_RTC, 4, *((uint32_t *) (&regs[16])));
+//
+//	taskENABLE_INTERRUPTS();
+//
+//	return DONE;
+//}
 
-RetVal rtc_backup_reg_set(uint8_t id, uint8_t val)
-{
-	/* Writes one byte to the RTC's buffered registers. The register number is specified with the parameter id.
-	 * Parameters: 	uint8_t id - Register number to write
-	 * 				uint8_t val - Value written to the register
-	 * Return value: SUCCESS/ERROR
-	 */
+//RetVal rtc_backup_reg_reset(uint8_t go)
+//{
+//	/* Resets the backup registers and calculates the checksum
+//	 *
+//	 */
+//
+//	if (go == 0)
+//	{
+//		return FAILED;
+//	}
+//
+//	uint8_t regs[20] =
+//	{ };
+//
+//	/* Prevent all other tasks and interrupts from altering the register contents */
+//	taskDISABLE_INTERRUPTS();
+//
+//	/* Calculate and store new checksum */
+//	regs[19] = rtc_checksum_calc(&regs[0]);
+//
+//	/* Store values */
+//	RTC_WriteGPREG(LPC_RTC, 0, *((uint32_t *) (&regs[0])));
+//	RTC_WriteGPREG(LPC_RTC, 1, *((uint32_t *) (&regs[4])));
+//	RTC_WriteGPREG(LPC_RTC, 2, *((uint32_t *) (&regs[8])));
+//	RTC_WriteGPREG(LPC_RTC, 3, *((uint32_t *) (&regs[12])));
+//	RTC_WriteGPREG(LPC_RTC, 4, *((uint32_t *) (&regs[16])));
+//
+//	taskENABLE_INTERRUPTS();
+//
+//	return DONE;
+//}
 
-	uint8_t regs[20] =
-	{ };
+//RetVal rtc_backup_reg_read(uint8_t id, uint8_t * val)
+//{
+//	/* Reads one byte from the RTC's buffered registers. The register number is specified with the parameter id.
+//	 * Parameters: 	uint8_t id - Register number to read from
+//	 * 				uint8_t * - pointer where value shall be stored
+//	 * Return value: 0 in case of success, else (wrong checksum) != 0
+//	 * ID
+//	 */
+//
+//	/* Read all registers */
+//
+//	uint8_t cs;
+//	uint8_t regs[20] =
+//	{ };
+//
+//	if (id > 19)
+//	{
+//		/* Register does not exist */
+//		return FAILED;
+//	}
+//
+//	taskDISABLE_INTERRUPTS();
+//
+//	*((uint32_t *) &regs[0]) = RTC_ReadGPREG(LPC_RTC, 0);
+//	*((uint32_t *) &regs[4]) = RTC_ReadGPREG(LPC_RTC, 1);
+//	*((uint32_t *) &regs[8]) = RTC_ReadGPREG(LPC_RTC, 2);
+//	*((uint32_t *) &regs[12]) = RTC_ReadGPREG(LPC_RTC, 3);
+//	*((uint32_t *) &regs[16]) = RTC_ReadGPREG(LPC_RTC, 4);
+//
+//	/* Calculate checksum */
+//	cs = rtc_checksum_calc(&regs[0]);
+//
+//	taskENABLE_INTERRUPTS();
+//
+//	/* Compare checksums */
+//	if (cs != regs[19])
+//	{
+//		/* Checksum is not correct - values may be corrupted */
+//		return FAILED;
+//	}
+//
+//	*val = regs[id];
+//
+//	return DONE;
+//}
 
-	if (id >= 19)
-	{
-		/* Register does not exist or is protected. */
-		return FAILED;
-	}
 
-	/* Prevent all other tasks and interrupts from altering the register contents */
-	taskDISABLE_INTERRUPTS();
+//RetVal rtc_check_if_reset(void)
+//{
+//	/**
+//	 * Check if the RTC module was reseted and therefore time and register values are invalid.
+//	 */
+//
+//	uint8_t cs;
+//	uint8_t regs[20] =
+//	{ };
+//
+//	taskDISABLE_INTERRUPTS();
+//
+//	*((uint32_t *) &regs[0]) = RTC_ReadGPREG(LPC_RTC, 0);
+//	*((uint32_t *) &regs[4]) = RTC_ReadGPREG(LPC_RTC, 1);
+//	*((uint32_t *) &regs[8]) = RTC_ReadGPREG(LPC_RTC, 2);
+//	*((uint32_t *) &regs[12]) = RTC_ReadGPREG(LPC_RTC, 3);
+//	*((uint32_t *) &regs[16]) = RTC_ReadGPREG(LPC_RTC, 4);
+//
+//	/* Calculate checksum */
+//	cs = rtc_checksum_calc(&regs[0]);
+//
+//	taskENABLE_INTERRUPTS();
+//
+//	/* Compare checksums */
+//	if (cs != regs[19])
+//	{
+//#if EXTENDED_DEBUG_MESSAGES
+//		printf("OBC: RTC: Was reset.\n");
+//#endif
+//		/* Checksum is not correct - values may be corrupted */
+//
+//		return FAILED;
+//	}
+//
+//	return DONE;
+//}
 
-	/* Read all registers */
-	*((uint32_t *) &regs[0]) = RTC_ReadGPREG(LPC_RTC, 0);
-	*((uint32_t *) &regs[4]) = RTC_ReadGPREG(LPC_RTC, 1);
-	*((uint32_t *) &regs[8]) = RTC_ReadGPREG(LPC_RTC, 2);
-	*((uint32_t *) &regs[12]) = RTC_ReadGPREG(LPC_RTC, 3);
-	*((uint32_t *) &regs[16]) = RTC_ReadGPREG(LPC_RTC, 4);
-
-	/* Set given value */
-	regs[id] = val;
-
-	/* Calculate and store new checksum */
-	regs[19] = rtc_checksum_calc(&regs[0]);
-
-	/* Store values */
-	RTC_WriteGPREG(LPC_RTC, 0, *((uint32_t *) (&regs[0])));
-	RTC_WriteGPREG(LPC_RTC, 1, *((uint32_t *) (&regs[4])));
-	RTC_WriteGPREG(LPC_RTC, 2, *((uint32_t *) (&regs[8])));
-	RTC_WriteGPREG(LPC_RTC, 3, *((uint32_t *) (&regs[12])));
-	RTC_WriteGPREG(LPC_RTC, 4, *((uint32_t *) (&regs[16])));
-
-	taskENABLE_INTERRUPTS();
-
-	return DONE;
-}
-
-RetVal rtc_backup_reg_reset(uint8_t go)
-{
-	/* Resets the backup registers and calculates the checksum
-	 *
-	 */
-
-	if (go == 0)
-	{
-		return FAILED;
-	}
-
-	uint8_t regs[20] =
-	{ };
-
-	/* Prevent all other tasks and interrupts from altering the register contents */
-	taskDISABLE_INTERRUPTS();
-
-	/* Calculate and store new checksum */
-	regs[19] = rtc_checksum_calc(&regs[0]);
-
-	/* Store values */
-	RTC_WriteGPREG(LPC_RTC, 0, *((uint32_t *) (&regs[0])));
-	RTC_WriteGPREG(LPC_RTC, 1, *((uint32_t *) (&regs[4])));
-	RTC_WriteGPREG(LPC_RTC, 2, *((uint32_t *) (&regs[8])));
-	RTC_WriteGPREG(LPC_RTC, 3, *((uint32_t *) (&regs[12])));
-	RTC_WriteGPREG(LPC_RTC, 4, *((uint32_t *) (&regs[16])));
-
-	taskENABLE_INTERRUPTS();
-
-	return DONE;
-}
-
-RetVal rtc_backup_reg_read(uint8_t id, uint8_t * val)
-{
-	/* Reads one byte from the RTC's buffered registers. The register number is specified with the parameter id.
-	 * Parameters: 	uint8_t id - Register number to read from
-	 * 				uint8_t * - pointer where value shall be stored
-	 * Return value: 0 in case of success, else (wrong checksum) != 0
-	 * ID
-	 */
-
-	/* Read all registers */
-
-	uint8_t cs;
-	uint8_t regs[20] =
-	{ };
-
-	if (id > 19)
-	{
-		/* Register does not exist */
-		return FAILED;
-	}
-
-	taskDISABLE_INTERRUPTS();
-
-	*((uint32_t *) &regs[0]) = RTC_ReadGPREG(LPC_RTC, 0);
-	*((uint32_t *) &regs[4]) = RTC_ReadGPREG(LPC_RTC, 1);
-	*((uint32_t *) &regs[8]) = RTC_ReadGPREG(LPC_RTC, 2);
-	*((uint32_t *) &regs[12]) = RTC_ReadGPREG(LPC_RTC, 3);
-	*((uint32_t *) &regs[16]) = RTC_ReadGPREG(LPC_RTC, 4);
-
-	/* Calculate checksum */
-	cs = rtc_checksum_calc(&regs[0]);
-
-	taskENABLE_INTERRUPTS();
-
-	/* Compare checksums */
-	if (cs != regs[19])
-	{
-		/* Checksum is not correct - values may be corrupted */
-		return FAILED;
-	}
-
-	*val = regs[id];
-
-	return DONE;
-}
-
-RetVal rtc_check_if_reset(void)
-{
-	/**
-	 * Check if the RTC module was reseted and therefore time and register values are invalid.
-	 */
-
-	uint8_t cs;
-	uint8_t regs[20] =
-	{ };
-
-	taskDISABLE_INTERRUPTS();
-
-	*((uint32_t *) &regs[0]) = RTC_ReadGPREG(LPC_RTC, 0);
-	*((uint32_t *) &regs[4]) = RTC_ReadGPREG(LPC_RTC, 1);
-	*((uint32_t *) &regs[8]) = RTC_ReadGPREG(LPC_RTC, 2);
-	*((uint32_t *) &regs[12]) = RTC_ReadGPREG(LPC_RTC, 3);
-	*((uint32_t *) &regs[16]) = RTC_ReadGPREG(LPC_RTC, 4);
-
-	/* Calculate checksum */
-	cs = rtc_checksum_calc(&regs[0]);
-
-	taskENABLE_INTERRUPTS();
-
-	/* Compare checksums */
-	if (cs != regs[19])
-	{
-#if EXTENDED_DEBUG_MESSAGES
-		printf("OBC: RTC: Was reset.\n");
-#endif
-		/* Checksum is not correct - values may be corrupted */
-
-		return FAILED;
-	}
-
-	return DONE;
-}
-
-uint8_t rtc_checksum_calc(uint8_t *data)
-{
-	/* Add 1 to ensure 0 for all data entries gives a cs != 0 */
-	return (CRC8(data, 19) + 1);
-}
+//uint8_t rtc_checksum_calc(uint8_t *data)
+//{
+//	/* Add 1 to ensure 0 for all data entries gives a cs != 0 */
+//	return (CRC8(data, 19) + 1);
+//}
