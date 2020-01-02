@@ -9,11 +9,11 @@
 #include "timer.h"
 
 typedef enum rtc_status_e {
-	RTC_STAT_UNKNOWN		= 0x00,
 	RTC_STAT_SYNCHRONIZED	= 0x11,
 	RTC_STAT_RUNNING		= 0x22,
 	RTC_STAT_RESETDEFAULT	= 0x33,
-	RTC_STAT_XTAL_ERROR		= 0xEE
+	RTC_STAT_UNKNOWN		= 0xDD,
+	RTC_STAT_XTAL_ERROR		= 0xEE,
 } rtc_status_t;
 
 // Usage of 19 bytes General Purpose Register
@@ -123,17 +123,18 @@ void rtc_correct_by_offset(int32_t offset_in_seconds);
 volatile uint32_t rtc_epoch_time;
 
 void RtcGetTimeCmd(int argc, char *argv[]) {
-	printf("RTC Status: %02X DateTime: %lld\n",RtcReadGpr(RTC_GPRIDX_STATUS), rtc_get_datetime());
+	printf("RTC DateTime: %lld (Status: %02X)\n",rtc_get_datetime(),RtcReadGpr(RTC_GPRIDX_STATUS));
 	if (argc > 0) {
 		show_gpregs();
 	}
 }
 
 void RtcSetTimeCmd(int argc, char *argv[]) {
-	// setTime <hours> <minutes> <seconds>
+	// setTime <hours> <minutes> <seconds>[ sync]
 	uint8_t sec = 0;
 	uint8_t min = 0;
 	uint8_t hrs = 0;
+	bool synchronized = false;
 
 	if (argc > 0) {
 		hrs = atoi(argv[0]);
@@ -144,12 +145,17 @@ void RtcSetTimeCmd(int argc, char *argv[]) {
 	if (argc > 2) {
 		sec = atoi(argv[2]);
 	}
+	if (argc > 3) {
+		synchronized = true;
+	}
 
 	// binary cmd
-	RtcSetTime(hrs, min, sec);
+	RtcSetTime(hrs, min, sec, synchronized);
+
+	printf("RTC DateTime: %lld (Status: %02X)\n",rtc_get_datetime(),RtcReadGpr(RTC_GPRIDX_STATUS));
 }
 
-void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds) {
+void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds, bool synchronized) {
 	if (hours>23 || minutes > 59 || seconds > 59) {
 		return;		// TODO: log 'out of range' event !?
 	}
@@ -168,8 +174,14 @@ void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds) {
 	/* Restore to old setting */
 	LPC_RTC->CCR = ccr_val;
 
+	if (RtcReadGpr(RTC_GPRIDX_STATUS) != RTC_STAT_XTAL_ERROR) {
+		if (synchronized) {
+			RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_SYNCHRONIZED);
+		} else {
+			RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_RUNNING);
+		}
+	}
 }
-
 
 void RtcSetDateCmd(int argc, char *argv[]) {
 	uint16_t year = 0;
@@ -188,6 +200,8 @@ void RtcSetDateCmd(int argc, char *argv[]) {
 
 	// binary cmd
 	RtcSetDate(year, month, day);
+
+	printf("RTC DateTime: %lld (Status: %02X)\n",rtc_get_datetime(),RtcReadGpr(RTC_GPRIDX_STATUS));
 
 }
 
@@ -209,7 +223,6 @@ void RtcSetDate(uint16_t year, uint8_t month, uint8_t dayOfMonth) {
 
 	/* Restore to old setting */
 	LPC_RTC->CCR = ccr_val;
-
 }
 
 void show_gpregs(void) {
@@ -235,7 +248,6 @@ bool RtcIsGprChecksumOk(void) {
 	uint8_t crc = CRC8(gprbase, 19) + 1;
 	return (gprbase[19] == crc);
 }
-
 
 // We use the 5 GPR registers as a byte store with 19 bytes + 1byte CRC8
 void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte) {
@@ -287,7 +299,7 @@ void RtcInit(void) {
 
 	/* Check RTC reset */
 	if (!RtcIsGprChecksumOk()) {
-		printf("RTC GPR Checksum Error\n", 0);
+		printf("RTC GPR Checksum Error -> Reinit GPRs\n", 0);
 		RtcInitializeGpr();
 
 		/* RTC module has been reset, time and data invalid */
@@ -311,8 +323,7 @@ void RtcInit(void) {
 	{
 		// read status from GPR
 		status = RtcReadGpr(RTC_GPRIDX_STATUS);
-		printf("RTC GPR Checksum ok. Status: %02X\n", status);
-		printf("DateTime: %lld\n", rtc_get_datetime());
+		printf("RTC GPR Checksum ok. Status: %02X DateTime: %lld\n", status, rtc_get_datetime());
 
 		/* RTC was running - check if time is correct */
 //		uint8_t rval = 0x00;
@@ -341,19 +352,22 @@ void RtcInit(void) {
 		/* Restore last error code from RTC register */
 //		obc_status.error_code_before_reset = error_code_get();
 	}
+
+	// Check if RTC XTAL is running.
+
+	Chip_RTC_Enable(LPC_RTC, ENABLE);		// We have to enable the RTC
+	TimBlockMs((uint8_t)400);				// This 400ms are needed to get a stable RTC OSC after Power on (tested with LPCX board).
+	LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Now clear the OSC Error bit (its set to 1 on each RTC power on)
+	TimBlockMs(5);							// and lets wait another short time.
+
+	// Now there shouldn't be a (new) error bit set here.
 	if (LPC_RTC->RTC_AUX & RTC_AUX_RTC_OSCF)
 	{
-		/* RTC oszillator is not running*/
-		//obc_status.rtc_oszillator_error = 1;
-		LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error by writing to this bit.
-		printf("RTC: Oscillator error\n");
+		// If so (tested with defect OBC board!) we really have no RTC OSC running!
+		LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error  bit.
+		printf("RTC: Oscillator error!\n");
 		status = RTC_STAT_XTAL_ERROR;
-		//obc_status.rtc_initialized = 0;
-		//obc_status.rtc_synchronized = 0;
-		//rtc_backup_reg_set(1, 0x55);	// RTC is definitely not in sync
-
 	}
-
 
 	rtc_calculate_epoch_time();
 	RtcWriteGpr(RTC_GPRIDX_STATUS, status);
@@ -362,22 +376,13 @@ void RtcInit(void) {
 	NVIC_SetPriority(RTC_IRQn, RTC_INTERRUPT_PRIORITY);
 	NVIC_EnableIRQ(RTC_IRQn); /* Enable interrupt */
 
-	Chip_RTC_Enable(LPC_RTC, ENABLE);
-
-	//obc_status.rtc_initialized = 1;
 	RegisterCommand("getTime", RtcGetTimeCmd);
 	RegisterCommand("setTime", RtcSetTimeCmd);
 	RegisterCommand("setDate", RtcSetDateCmd);
 
 	//show_gpregs();	// print all GPREGS for debugging
-
 	return;
 }
-
-
-
-
-
 
 void RTC_IRQHandler(void)
 {
@@ -397,7 +402,7 @@ void RTC_IRQHandler(void)
 		}
 		// TODO: is this assumption here correct. We had an unknown time from init until now but it seems to run from here on.
 		//       For sure it is not synchronised any more.....
-		RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_RUNNING);
+		RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_UNKNOWN);
 	}
 	/* Do powersave modes or other things here */
 	/*if (obc_status.obc_powersave)

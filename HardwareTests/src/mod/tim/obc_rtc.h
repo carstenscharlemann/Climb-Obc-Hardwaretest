@@ -13,7 +13,7 @@ void RtcInit(void);
 //  Module functions API
 bool RtcIsGprChecksumOk(void);
 void RtcSetDate(uint16_t year, uint8_t month, uint8_t dayOfMonth);
-void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds);
+void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds, bool synchronized);
 
 
 #endif /* OBC_RTC_H */
