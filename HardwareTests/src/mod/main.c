@@ -53,7 +53,7 @@ void MainMain() {
 		EepromMain();
 		RtcMain();			// At this moment we only track day changes here so Tick time is enough.
 #ifdef RADIATION_TEST
-		RadTstInit();
+		RadTstMain();
 #endif
 	}
 

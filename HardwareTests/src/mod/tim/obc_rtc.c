@@ -255,6 +255,14 @@ void show_gpregs(void) {
 	printf("\n");
 }
 
+void RtcReadAllGprs(uint8_t *data) {
+	char *ptr = (char*) &(LPC_RTC->GPREG);
+	for (int i=0;i<20;i++) {
+		data[i] = ptr[i];
+	}
+}
+
+
 void RtcInitializeGpr() {
 	for (int i=0;i<19;i++) {
 		RtcWriteGpr(i, 'a' + i);		// Some Recognizable pattern ;-).
@@ -319,8 +327,8 @@ void RtcInit(void) {
 	//timer0_init();
 
 	/* Check RTC reset */
-	if (!RtcIsGprChecksumOk()) {
-		printf("RTC GPR Checksum Error -> Reinit GPRs\n", 0);
+	if (!RtcIsGprChecksumOk() || (RtcReadGpr(RTC_GPRIDX_STATUS) == 0x61)) {
+		printf("RTC GPR Checksum Error (or status is init byte 0x61) -> Reinit GPRs\n", 0);
 		RtcInitializeGpr();
 
 		/* RTC module has been reset, time and data invalid */
@@ -777,11 +785,11 @@ void RtcMain(void) {
 		if (rtc_calibration_base == 0) {
 			rtc_calibration_base = rtc_dayChangedAtSeconds;
 			rtc_calibration_day = 1;
-			printf("RTC Calibration initialized with %d on day 1\n", rtc_dayChangedAtSeconds);
+			printf("RTC Calibration initialized with %ld on day 1\n", rtc_dayChangedAtSeconds);
 		} else {
 			uint32_t secondsTicked =  rtc_dayChangedAtSeconds - rtc_calibration_base;
 			uint32_t secondsPerDay = secondsTicked/rtc_calibration_day;
-			printf("RTC Calibration end of day %d. Seconds ticked: %d average per day: %d\n", rtc_calibration_day, secondsTicked, secondsPerDay );
+			printf("RTC Calibration end of day %d. Seconds ticked: %ld average per day: %ld\n", rtc_calibration_day, secondsTicked, secondsPerDay );
 			rtc_calibration_day++;
 		}
 	}

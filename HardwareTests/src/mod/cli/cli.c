@@ -10,7 +10,11 @@
 
 #include "..\..\globals.h"
 
-#define CLI_PROMPT 				BOARD_SHORT ">"
+#ifdef RADIATION_TEST
+	#define CLI_PROMPT 	""
+#else
+	#define CLI_PROMPT 	BOARD_SHORT ">"
+#endif
 #define CLI_MAX_COMMANDS		100
 #define CLI_MAX_PARAMS			16
 
