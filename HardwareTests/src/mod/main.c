@@ -13,20 +13,23 @@
 #include "cli/cli.h"
 #include "thr/thruster.h"
 #include "tim/timer.h"
+#include "tim/obc_rtc.h"
 #include "mem/eeprom.h"
 #include "mem/flash.h"
 #include "mem/mram.h"
+
 
 
 // Call all Module Inits
 void MainInit() {
 	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
-	CliInit();
+	RtcInit();
 	ThrInit();
 	EepromInit();
 	FlashInit();
 	MramInit();
+	CliInit();
 }
 
 // Poll all Modules from Main loop
@@ -41,6 +44,7 @@ void MainMain() {
 		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
 		EepromMain();
+		RtcMain();			// At this moment we only track day changes here so Tick time is enough.
 	}
 
 //  Test timer delay function....
