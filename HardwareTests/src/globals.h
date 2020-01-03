@@ -23,6 +23,7 @@
 #elif HW_USED == OBC_BOARD
 	#include "hw_obc/obc_board.h"
 	#define  BOARD_SHORT	"obc"
+	#define	 RADIATION_TEST
 #endif
 
 // Check for some settings we would like to keep

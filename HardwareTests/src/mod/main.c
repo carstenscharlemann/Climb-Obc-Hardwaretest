@@ -18,6 +18,10 @@
 #include "mem/flash.h"
 #include "mem/mram.h"
 
+#ifdef RADIATION_TEST
+#include "rad/radiation_test.h"
+#endif
+
 
 
 // Call all Module Inits
@@ -30,6 +34,9 @@ void MainInit() {
 	FlashInit();
 	MramInit();
 	CliInit();
+#ifdef RADIATION_TEST
+	RadTstInit();
+#endif
 }
 
 // Poll all Modules from Main loop
@@ -45,6 +52,9 @@ void MainMain() {
 		// Call module mains with 'tick - requirement'
 		EepromMain();
 		RtcMain();			// At this moment we only track day changes here so Tick time is enough.
+#ifdef RADIATION_TEST
+		RadTstInit();
+#endif
 	}
 
 //  Test timer delay function....
