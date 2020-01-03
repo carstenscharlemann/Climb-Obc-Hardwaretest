@@ -20,6 +20,11 @@
 #define MAINLOOP_TIMER_IRQ 		TIMER0_IRQn
 #define MAINLOOP_TIMER_PCLK		SYSCTL_PCLK_TIMER0
 
+#define MILLISECOND_TIMER		LPC_TIMER1
+#define MILLISECOND_TIMER_IRQ 	TIMER1_IRQn
+#define MILLISECOND_TIMER_PCLK	SYSCTL_PCLK_TIMER1
+
+
 // The matchnum is a 'channel' for different interrupts and timings done with one timer
 // possible matchnum is 0..3 (if you change this channel here you needs to restart (power cycle) the debugger used !?
 //                            otherwise no new interrupts are triggered!? )
@@ -29,11 +34,15 @@
 // Prototypes
 //
 void TimIrqHandler(LPC_TIMER_T *mlTimer);
+void MsIrqHandler(LPC_TIMER_T *mlTimer);
 void TimOutputClockCmd(int argc, char *argv[]);
+void TimOutputSecondsCmd(int argc, char *argv[]);
 
-// Variables
-//
-static bool ticked = false;
+// Module Variables
+static bool 	ticked = false;
+
+// global variables
+uint32_t	secondsAfterReset = 0;
 
 // Implementations
 //
@@ -52,9 +61,26 @@ void TimInit() {
 	Chip_TIMER_ResetOnMatchEnable(MAINLOOP_TIMER, INT_MATCHNUM_FOR_TICK);
 	Chip_TIMER_Enable(MAINLOOP_TIMER);
 
+
 	/* Enable timer interrupt */
 	NVIC_ClearPendingIRQ(MAINLOOP_TIMER_IRQ);
 	NVIC_EnableIRQ(MAINLOOP_TIMER_IRQ);
+
+
+	/* Enable another timer counting milliseconds */
+	Chip_TIMER_Init(MILLISECOND_TIMER);
+	Chip_TIMER_Reset(MILLISECOND_TIMER);
+	Chip_TIMER_MatchEnableInt(MILLISECOND_TIMER, 0);
+
+	uint32_t prescaler = Chip_Clock_GetPeripheralClockRate(MILLISECOND_TIMER_PCLK) / 1000 - 1; 	/* 1 kHz timer frequency */
+	Chip_TIMER_PrescaleSet(MILLISECOND_TIMER, prescaler),
+	Chip_TIMER_SetMatch(MILLISECOND_TIMER, 0, 999 );											// Count ms from 0 to 999
+	Chip_TIMER_ResetOnMatchEnable(MILLISECOND_TIMER, 0);
+	Chip_TIMER_Enable(MILLISECOND_TIMER);
+
+	/* Enable timer interrupt */
+	NVIC_ClearPendingIRQ(MILLISECOND_TIMER_IRQ);
+	NVIC_EnableIRQ(MILLISECOND_TIMER_IRQ);
 
 	// We use clockout but disable after reset.
 	Chip_Clock_DisableCLKOUT();
@@ -62,6 +88,24 @@ void TimInit() {
 
 	// Register module Commands
 	RegisterCommand("clkOut", TimOutputClockCmd);
+	RegisterCommand("getSeconds", TimOutputSecondsCmd);
+
+}
+
+// This 'overwrites' the weak definition of this IRQ in cr_startup_lpc175x_6x.c
+void TIMER1_IRQHandler(void)
+{
+	MsIrqHandler(LPC_TIMER1);
+}
+
+void MsIrqHandler(LPC_TIMER_T *mlTimer) {
+	if (Chip_TIMER_MatchPending(mlTimer, 0)) {
+		Chip_TIMER_ClearMatch(mlTimer, 0);
+		// A second has passed.
+		secondsAfterReset++;
+
+		// Chip_GPIO_SetPinToggle(LPC_GPIO, 1 , 18);		// (WDTF Pin)
+	}
 }
 
 // This 'overwrites' the weak definition of this IRQ in cr_startup_lpc175x_6x.c
@@ -93,6 +137,7 @@ bool TimWaitForFalseMs(volatile bool *flag, uint8_t ms) {
 
 	LPC_TIMER_T *mlTimer = MAINLOOP_TIMER;
 	uint32_t currTimerReg = mlTimer->TC;
+
 
 	uint32_t waitFor = currTimerReg + cntToWait;
 	if (waitFor >= cr/1000 * TIM_MAIN_TICK_MS) {
@@ -193,6 +238,10 @@ void TimOutputClockCmd(int argc, char *argv[]) {
 	} else {
 		printf("CLKOUT (P1.27) disabled\n");
 	}
+}
+
+void TimOutputSecondsCmd(int argc, char *argv[]) {
+	printf("Seconds since reset: %d.%03d\n", secondsAfterReset,MILLISECOND_TIMER->TC );
 }
 
 

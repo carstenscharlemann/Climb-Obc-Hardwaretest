@@ -121,6 +121,22 @@ void rtc_correct_by_offset(int32_t offset_in_seconds);
 #define EXTENDED_DEBUG_MESSAGES true
 
 volatile uint32_t rtc_epoch_time;
+volatile uint8_t rtc_currentDayOfMonth;
+volatile bool  rtc_dayChanged;
+volatile uint32_t rtc_dayChangedAtSeconds;
+
+uint32_t rtc_calibration_base;
+uint32_t rtc_calibration_day;
+
+void RtcResetCalibrationMessurements() {
+	// Reset the Calibration messurements
+	rtc_currentDayOfMonth = 0;
+	rtc_dayChanged = false;
+	rtc_dayChangedAtSeconds = 0;
+	rtc_calibration_base = 0;
+	rtc_calibration_day = 0;
+}
+
 
 void RtcGetTimeCmd(int argc, char *argv[]) {
 	printf("RTC DateTime: %lld (Status: %02X)\n",rtc_get_datetime(),RtcReadGpr(RTC_GPRIDX_STATUS));
@@ -181,6 +197,9 @@ void RtcSetTime(uint8_t hours, uint8_t minutes, uint8_t seconds, bool synchroniz
 			RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_RUNNING);
 		}
 	}
+
+	RtcResetCalibrationMessurements();
+
 }
 
 void RtcSetDateCmd(int argc, char *argv[]) {
@@ -223,6 +242,8 @@ void RtcSetDate(uint16_t year, uint8_t month, uint8_t dayOfMonth) {
 
 	/* Restore to old setting */
 	LPC_RTC->CCR = ccr_val;
+
+	RtcResetCalibrationMessurements();
 }
 
 void show_gpregs(void) {
@@ -373,6 +394,7 @@ void RtcInit(void) {
 	RtcWriteGpr(RTC_GPRIDX_STATUS, status);
 
 	Chip_RTC_CntIncrIntConfig(LPC_RTC, RTC_AMR_CIIR_IMSEC,  ENABLE);
+
 	NVIC_SetPriority(RTC_IRQn, RTC_INTERRUPT_PRIORITY);
 	NVIC_EnableIRQ(RTC_IRQn); /* Enable interrupt */
 
@@ -386,11 +408,21 @@ void RtcInit(void) {
 
 void RTC_IRQHandler(void)
 {
-	//LPC_TIM0->TC = 0; // Synchronize ms-timer to RTC seconds
+	//LPC_TIM0->TC = 0; // Synchronize ms-timer to RTC seconds TODO....
 	Chip_RTC_ClearIntPending(LPC_RTC, RTC_INT_COUNTER_INCREASE);
 	Chip_RTC_ClearIntPending(LPC_RTC, RTC_INT_ALARM);
 
-	rtc_epoch_time++; /* increment QB50 s epoch variable and calculate UTC time */
+	if (rtc_currentDayOfMonth == 0) {
+		rtc_currentDayOfMonth = LPC_RTC->TIME[RTC_TIMETYPE_DAYOFMONTH];
+	}
+	if (rtc_currentDayOfMonth !=  LPC_RTC->TIME[RTC_TIMETYPE_DAYOFMONTH]) {
+		// Day changed
+		rtc_currentDayOfMonth = LPC_RTC->TIME[RTC_TIMETYPE_DAYOFMONTH];
+		rtc_dayChangedAtSeconds = secondsAfterReset;
+		rtc_dayChanged = true;
+	}
+
+	rtc_epoch_time++; /* increment QB50 s epoch variable and calculate UTC time */	// TODO ...
 
 	rtc_status_t status = RtcReadGpr(RTC_GPRIDX_STATUS);
 	if (status == RTC_STAT_XTAL_ERROR) {
@@ -738,3 +770,19 @@ uint32_t rtc_get_epoch_time(void)
 //	/* Add 1 to ensure 0 for all data entries gives a cs != 0 */
 //	return (CRC8(data, 19) + 1);
 //}
+
+void RtcMain(void) {
+	if (rtc_dayChanged) {
+		rtc_dayChanged = false;
+		if (rtc_calibration_base == 0) {
+			rtc_calibration_base = rtc_dayChangedAtSeconds;
+			rtc_calibration_day = 1;
+			printf("RTC Calibration initialized with %d on day 1\n", rtc_dayChangedAtSeconds);
+		} else {
+			uint32_t secondsTicked =  rtc_dayChangedAtSeconds - rtc_calibration_base;
+			uint32_t secondsPerDay = secondsTicked/rtc_calibration_day;
+			printf("RTC Calibration end of day %d. Seconds ticked: %d average per day: %d\n", rtc_calibration_day, secondsTicked, secondsPerDay );
+			rtc_calibration_day++;
+		}
+	}
+}

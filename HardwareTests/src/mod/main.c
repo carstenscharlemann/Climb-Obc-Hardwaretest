@@ -44,6 +44,7 @@ void MainMain() {
 		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
 		EepromMain();
+		RtcMain();			// At this moment we only track day changes here so Tick time is enough.
 	}
 
 //  Test timer delay function....

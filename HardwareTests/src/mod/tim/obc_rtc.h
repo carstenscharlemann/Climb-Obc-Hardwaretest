@@ -9,6 +9,7 @@
 
 // Module Main API
 void RtcInit(void);
+void RtcMain(void);
 
 //  Module functions API
 bool RtcIsGprChecksumOk(void);
