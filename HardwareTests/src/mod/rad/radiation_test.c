@@ -12,6 +12,7 @@
 #include "../cli/cli.h"
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
+#define RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS	   600			// Every 10 minutes we make a new baseline for the expected read values
 #define RADTST_SEQ_CHECK_RTCGPR_SECONDS					30			// Check on RTC General purpose registers
 
 typedef struct radtst_counter_s {
@@ -28,15 +29,21 @@ typedef enum radtst_sources_e {
 uint32_t 			radtstTicks = 0;
 radtst_counter_t	radtstCounter;
 
+// Compare data for different memory types
+static uint8_t rtRtcGprExpectedData[20];
+
+
 // prototypes
 void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPtr, uint16_t len);
 
+void RadTstResetReadExpectations();
 void RadTstLogberryWatchdog();
 void RadTstCheckRtcGpr();
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]);
 
 void RadTstInit(void) {
+	RadTstResetReadExpectations();			// initialize all read expectations
 	RegisterCommand("simErr",RadTstProvokeErrorCmd);
 }
 
@@ -48,6 +55,9 @@ void RadTstMain(void) {
 	if ((radtstTicks % (RADTST_SEQ_CHECK_RTCGPR_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
 		RadTstCheckRtcGpr();
 	}
+	if ((radtstTicks % (RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		RadTstResetReadExpectations();
+	}
 }
 
 void RadTstLogberryWatchdog() {
@@ -55,17 +65,15 @@ void RadTstLogberryWatchdog() {
 }
 
 void RadTstCheckRtcGpr() {
-	static uint8_t expectedData[20];
+
 	uint8_t actualData[20];
 	radtstCounter.rtcgprTestCnt++;
 
-	if (RtcIsGprChecksumOk()) {
-		RtcReadAllGprs(expectedData);
-	} else {
+	if (!RtcIsGprChecksumOk()) {
 		// Checksum error. Lets count individual bit errors.
 		radtstCounter.rtcgprTestErrors++;
 		RtcReadAllGprs(actualData);
-		RadTstLogReadError(RADTST_SRC_RTCGPR, expectedData, actualData, 20);
+		RadTstLogReadError(RADTST_SRC_RTCGPR, rtRtcGprExpectedData, actualData, 20);
 	}
 }
 
@@ -88,6 +96,24 @@ void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPt
 	if (diffCntBytes > 0) {
 		printf("ReadError from %d: %d bits in %d/%d bytes\n", source, diffCntBits, diffCntBytes, len);
 	}
+}
+
+
+void RadTstResetReadExpectations() {
+	printf("Radtest reset all read expectations\n");
+	// Rtc GPRs
+	// --------
+	if (!RtcIsGprChecksumOk()) {
+		// lets write (an unused) byte to get the Checksum corrected.
+		RtcWriteGpr(12, 55);
+	}
+	// read all 20 bytes to compare when Checksum lost again.
+	RtcReadAllGprs(rtRtcGprExpectedData);
+
+	// Flash Checksum
+	// ______________
+	// TODO ....
+
 }
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]) {

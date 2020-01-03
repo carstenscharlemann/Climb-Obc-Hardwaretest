@@ -16,17 +16,17 @@ typedef enum rtc_status_e {
 	RTC_STAT_XTAL_ERROR		= 0xEE,
 } rtc_status_t;
 
-// Usage of 19 bytes General Purpose Register
-typedef enum rtc_gpridx_e {
-	RTC_GPRIDX_STATUS = 0,
-
-	RTC_GPRIDX_CRC8 = 19
-} rtc_gpridx_t;
+//// Usage of 19 bytes General Purpose Register
+//typedef enum rtc_gpridx_e {
+//	RTC_GPRIDX_STATUS = 0,
+//
+//	RTC_GPRIDX_CRC8 = 19
+//} rtc_gpridx_t;
 
 
 // Prototypes
-uint8_t RtcReadGpr(rtc_gpridx_t idx);
-void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte);
+//uint8_t RtcReadGpr(rtc_gpridx_t idx);
+//void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte);
 void show_gpregs(void);
 
 //
