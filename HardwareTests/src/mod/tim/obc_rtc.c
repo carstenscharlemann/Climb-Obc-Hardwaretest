@@ -16,17 +16,17 @@ typedef enum rtc_status_e {
 	RTC_STAT_XTAL_ERROR		= 0xEE,
 } rtc_status_t;
 
-// Usage of 19 bytes General Purpose Register
-typedef enum rtc_gpridx_e {
-	RTC_GPRIDX_STATUS = 0,
-
-	RTC_GPRIDX_CRC8 = 19
-} rtc_gpridx_t;
+//// Usage of 19 bytes General Purpose Register
+//typedef enum rtc_gpridx_e {
+//	RTC_GPRIDX_STATUS = 0,
+//
+//	RTC_GPRIDX_CRC8 = 19
+//} rtc_gpridx_t;
 
 
 // Prototypes
-uint8_t RtcReadGpr(rtc_gpridx_t idx);
-void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte);
+//uint8_t RtcReadGpr(rtc_gpridx_t idx);
+//void RtcWriteGpr(rtc_gpridx_t idx, uint8_t byte);
 void show_gpregs(void);
 
 //
@@ -36,8 +36,8 @@ void show_gpregs(void);
 
 // old prototypes
 //void rtc_get_val(RTC_TIME_T *tim);
-uint32_t rtc_get_date(void);
-uint32_t rtc_get_time(void);
+//uint32_t rtc_get_date(void);
+//uint32_t rtc_get_time(void);
 uint64_t rtc_get_datetime(void);
 //uint64_t rtc_get_extended_time(void);
 void rtc_calculate_epoch_time(void);
@@ -255,6 +255,14 @@ void show_gpregs(void) {
 	printf("\n");
 }
 
+void RtcReadAllGprs(uint8_t *data) {
+	char *ptr = (char*) &(LPC_RTC->GPREG);
+	for (int i=0;i<20;i++) {
+		data[i] = ptr[i];
+	}
+}
+
+
 void RtcInitializeGpr() {
 	for (int i=0;i<19;i++) {
 		RtcWriteGpr(i, 'a' + i);		// Some Recognizable pattern ;-).
@@ -319,8 +327,8 @@ void RtcInit(void) {
 	//timer0_init();
 
 	/* Check RTC reset */
-	if (!RtcIsGprChecksumOk()) {
-		printf("RTC GPR Checksum Error -> Reinit GPRs\n", 0);
+	if (!RtcIsGprChecksumOk() || (RtcReadGpr(RTC_GPRIDX_STATUS) == 0x61)) {
+		printf("RTC GPR Checksum Error (or status is init byte 0x61) -> Reinit GPRs\n", 0);
 		RtcInitializeGpr();
 
 		/* RTC module has been reset, time and data invalid */
@@ -777,11 +785,11 @@ void RtcMain(void) {
 		if (rtc_calibration_base == 0) {
 			rtc_calibration_base = rtc_dayChangedAtSeconds;
 			rtc_calibration_day = 1;
-			printf("RTC Calibration initialized with %d on day 1\n", rtc_dayChangedAtSeconds);
+			printf("RTC Calibration initialized with %ld on day 1\n", rtc_dayChangedAtSeconds);
 		} else {
 			uint32_t secondsTicked =  rtc_dayChangedAtSeconds - rtc_calibration_base;
 			uint32_t secondsPerDay = secondsTicked/rtc_calibration_day;
-			printf("RTC Calibration end of day %d. Seconds ticked: %d average per day: %d\n", rtc_calibration_day, secondsTicked, secondsPerDay );
+			printf("RTC Calibration end of day %d. Seconds ticked: %ld average per day: %ld\n", rtc_calibration_day, secondsTicked, secondsPerDay );
 			rtc_calibration_day++;
 		}
 	}

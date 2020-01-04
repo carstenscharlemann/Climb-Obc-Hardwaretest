@@ -10,7 +10,11 @@
 
 #include "..\..\globals.h"
 
-#define CLI_PROMPT 				BOARD_SHORT ">"
+#ifdef RADIATION_TEST
+	#define CLI_PROMPT 	""
+#else
+	#define CLI_PROMPT 	BOARD_SHORT ">"
+#endif
 #define CLI_MAX_COMMANDS		100
 #define CLI_MAX_PARAMS			16
 
@@ -225,13 +229,15 @@ void processLine() {
 		}
 	}
 
+#ifndef RADIATION_TEST		// No need to inform sbd. - nobody is watching ;-)
 	if (!processed) {
-		printf("Command '%s' not found. Try one of these: ",  &cmdLine[0]);
+		printf("Command '%s' not found. Try one of these:\n",  &cmdLine[0]);
 		for (int cmd = 0; cmd < cliRegisteredCommands; cmd++ ) {
 			printf("'%s' ", commands[cmd].cmdStr);
 		}
 		printf("\n");
 	}
+#endif
 
 }
 
