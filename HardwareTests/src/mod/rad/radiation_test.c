@@ -10,16 +10,20 @@
 #include "../tim/timer.h"
 #include "../tim/obc_rtc.h"
 #include "../cli/cli.h"
+#include "../main.h"		// for Flash signature
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS	   600			// Every 10 minutes we make a new baseline for the expected read values
 #define RADTST_SEQ_CHECK_RTCGPR_SECONDS					30			// Check on RTC General purpose registers RAM
-#define RADTST_SEQ_CHECK_PRGFLASH_SECONDS				30			// Check on Program Flash
+#define RADTST_SEQ_CHECK_PRGFLASH_SECONDS				40			// Check on Program Flash
+#define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
 
 typedef struct radtst_counter_s {
 	uint32_t rtcgprTestCnt;
-
 	uint32_t rtcgprTestErrors;
+	uint32_t signatureCheckCnt;
+	uint32_t signatureErrorCnt;
+	uint32_t expSignatureChanged;				// This should stay on 1 (first time read after reset).
 } radtst_counter_t;
 
 typedef enum radtst_sources_e {
@@ -29,22 +33,35 @@ typedef enum radtst_sources_e {
 
 uint32_t 			radtstTicks = 0;
 radtst_counter_t	radtstCounter;
+bool 				verboseExpectations;
+bool 				reportLineWithHeader;
 
 // Compare data for different memory types
 static uint8_t rtRtcGprExpectedData[20];
 
+#define RADTST_FLASHSIG_PARTS	4
+#define RADTST_PART_FLASHSIZE	(0x0007FFFF / RADTST_FLASHSIG_PARTS)
+
+
+static bool 		expSigReadActive = false;
+static uint8_t		flashPartIdx = 0;
+static FlashSign_t 	expectedFlashSig[RADTST_FLASHSIG_PARTS];
+
 
 // prototypes
 void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPtr, uint16_t len);
-
 void RadTstResetReadExpectations();
 void RadTstLogberryWatchdog();
 void RadTstCheckRtcGpr();
 void RadTstCheckPrgFlash();
-
 void RadTstProvokeErrorCmd(int argc, char *argv[]);
+void RadTstExpectedSigCalculated(FlashSign_t signature);
+void RadTstSigCalculated(FlashSign_t signature);
+void RadTstPrintReportLine();
 
 void RadTstInit(void) {
+	verboseExpectations = true;
+	reportLineWithHeader = true;
 	RadTstResetReadExpectations();			// initialize all read expectations
 	RegisterCommand("simErr",RadTstProvokeErrorCmd);
 }
@@ -58,11 +75,16 @@ void RadTstMain(void) {
 		RadTstCheckRtcGpr();
 	}
 	if ((radtstTicks % (RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		verboseExpectations = false;
 		RadTstResetReadExpectations();
 	}
 	if ((radtstTicks % (RADTST_SEQ_CHECK_PRGFLASH_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
 		RadTstCheckPrgFlash();
 	}
+	if ((radtstTicks % (RADTST_SEQ_REPORTLINE_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		RadTstPrintReportLine();
+	}
+
 }
 
 void RadTstLogberryWatchdog() {
@@ -83,8 +105,26 @@ void RadTstCheckRtcGpr() {
 }
 
 void RadTstCheckPrgFlash() {
-	// ....
+	// We only start the check, if no rebase of expected value is ongoing.
+	if (!expSigReadActive) {
+		flashPartIdx = 0;
+		CalculateFlashSignatureAsync(0x000000, RADTST_PART_FLASHSIZE, RadTstSigCalculated);
+	}
 }
+
+void RadTstSigCalculated(FlashSign_t signature) {
+	radtstCounter.signatureCheckCnt++;
+	if (! IEC60335_IsEqualSignature(&expectedFlashSig[flashPartIdx], &signature)) {
+		radtstCounter.signatureErrorCnt++;
+		// TODO: if upper part of flash we can scan for differences from expected to actual
+		//       to find out how many bits where flipped ....
+	}
+	flashPartIdx++;
+	if (flashPartIdx < RADTST_FLASHSIG_PARTS) {
+		CalculateFlashSignatureAsync(RADTST_PART_FLASHSIZE*flashPartIdx, RADTST_PART_FLASHSIZE, RadTstSigCalculated);
+	}
+}
+
 
 void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPtr, uint16_t len) {
 	uint16_t diffCntBits  = 0;
@@ -116,11 +156,60 @@ void RadTstResetReadExpectations() {
 	}
 	// read all 20 bytes to compare when Checksum lost again.
 	RtcReadAllGprs(rtRtcGprExpectedData);
+	if (verboseExpectations) {
+		printf("Current GPR Content: ");
+		for (int i=0;i<20;i++) {
+			printf("%02X ", rtRtcGprExpectedData[i]);
+		}
+		printf("\n");
+	}
 
 	// Flash Checksum
 	// ______________
-	// TODO ....
+	expSigReadActive = true;
+	flashPartIdx = 0;
+	CalculateFlashSignatureAsync(0x000000, RADTST_PART_FLASHSIZE, RadTstExpectedSigCalculated);
+}
 
+
+void RadTstExpectedSigCalculated(FlashSign_t signature) {
+	if (!IEC60335_IsEqualSignature(&expectedFlashSig[flashPartIdx], &signature)) {
+		radtstCounter.expSignatureChanged++;
+		expectedFlashSig[flashPartIdx] = signature;
+	}
+	flashPartIdx++;
+	if (flashPartIdx < RADTST_FLASHSIG_PARTS) {
+		CalculateFlashSignatureAsync(RADTST_PART_FLASHSIZE*flashPartIdx, RADTST_PART_FLASHSIZE, RadTstExpectedSigCalculated);
+	} else {
+		expSigReadActive = false;
+		if (verboseExpectations) {
+			printf("Expected FlashSignatures:\n");
+			for (int i=0; i<RADTST_FLASHSIG_PARTS; i++) {
+				printf("Part[%d]: %08X / %08X / %08X / %08X\n", i,
+						expectedFlashSig[i].word0,
+						expectedFlashSig[i].word1,
+						expectedFlashSig[i].word2,
+						expectedFlashSig[i].word3 );
+			}
+		}
+	}
+}
+
+void RadTstPrintReportLine() {
+	if (reportLineWithHeader) {
+		reportLineWithHeader = false;
+		printf("LineID ; RTC Date ; RTC Time ; Seconds after reset ; RTCGPR CRC Tests ; RTCGPR CRC Errors  ; PRG Flash sign checks ; PRG Flash sign errors ; expected sign changes\n");
+	}
+	printf("R1 ; %ld ; %ld ; %ld ; %ld ; %ld ; %ld ; %ld ; %ld \n",
+		    rtc_get_date(),
+			rtc_get_time(),
+			secondsAfterReset,
+			radtstCounter.rtcgprTestCnt,
+			radtstCounter.rtcgprTestErrors,
+			radtstCounter.signatureCheckCnt,
+			radtstCounter.signatureErrorCnt,
+			radtstCounter.expSignatureChanged
+			);
 }
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]) {
@@ -131,7 +220,7 @@ void RadTstProvokeErrorCmd(int argc, char *argv[]) {
 	uint32_t *gprbase = (uint32_t *)(&(LPC_RTC->GPREG));
 	uint32_t gprx;
 	if (arg0 == 1) {
-		// Flip  3 bit in 2 words
+		// RTC GPR RAM Flip 3 bit in 2 words
 		gprx = *(gprbase + 1);
 		gprx ^= (1 << 7);
 		gprx ^= (1 << 13);
@@ -140,10 +229,9 @@ void RadTstProvokeErrorCmd(int argc, char *argv[]) {
 		gprx ^= (1 << 22);
 		*(gprbase + 3) = gprx;
 	} else {
-		// Flip a single bit
+		// RTC GPR RAM Flip a single bit
 		gprx = *(gprbase + 1);
 		gprx ^= (1 << 7);
 		*(gprbase + 1) = gprx;
 	}
-
 }

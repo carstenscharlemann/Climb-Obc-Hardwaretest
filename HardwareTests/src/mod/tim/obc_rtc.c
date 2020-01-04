@@ -36,8 +36,8 @@ void show_gpregs(void);
 
 // old prototypes
 //void rtc_get_val(RTC_TIME_T *tim);
-uint32_t rtc_get_date(void);
-uint32_t rtc_get_time(void);
+//uint32_t rtc_get_date(void);
+//uint32_t rtc_get_time(void);
 uint64_t rtc_get_datetime(void);
 //uint64_t rtc_get_extended_time(void);
 void rtc_calculate_epoch_time(void);

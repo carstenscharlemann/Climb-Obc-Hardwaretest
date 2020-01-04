@@ -8,6 +8,8 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
+#define SW_VERSION	"HWTest 0.1 Develop"
+
 // Available board abstractions
 #define OBC_BOARD	1
 #define LPCX_BOARD	2
@@ -23,7 +25,7 @@
 #elif HW_USED == OBC_BOARD
 	#include "hw_obc/obc_board.h"
 	#define  BOARD_SHORT	"obc"
-	#define	 RADIATION_TEST
+	#define	 RADIATION_TEST					// Remove this line for Image without starting radiation test scheduler module.
 #endif
 
 // Check for some settings we would like to keep

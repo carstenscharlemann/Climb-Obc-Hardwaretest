@@ -48,6 +48,9 @@ void EepromInit() {
 	RegisterCommand("eeStatus", ReadStatusCmd);
 	RegisterCommand("readPage", ReadPageCmd);
 	RegisterCommand("writePage", WritePageCmd);
+
+	// trigger the read status command to show Name of Hardware
+	ReadPageAsync(I2C_ADR_EEPROM1, EEPROM_STATUS_PAGE, ReadStatusReceived);
 }
 
 void ReadPageCmd(int argc, char *argv[]) {
@@ -85,10 +88,11 @@ void ReadStatusCmd(int argc, char *argv[]) {
 
 void ReadStatusReceived(eeprom_page_t *page) {
 	memcpy(&statusPage1, page, EEPROM_PAGE_SIZE);
-	printf("Name: %s\n", statusPage1.obc_name);
-	printf("HWRev: %s\n", statusPage1.obc_hardware_version);
-	printf("ResetCnt %d %d %d\n", statusPage1.reset_counter1, statusPage1.reset_counter2, statusPage1.reset_counter3 );
-	printf("Write cycles: %d\n",(statusPage1.cycles_high << 16) | statusPage1.cycles_low );
+	printf("Name:  '%s'\n", statusPage1.obc_name);
+	printf("HWRev: '%s'\n", statusPage1.obc_hardware_version);
+	//printf("ResetCnt %d %d %d\n", statusPage1.reset_counter1, statusPage1.reset_counter2, statusPage1.reset_counter3 );
+	//printf("Write cycles: %d\n",(statusPage1.cycles_high << 16) | statusPage1.cycles_low );
+	printf("SWVer: '%s'\n", SW_VERSION);
 }
 
 
