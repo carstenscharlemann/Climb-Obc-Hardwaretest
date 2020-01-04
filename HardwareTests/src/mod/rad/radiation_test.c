@@ -13,7 +13,8 @@
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS	   600			// Every 10 minutes we make a new baseline for the expected read values
-#define RADTST_SEQ_CHECK_RTCGPR_SECONDS					30			// Check on RTC General purpose registers
+#define RADTST_SEQ_CHECK_RTCGPR_SECONDS					30			// Check on RTC General purpose registers RAM
+#define RADTST_SEQ_CHECK_PRGFLASH_SECONDS				30			// Check on Program Flash
 
 typedef struct radtst_counter_s {
 	uint32_t rtcgprTestCnt;
@@ -39,6 +40,7 @@ void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPt
 void RadTstResetReadExpectations();
 void RadTstLogberryWatchdog();
 void RadTstCheckRtcGpr();
+void RadTstCheckPrgFlash();
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]);
 
@@ -57,6 +59,9 @@ void RadTstMain(void) {
 	}
 	if ((radtstTicks % (RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
 		RadTstResetReadExpectations();
+	}
+	if ((radtstTicks % (RADTST_SEQ_CHECK_PRGFLASH_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		RadTstCheckPrgFlash();
 	}
 }
 
@@ -77,6 +82,9 @@ void RadTstCheckRtcGpr() {
 	}
 }
 
+void RadTstCheckPrgFlash() {
+	// ....
+}
 
 void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPtr, uint16_t len) {
 	uint16_t diffCntBits  = 0;
@@ -97,7 +105,6 @@ void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPt
 		printf("ReadError from %d: %d bits in %d/%d bytes\n", source, diffCntBits, diffCntBytes, len);
 	}
 }
-
 
 void RadTstResetReadExpectations() {
 	printf("Radtest reset all read expectations\n");
