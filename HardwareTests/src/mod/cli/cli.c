@@ -229,15 +229,16 @@ void processLine() {
 		}
 	}
 
-#ifndef RADIATION_TEST		// No need to inform sbd. - nobody is watching ;-)
 	if (!processed) {
+#ifndef RADIATION_TEST		// No need to inform sbd. - nobody is watching ;-)
 		printf("Command '%s' not found. Try one of these:\n",  &cmdLine[0]);
 		for (int cmd = 0; cmd < cliRegisteredCommands; cmd++ ) {
 			printf("'%s' ", commands[cmd].cmdStr);
 		}
 		printf("\n");
-	}
 #endif
+	}
+
 
 }
 
