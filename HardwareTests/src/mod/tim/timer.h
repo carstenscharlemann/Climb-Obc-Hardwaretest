@@ -21,6 +21,6 @@ void TimBlockMs(uint8_t ms);			// This really blocks. So use carefully.
 bool TimWaitForFalseMs(volatile bool *flag, uint8_t ms);		// This really blocks. So use carefully.
 
 // Module global variables
-extern uint32_t	secondsAfterReset;
+extern volatile uint32_t secondsAfterReset;
 
 #endif /* MOD_TIM_TIMER_H_ */

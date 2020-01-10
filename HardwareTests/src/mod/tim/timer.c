@@ -42,7 +42,7 @@ void TimOutputSecondsCmd(int argc, char *argv[]);
 static bool 	ticked = false;
 
 // global variables
-uint32_t	secondsAfterReset = 0;
+volatile uint32_t  secondsAfterReset = 0;
 
 // Implementations
 //
