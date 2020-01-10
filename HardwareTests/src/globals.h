@@ -8,7 +8,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#define SW_VERSION	"HWTest 0.2 Developer"
+#define SW_VERSION	"HWTest 0.2 Developer "
 
 // Available board abstractions
 #define OBC_BOARD	1
