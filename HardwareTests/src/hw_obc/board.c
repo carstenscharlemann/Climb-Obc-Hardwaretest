@@ -20,6 +20,7 @@
 
 #define BOOT_SELECT_GPIO_PORT_NUM                0
 #define BOOT_SELECT_GPIO_BIT_NUM                29
+
 #define DEBUG_SELECT_GPIO_PORT_NUM               0
 #define DEBUG_SELECT_GPIO_BIT_NUM                5
 
@@ -43,6 +44,8 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 
 	// GPIOs
 	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
+	{0,  30, IOCON_MODE_INACT | IOCON_FUNC0},	/* ...    */
+
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
 
 	{1, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* CLOCKOUT */
@@ -91,6 +94,7 @@ void ObcClimbBoardInit() {
 	// Die Boot bits sind inputs
 	Chip_GPIO_WriteDirBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM, false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM, false);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 30, false);
 
 	// UART for comand line interface init
 	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
