@@ -24,6 +24,7 @@
 #define DEBUG_SELECT_GPIO_BIT_NUM                5
 
 
+void SwitchVccFfgDCmd(int argc, char *argv[]);
 /* Pin muxing configuration */
 STATIC const PINMUX_GRP_T pinmuxing[] = {
 	// UARTS
@@ -55,6 +56,7 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0, 10, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SDA */
 	{0, 11, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SCL */
 
+	{0,  26,  IOCON_MODE_INACT | IOCON_FUNC0},	/* FG-VCC Enable */
 
 };
 
@@ -83,6 +85,8 @@ void ObcClimbBoardInit() {
 	// Here we define them as OUTPUT
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_BLUE_RGB_GPIO_PORT_NUM, LED_BLUE_RGB_GPIO_BIT_NUM, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 26, true);
+
 
 	// Die Boot bits sind inputs
 	Chip_GPIO_WriteDirBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM, false);
@@ -94,6 +98,16 @@ void ObcClimbBoardInit() {
 	// Init I2c bus for Onboard devices (3xEEProm, 1xTemp, 1x FRAM)
 	InitOnboardI2C(ONBOARD_I2C);
 
+	RegisterCommand("vcc",SwitchVccFfgDCmd);
+	Chip_GPIO_SetPinState(LPC_GPIO, 0, 26, false);
+}
+
+void SwitchVccFfgDCmd(int argc, char *argv[]){
+	bool myswitch = false;
+	if (argc > 0) {
+		myswitch = true;
+	}
+	Chip_GPIO_SetPinState(LPC_GPIO, 0, 26, myswitch);
 }
 
 void UART2_IRQHandler(void) {
