@@ -1,11 +1,7 @@
 #include <Chip.h>
 #include <stdio.h>
 
-
-//#include <lpc17xx_adc.h>
-//#include <lpc17xx_pinsel.h>
-//#include <OBC_EM1_IO_Def.h>
-//#include "main.h"
+#include "..\cli\cli.h"
 
 #define ADC_SUPPLY_CURRENT_PIN 		23 //ok
 #define ADC_SUPPLY_CURRENT_PORT 	0 //ok

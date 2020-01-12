@@ -18,11 +18,11 @@
 #define SPI_MISO_PORT	0
 #define SPI_MISO_PIN	17
 
-#define FLOGA_CS_PORT	1
-#define FLOGA_CS_PIN	4
+//#define FLOGA_CS_PORT	1
+//#define FLOGA_CS_PIN	4
+//
 
-
-#define SPI_INTERRUPT_PRIORITY 5		//TODO ??
+#define SPI_INTERRUPT_PRIORITY 5		//TODO check with all other prios??
 
 // ===== global variables =====
 uint8_t SPI_TX_BUF[SPI_BUFFER_SIZE];
@@ -33,12 +33,11 @@ spi_jobs_t spi_jobs;
 
 uint16_t pressure_calib[8];
 
-
-
 bool spi_initialized;
 bool spi_error_occured;
 bool spi_cmd_not_sent;
 bool spi_job_buffer_overflow;
+
 
 uint8_t spi_getJobsPending() {
 	return spi_jobs.jobs_pending;
@@ -46,23 +45,6 @@ uint8_t spi_getJobsPending() {
 
 void spi_init(void)
 {
-    // SPI Init
-//    PINSEL_CFG_Type PinCfg;
-//
-//    PinCfg.Funcnum = SSP_SCK_FUNCNUM;
-//    PinCfg.OpenDrain = 0;
-//    PinCfg.Pinmode = 0;
-//    PinCfg.Portnum = SSP1_SCK_PORT;
-//    PinCfg.Pinnum = SSP1_SCK_PIN;
-//    PINSEL_ConfigPin(&PinCfg);
-//    PinCfg.Funcnum = SSP1_MISO_FUNCNUM;
-//    PinCfg.Pinnum = SSP1_MISO_PIN;
-//    PinCfg.Portnum = SSP1_MISO_PORT;
-//    PINSEL_ConfigPin(&PinCfg);
-//    PinCfg.Funcnum = SSP_MOSI_FUNCNUM;
-//    PinCfg.Pinnum = SSP_MOSI_PIN;
-//    PinCfg.Portnum = SSP_MOSI_PORT;
-//    PINSEL_ConfigPin(&PinCfg);
 
 	/* --- SPI pins --- */
 	Chip_IOCON_PinMuxSet(LPC_IOCON, SPI_SCK_PORT, SPI_SCK_PIN, IOCON_FUNC3 | IOCON_MODE_INACT);
@@ -74,35 +56,28 @@ void spi_init(void)
 	Chip_IOCON_PinMuxSet(LPC_IOCON, SPI_MISO_PORT, SPI_MISO_PIN, IOCON_FUNC3 | IOCON_MODE_INACT);
 	Chip_IOCON_DisableOD(LPC_IOCON, SPI_MISO_PORT, SPI_MISO_PIN);
 
-	/* --- Chip selects IOs --- */
-	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_CS_PORT, FLOGA_CS_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
-	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_CS_PORT, FLOGA_CS_PIN);
-	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN);
-	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, true);
+//	/* --- Chip selects IOs --- */
+//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_CS_PORT, FLOGA_CS_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
+//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_CS_PORT, FLOGA_CS_PIN);
+//	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN);
+//	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, true);
+
+//	/* FLOGA_EN is output and switches on the 18V Charge Pump (low active) */
+//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
+//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN);
+//	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN);
+//	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN, true);			// Init as off
+//
+//	/* FLOGA_FAULT, FLOGA_IRQ is input */
+//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_FAULT_PORT, FLOGA_FAULT_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
+//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_FAULT_PORT, FLOGA_FAULT_PIN);
+//	Chip_GPIO_SetPinDIRInput(LPC_GPIO, FLOGA_FAULT_PORT, FLOGA_FAULT_PIN);
+//
+//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_IRQ_PORT, FLOGA_IRQ_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
+//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_IRQ_PORT, FLOGA_IRQ_PIN);
+//	Chip_GPIO_SetPinDIRInput(LPC_GPIO, FLOGA_IRQ_PORT, FLOGA_IRQ_PIN);
 
 
-    // CS_Gyro
-//    PinCfg.Pinnum = GYRO_CS_PIN;
-//    PinCfg.Portnum = GYRO_CS_PORT;
-//    PINSEL_ConfigPin(&PinCfg);
-//    GPIO_SetDir(GYRO_CS_PORT, 1 << GYRO_CS_PIN, 1);
-//    gyro_unselect();
-//
-//    // CS_Pressure
-//    PinCfg.Pinnum = PRESSURE_CS_PIN;
-//    PinCfg.Portnum = PRESSURE_CS_PORT;
-//    PINSEL_ConfigPin(&PinCfg);
-//    GPIO_SetDir(PRESSURE_CS_PORT, 1 << PRESSURE_CS_PIN, 1);
-//    pressure_unselect();
-//
-//    // ADXL375
-//    PinCfg.Pinnum = HIGH_G_CS_PIN;
-//    PinCfg.Portnum = HIGH_G_CS_PORT;
-//    PinCfg.Funcnum = 0;
-//    PinCfg.Pinmode = PINSEL_PINMODE_PULLUP;
-//    PINSEL_ConfigPin(&PinCfg);
-//    GPIO_SetDir(HIGH_G_CS_PORT, (1 << HIGH_G_CS_PIN), 1);			// pin as output
-//    hig_unselect();			// set to high
 
     // WARNING: Exchange needed for SSP !!!
     // SPI Configuration for CPHA=1, CPOL=1, f=5MHz (Maximum of ADXL345), MSB First and 8 data bits
@@ -116,27 +91,18 @@ void spi_init(void)
 //    spiInitialization.Databit = SPI_DATABIT_8;						// SPI_DATABIT_8
 //    spiInitialization.Mode = SPI_MASTER_MODE;						// SPI_MASTER_MODE
 
-
-    Chip_SPI_Init(LPC_SPI); //, &spiInitialization);
-
-
-
-
-
-    //Chip_SPI_IntCmd(LPC_SPI, ENABLE);
+    Chip_SPI_Init(LPC_SPI); 		// All default values as above, Bitrate is set to 4000000 with this.
     Chip_SPI_Int_Enable(LPC_SPI);
     NVIC_SetPriority(SPI_IRQn, SPI_INTERRUPT_PRIORITY);
     NVIC_EnableIRQ(SPI_IRQn);
 
     spi_initialized = 1;
-
     return;
 }
 
 void SPI_IRQHandler(void)
 {
-	LPC_SPI->INT = SPI_INT_SPIF;
-//	LPC_SPI->SPINT = SPI_SPINT_INTFLAG;     // Reset interrupt flag
+	LPC_SPI->INT = SPI_INT_SPIF;			// Reset interrupt flag
 
     if (spi_jobs.jobs_pending == 0)
     {
@@ -165,77 +131,8 @@ void SPI_IRQHandler(void)
         spi_jobs.job[spi_jobs.current_job].array_to_store[spi_jobs.job[spi_jobs.current_job].bytes_read - 1] = temp;
 
         // Chip unselect sensor
-        Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, true);
-   //     switch (spi_jobs.job[spi_jobs.current_job].sensor)
-
-            // Chip unselect sensor
-          {
-//        case ADXL345:
-//#if MATCH_SENSOR_AXES
-//
-//            data.block_1000hz.body.acc.x = data.block_1000hz.body.acc.x;
-//            data.block_1000hz.body.acc.y = -data.block_1000hz.body.acc.y;
-//            data.block_1000hz.body.acc.z = -data.block_1000hz.body.acc.z;
-//#endif
-//
-//            //            LPC_GPIO0->FIOSET = (1 << ACC_CS_PIN); 	// GPIO_SetValue(ACC_CS_PORT, 1 << ACC_CS_PIN);
-//#if INTERFERENCE_CHECK_MODE
-//
-//            readout_counters.spi_acc_readout_counter++;
-//#endif
-//
-//            break;
-//
-//        case L3G4200D:
-//            {
-//#if MATCH_SENSOR_AXES
-//                int16_t tempSwap = data.block_1000hz.body.gyro.x;
-//                data.block_1000hz.body.gyro.x = data.block_1000hz.body.gyro.y;
-//                data.block_1000hz.body.gyro.y = tempSwap;
-//                data.block_1000hz.body.gyro.z = -data.block_1000hz.body.gyro.z;
-//#endif
-//
-//                LPC_GPIO1->FIOSET = (1 << GYRO_CS_PIN);     // GPIO_SetValue(GYRO_CS_PORT, 1 << GYRO_CS_PIN);
-//#if INTERFERENCE_CHECK_MODE
-//
-//                readout_counters.spi_gyro_readout_counter++;
-//#endif
-//
-//            }
-//            break;
-//
-//        case MS5611:
-//            LPC_GPIO1->FIOSET = (1 << PRESSURE_CS_PIN);     // GPIO_SetValue(PRESSURE_CS_PORT, 1 << PRESSURE_CS_PIN);
-//            if (spi_jobs.job[spi_jobs.current_job].bytes_to_read > 0)
-//            {
-//                temp = spi_jobs.job[spi_jobs.current_job].array_to_store[0];     // Exchange high and low byte
-//                spi_jobs.job[spi_jobs.current_job].array_to_store[0] = spi_jobs.job[spi_jobs.current_job].array_to_store[2];
-//                spi_jobs.job[spi_jobs.current_job].array_to_store[2] = temp;
-//                //spi_jobs.job[spi_jobs.current_job].array_to_store[3] = 0x00;
-//#if INTERFERENCE_CHECK_MODE
-//
-//                readout_counters.spi_pressure_readout_counter++;
-//#endif
-//
-//            }
-//            break;
-//
-//        case ADXL375:
-//#if MATCH_SENSOR_AXES
-//
-//            data.block_1000hz.body.high_acc.x = data.block_1000hz.body.high_acc.x;
-//            data.block_1000hz.body.high_acc.y = -data.block_1000hz.body.high_acc.y;
-//            data.block_1000hz.body.high_acc.z = -data.block_1000hz.body.high_acc.z;
-//#endif
-//
-//            LPC_GPIO2->FIOSET = (1 << HIGH_G_CS_PIN);		// GPIO_SetValue(HIGH_G_CS_PORT, 1 << HIGH_G_CS_PIN);
-//#if INTERFERENCE_CHECK_MODE
-//
-//            readout_counters.hi_g_readout_counter++;
-//#endif
-//
-//            break;
-        }
+        spi_jobs.job[spi_jobs.current_job].chipSelectHandler(false);
+        //Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, true);
 
         spi_jobs.current_job++;
         spi_jobs.jobs_pending--;
@@ -248,26 +145,8 @@ void SPI_IRQHandler(void)
         if (spi_jobs.jobs_pending > 0)
         {	// Check if jobs pending
             // Chip select sensor
-        	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, false);
-//            switch (spi_jobs.job[spi_jobs.current_job].sensor)
-//                // Chip select sensor
-//            {
-//            case ADXL345:
-//                //                LPC_GPIO0->FIOCLR = (1 << ACC_CS_PIN);			// GPIO_ClearValue(ACC_CS_PORT, 1 << ACC_CS_PIN);
-//                break;
-//
-//            case L3G4200D:
-//                LPC_GPIO1->FIOCLR = (1 << GYRO_CS_PIN);			// GPIO_ClearValue(GYRO_CS_PORT, 1 << GYRO_CS_PIN);
-//                break;
-//
-//            case MS5611:
-//                LPC_GPIO1->FIOCLR = (1 << PRESSURE_CS_PIN);		// GPIO_ClearValue(PRESSURE_CS_PORT, 1 << PRESSURE_CS_PIN);
-//                break;
-//
-//            case ADXL375:
-//                LPC_GPIO2->FIOCLR = (1 << HIGH_G_CS_PIN);		// GPIO_ClearValue(HIGH_G_CS_PORT, 1 << HIGH_G_CS_PIN);
-//                break;
-//            }
+        	spi_jobs.job[spi_jobs.current_job].chipSelectHandler(true);
+        	//Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, false);
 
             LPC_SPI->DR = spi_jobs.job[spi_jobs.current_job].cmd_to_send;
             spi_jobs.job[spi_jobs.current_job].cmd_sent = 1;
@@ -283,7 +162,7 @@ void SPI_IRQHandler(void)
     return;
 }
 
-bool spi_add_job(uint8_t sensor, uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store)
+bool spi_add_job( void(*chipSelect)(bool select), uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store)
 {
     if (spi_jobs.jobs_pending >= SPI_MAX_JOBS)
     {	// Maximum amount of jobs stored, job can't be added!
@@ -301,33 +180,14 @@ bool spi_add_job(uint8_t sensor, uint8_t cmd_to_send, uint8_t bytes_to_read, uin
     spi_jobs.job[position].bytes_read = 0;
     spi_jobs.job[position].array_to_store = array_to_store;
     spi_jobs.job[position].bytes_to_read = bytes_to_read;
-    spi_jobs.job[position].sensor = sensor;
+    spi_jobs.job[position].chipSelectHandler = chipSelect;
     spi_jobs.job[position].cmd_sent = 0;
 
     if (spi_jobs.jobs_pending == 0)
     {	// Check if jobs pending
     	 // Chip select sensor
-    	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, false);
-//        switch (spi_jobs.job[spi_jobs.current_job].sensor)
-//            // Chip select sensor
-//        {
-//        case ADXL345:
-//            //            LPC_GPIO0->FIOCLR = (1 << ACC_CS_PIN);			// GPIO_ClearValue(ACC_CS_PORT, 1 << ACC_CS_PIN);
-//            break;
-//
-//        case L3G4200D:
-//            LPC_GPIO1->FIOCLR = (1 << GYRO_CS_PIN);			// GPIO_ClearValue(GYRO_CS_PORT, 1 << GYRO_CS_PIN);
-//            break;
-//
-//        case MS5611:
-//            LPC_GPIO1->FIOCLR = (1 << PRESSURE_CS_PIN);		// GPIO_ClearValue(PRESSURE_CS_PORT, 1 << PRESSURE_CS_PIN);
-//            break;
-//
-//        case ADXL375:
-//            LPC_GPIO2->FIOCLR = (1 << HIGH_G_CS_PIN);		// GPIO_ClearValue(HIGH_G_CS_PORT, 1 << HIGH_G_CS_PIN);
-//            break;
-//        }
-//
+    	spi_jobs.job[position].chipSelectHandler(true);
+    	//Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, false);
         LPC_SPI->DR = spi_jobs.job[position].cmd_to_send;
         spi_jobs.job[position].cmd_sent = 1;
     }
@@ -338,6 +198,8 @@ bool spi_add_job(uint8_t sensor, uint8_t cmd_to_send, uint8_t bytes_to_read, uin
 
     return 0;     // Job added successfully
 }
+
+
 //
 //bool hig_read_values(void)
 //{
@@ -713,7 +575,7 @@ bool spi_add_job(uint8_t sensor, uint8_t cmd_to_send, uint8_t bytes_to_read, uin
 //
 //void gyro_deinit(void)
 //{
-//    SPI_DATA_SETUP_Type xferConfig;
+    //SPI_DATA_SETUP_Type xferConfig;
 //
 //    SPI_TX_BUF[0] = 0x20;     // 0x20 Adress of the config register
 //    SPI_TX_BUF[1] = 0x00;     // 0x00

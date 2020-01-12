@@ -37,8 +37,7 @@ typedef struct spi_job_s
     uint8_t bytes_to_read;
     uint8_t bytes_read;
     uint8_t *array_to_store;
-    uint8_t sensor;
-
+    void(*chipSelectHandler)(bool select);
 }
 spi_job_t;
 
@@ -68,30 +67,32 @@ uint8_t spi_getJobsPending(void);
 
 void spi_init(void);
 void SPI_IRQHandler(void);
+bool spi_add_job( void(*chipSelectHandler)(bool select), uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store);
 
-bool gyro_init(void);
-void gyro_deinit(void);
-void gyro_read_values_polling(void);
-void gyro_read_temperature_polling(void);
-void gyro_select(void) ;
-void gyro_unselect(void) ;
 
-bool hig_init(void);
-void hig_deinit(void);
-void hig_read_values_polling(void);
-void hig_select(void) ;
-void hig_unselect(void) ;
+//bool gyro_init(void);
+//void gyro_deinit(void);
+//void gyro_read_values_polling(void);
+//void gyro_read_temperature_polling(void);
+//void gyro_select(void) ;
+//void gyro_unselect(void) ;
+//
+//bool hig_init(void);
+//void hig_deinit(void);
+//void hig_read_values_polling(void);
+//void hig_select(void) ;
+//void hig_unselect(void) ;
+//
+//bool pressure_init(void);
+//void pressure_read_values_polling(void);
+//void pressure_select(void) ;
+//void pressure_unselect(void) ;
+//
 
-bool pressure_init(void);
-void pressure_read_values_polling(void);
-void pressure_select(void) ;
-void pressure_unselect(void) ;
-
-bool spi_add_job(uint8_t sensor, uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store);
-bool hig_read_values(void);
-bool gyro_read_values(void);
-bool gyro_read_temperature(void);
-bool pressure_read_values(void);
-unsigned char crc4(uint16_t n_prom[]);
+//bool hig_read_values(void);
+//bool gyro_read_values(void);
+//bool gyro_read_temperature(void);
+//bool pressure_read_values(void);
+//unsigned char crc4(uint16_t n_prom[]);
 
 #endif /* STC_SPI_H_ */
