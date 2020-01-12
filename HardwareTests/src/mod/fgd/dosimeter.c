@@ -102,7 +102,6 @@ void WriteFlogSerialNr(int argc, char *argv[]) {
 		return;
 	}
 	uint8_t serial[4] = { 0x00, 0x12, 0x34, 0x56 };
-	uint8_t rxDummy[4];
 
 	if (argc > 0) {
 		uint32_t temp =  strtol(argv[0], NULL, 0);			// This allows also to enter '0x...' values.
@@ -110,22 +109,10 @@ void WriteFlogSerialNr(int argc, char *argv[]) {
 		serial[2] = (uint8_t)((temp>>8) & 0x000000FF);
 		serial[3] = (uint8_t)((temp>>16) & 0x000000FF);
 	}
+	serial[0] =  0x10 | 0x40 ; 		// Write to adr 0x10 command
+	spi_add_job2( chipSelectFlog, serial, 4 , NULL, 0);
 
-	serial[0] =  0x10 | 0x40 ; // Write to adr 0x10 command
-	SPI_DATA_SETUP_T setup;
-	setup.pTxData = serial;
-	setup.cnt = 0;
-	setup.length = 4;
-	setup.fnAftFrame = 0;
-	setup.fnAftTransfer = 0;
-	setup.fnBefFrame = 0;
-	setup.fnBefTransfer = 0;
-	setup.pRxData = rxDummy;
-
-	chipSelectFlog(true);
-	uint32_t len = Chip_SPI_RWFrames_Blocking(LPC_SPI, &setup);
-	chipSelectFlog(false);
-	printf("Serial %02X %02X %02X written(%d len)\n", serial[1], serial[2], serial[3], len);
+	printf("Serial %02X %02X %02X written.\n", serial[1], serial[2], serial[3]);
 }
 
 
@@ -143,7 +130,7 @@ bool dosimeter_init()
 	tx[0] = 0x10 | 0x80 ; /* Read  */
 	rx[3] = 0x00;
 
-	if (spi_add_job(chipSelectFlog, tx[0],4, rx))
+	if (spi_add_job2(chipSelectFlog, tx,1, rx, 4))
 	{
 		/* Error while adding job */
 		return false;

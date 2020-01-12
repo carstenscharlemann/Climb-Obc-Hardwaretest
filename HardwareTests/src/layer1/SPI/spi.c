@@ -91,22 +91,32 @@ void SPI_IRQHandler(void)
 
     uint8_t temp = (uint8_t) LPC_SPI->DR;     // Read SPI buffer
 
-    if (spi_jobs.job[spi_jobs.current_job].bytes_read == 0 && spi_jobs.job[spi_jobs.current_job].bytes_to_read != 0)
+    if (spi_jobs.job[spi_jobs.current_job].bytes_to_send > spi_jobs.job[spi_jobs.current_job].bytes_sent) {
+    	// TX ongoing
+    	uint8_t txIdx = spi_jobs.job[spi_jobs.current_job].bytes_sent;
+    	uint8_t data = spi_jobs.job[spi_jobs.current_job].txbuffer[txIdx];
+    	Chip_SPI_SendFrame(LPC_SPI, data);
+    	spi_jobs.job[spi_jobs.current_job].bytes_sent++;
+
+    } else if (spi_jobs.job[spi_jobs.current_job].bytes_read == 0 && spi_jobs.job[spi_jobs.current_job].bytes_to_read != 0)
     {     // spi_jobs.job[spi_jobs.current_job].bytes_to_read)
-        if (spi_jobs.job[spi_jobs.current_job].cmd_sent == 0)
-        {     // Send command to sensor/periphery
-            spi_cmd_not_sent = 1;
-        }
+//        if (spi_jobs.job[spi_jobs.current_job].cmd_sent == 0)
+//        {     // Send command to sensor/periphery
+//            spi_cmd_not_sent = 1;
+//        }
         LPC_SPI->DR = 0xFF;     // Send dummy data while readout
         spi_jobs.job[spi_jobs.current_job].bytes_read++;
     }
     else if (spi_jobs.job[spi_jobs.current_job].bytes_read == spi_jobs.job[spi_jobs.current_job].bytes_to_read)
     {
-        spi_jobs.job[spi_jobs.current_job].array_to_store[spi_jobs.job[spi_jobs.current_job].bytes_read - 1] = temp;
+    	// RX finished
+    	if (spi_jobs.job[spi_jobs.current_job].bytes_read  > 0) {
+
+    		spi_jobs.job[spi_jobs.current_job].array_to_store[spi_jobs.job[spi_jobs.current_job].bytes_read - 1] = temp;
+    	}
 
         // Chip unselect sensor
         spi_jobs.job[spi_jobs.current_job].chipSelectHandler(false);
-        //Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, true);
 
         spi_jobs.current_job++;
         spi_jobs.jobs_pending--;
@@ -122,8 +132,8 @@ void SPI_IRQHandler(void)
         	spi_jobs.job[spi_jobs.current_job].chipSelectHandler(true);
         	//Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, false);
 
-            LPC_SPI->DR = spi_jobs.job[spi_jobs.current_job].cmd_to_send;
-            spi_jobs.job[spi_jobs.current_job].cmd_sent = 1;
+            LPC_SPI->DR = spi_jobs.job[spi_jobs.current_job].txbuffer[0];
+            spi_jobs.job[spi_jobs.current_job].bytes_sent = 1;
         }
     }
     else
@@ -136,7 +146,7 @@ void SPI_IRQHandler(void)
     return;
 }
 
-bool spi_add_job( void(*chipSelect)(bool select), uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store)
+bool spi_add_job2( void(*chipSelectCallback)(bool select), uint8_t* txpTr, uint8_t bytes_to_write, uint8_t *array_to_store, uint8_t bytes_to_read)
 {
     if (spi_jobs.jobs_pending >= SPI_MAX_JOBS)
     {	// Maximum amount of jobs stored, job can't be added!
@@ -150,20 +160,21 @@ bool spi_add_job( void(*chipSelect)(bool select), uint8_t cmd_to_send, uint8_t b
 
     uint8_t position = (spi_jobs.current_job + spi_jobs.jobs_pending) % SPI_MAX_JOBS;
 
-    spi_jobs.job[position].cmd_to_send = cmd_to_send;
-    spi_jobs.job[position].bytes_read = 0;
+    spi_jobs.job[position].txbuffer = txpTr;
+    spi_jobs.job[position].bytes_to_send = bytes_to_write;
     spi_jobs.job[position].array_to_store = array_to_store;
     spi_jobs.job[position].bytes_to_read = bytes_to_read;
-    spi_jobs.job[position].chipSelectHandler = chipSelect;
-    spi_jobs.job[position].cmd_sent = 0;
+    spi_jobs.job[position].chipSelectHandler = chipSelectCallback;
+    spi_jobs.job[position].bytes_read = 0;
+    spi_jobs.job[position].bytes_sent = 0;
 
     if (spi_jobs.jobs_pending == 0)
     {	// Check if jobs pending
     	 // Chip select sensor
     	spi_jobs.job[position].chipSelectHandler(true);
     	//Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, false);
-        LPC_SPI->DR = spi_jobs.job[position].cmd_to_send;
-        spi_jobs.job[position].cmd_sent = 1;
+        LPC_SPI->DR = spi_jobs.job[position].txbuffer[0];
+        spi_jobs.job[position].bytes_sent = 1;
     }
 
     spi_jobs.jobs_pending++;
