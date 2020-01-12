@@ -18,20 +18,16 @@
 #define SPI_MISO_PORT	0
 #define SPI_MISO_PIN	17
 
-//#define FLOGA_CS_PORT	1
-//#define FLOGA_CS_PIN	4
-//
-
 #define SPI_INTERRUPT_PRIORITY 5		//TODO check with all other prios??
 
 // ===== global variables =====
-uint8_t SPI_TX_BUF[SPI_BUFFER_SIZE];
-uint8_t SPI_RX_BUF[SPI_BUFFER_SIZE];
+//uint8_t SPI_TX_BUF[SPI_BUFFER_SIZE];
+//nt8_t SPI_RX_BUF[SPI_BUFFER_SIZE];
 // SPI_CFG_Type spiInitialization;
 
 spi_jobs_t spi_jobs;
 
-uint16_t pressure_calib[8];
+//uint16_t pressure_calib[8];
 
 bool spi_initialized;
 bool spi_error_occured;
@@ -56,28 +52,6 @@ void spi_init(void)
 	Chip_IOCON_PinMuxSet(LPC_IOCON, SPI_MISO_PORT, SPI_MISO_PIN, IOCON_FUNC3 | IOCON_MODE_INACT);
 	Chip_IOCON_DisableOD(LPC_IOCON, SPI_MISO_PORT, SPI_MISO_PIN);
 
-//	/* --- Chip selects IOs --- */
-//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_CS_PORT, FLOGA_CS_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
-//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_CS_PORT, FLOGA_CS_PIN);
-//	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN);
-//	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_CS_PORT, FLOGA_CS_PIN, true);
-
-//	/* FLOGA_EN is output and switches on the 18V Charge Pump (low active) */
-//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
-//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN);
-//	Chip_GPIO_SetPinDIROutput(LPC_GPIO, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN);
-//	Chip_GPIO_SetPinState(LPC_GPIO, FLOGA_VCC_ENABLE_PORT, FLOGA_VCC_ENABLE_PIN, true);			// Init as off
-//
-//	/* FLOGA_FAULT, FLOGA_IRQ is input */
-//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_FAULT_PORT, FLOGA_FAULT_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
-//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_FAULT_PORT, FLOGA_FAULT_PIN);
-//	Chip_GPIO_SetPinDIRInput(LPC_GPIO, FLOGA_FAULT_PORT, FLOGA_FAULT_PIN);
-//
-//	Chip_IOCON_PinMuxSet(LPC_IOCON, FLOGA_IRQ_PORT, FLOGA_IRQ_PIN, IOCON_FUNC0 | IOCON_MODE_INACT);
-//	Chip_IOCON_DisableOD(LPC_IOCON, FLOGA_IRQ_PORT, FLOGA_IRQ_PIN);
-//	Chip_GPIO_SetPinDIRInput(LPC_GPIO, FLOGA_IRQ_PORT, FLOGA_IRQ_PIN);
-
-
 
     // WARNING: Exchange needed for SSP !!!
     // SPI Configuration for CPHA=1, CPOL=1, f=5MHz (Maximum of ADXL345), MSB First and 8 data bits
@@ -91,7 +65,7 @@ void spi_init(void)
 //    spiInitialization.Databit = SPI_DATABIT_8;						// SPI_DATABIT_8
 //    spiInitialization.Mode = SPI_MASTER_MODE;						// SPI_MASTER_MODE
 
-    Chip_SPI_Init(LPC_SPI); 		// All default values as above, Bitrate is set to 4000000 with this.
+    Chip_SPI_Init(LPC_SPI); 		// All default values as above, Bitrate is set to 4000000 with this!
     Chip_SPI_Int_Enable(LPC_SPI);
     NVIC_SetPriority(SPI_IRQn, SPI_INTERRUPT_PRIORITY);
     NVIC_EnableIRQ(SPI_IRQn);
@@ -198,6 +172,7 @@ bool spi_add_job( void(*chipSelect)(bool select), uint8_t cmd_to_send, uint8_t b
 
     return 0;     // Job added successfully
 }
+
 
 
 //
