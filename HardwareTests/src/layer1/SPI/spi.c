@@ -20,6 +20,29 @@
 
 #define SPI_INTERRUPT_PRIORITY 5		//TODO check with all other prios??
 
+typedef struct spi_job_s
+{
+    uint8_t *txbuffer;
+    uint8_t bytes_to_send;
+    uint8_t bytes_sent;
+    uint8_t *array_to_store;
+    uint8_t bytes_to_read;
+    uint8_t bytes_read;
+    void(*chipSelectHandler)(bool select);
+}
+spi_job_t;
+
+typedef struct spi_jobs_s
+{
+    spi_job_t job[16];
+    uint8_t current_job;
+    uint8_t last_job_added;
+    uint8_t jobs_pending;
+}
+spi_jobs_t;
+
+
+
 // ===== global variables =====
 //uint8_t SPI_TX_BUF[SPI_BUFFER_SIZE];
 //nt8_t SPI_RX_BUF[SPI_BUFFER_SIZE];
@@ -126,6 +149,8 @@ void SPI_IRQHandler(void)
             spi_jobs.current_job = 0;
         }
 
+
+
         if (spi_jobs.jobs_pending > 0)
         {	// Check if jobs pending
             // Chip select sensor
@@ -146,15 +171,16 @@ void SPI_IRQHandler(void)
     return;
 }
 
-bool spi_add_job2( void(*chipSelectCallback)(bool select), uint8_t* txpTr, uint8_t bytes_to_write, uint8_t *array_to_store, uint8_t bytes_to_read)
+bool spi_add_job( void(*chipSelectCallback)(bool select),
+		           uint8_t* txpTr, uint8_t bytes_to_write,
+				   uint8_t *array_to_store, uint8_t bytes_to_read )
 {
     if (spi_jobs.jobs_pending >= SPI_MAX_JOBS)
     {	// Maximum amount of jobs stored, job can't be added!
         spi_job_buffer_overflow = 1;
         spi_jobs.jobs_pending = 0;	// Delete jobs
-        return 1;
+        return false;
     }
-
 
     NVIC_DisableIRQ(SPI_IRQn);
 
@@ -181,7 +207,7 @@ bool spi_add_job2( void(*chipSelectCallback)(bool select), uint8_t* txpTr, uint8
 
     NVIC_EnableIRQ(SPI_IRQn); // Beta
 
-    return 0;     // Job added successfully
+    return true;
 }
 
 
