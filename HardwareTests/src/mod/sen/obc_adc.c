@@ -105,7 +105,7 @@ void read_transmit_sensors()
 
 	//adc_val = ADC_ChannelGetData(LPC_ADC, ADC_SUPPLY_CURRENT_SP_CH);
 	Chip_ADC_ReadValue(LPC_ADC, ADC_SUPPLY_CURRENT_SP_CH, &adc_val);
-	val = (adc_val * (3.3/4096) - 0.01) /100/0.1 -0.006;
+	val = (adc_val * (3.3/4096) - 0.01) /100/0.1;
 	printf("CUR-SP: %.2f mA;", 1000*val);
 
 	//adc_val = ADC_ChannelGetData(LPC_ADC, ADC_TEMPERATURE_CH);
