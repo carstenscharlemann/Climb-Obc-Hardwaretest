@@ -30,26 +30,27 @@
 //    ADXL345, L3G4200D, MS5611, ADXL375
 //};
 
-typedef struct spi_job_s
-{
-    uint8_t *txbuffer;
-    uint8_t bytes_to_send;
-    uint8_t bytes_sent;
-    uint8_t *array_to_store;
-    uint8_t bytes_to_read;
-    uint8_t bytes_read;
-    void(*chipSelectHandler)(bool select);
-}
-spi_job_t;
-
-typedef struct spi_jobs_s
-{
-    spi_job_t job[16];
-    uint8_t current_job;
-    uint8_t last_job_added;
-    uint8_t jobs_pending;
-}
-spi_jobs_t;
+//typedef struct spi_job_s
+//{
+//    uint8_t *txbuffer;
+//    uint8_t bytes_to_send;
+//    uint8_t bytes_sent;
+//    uint8_t *array_to_store;
+//    uint8_t bytes_to_read;
+//    uint8_t bytes_read;
+//    void(*chipSelectHandler)(bool select);
+//    void(*jobFinishedHandler)(uint8_t *rxdata, uint8_t rxlen)
+//}
+//spi_job_t;
+//
+//typedef struct spi_jobs_s
+//{
+//    spi_job_t job[16];
+//    uint8_t current_job;
+//    uint8_t last_job_added;
+//    uint8_t jobs_pending;
+//}
+//spi_jobs_t;
 
 
 //// ===== global variables =====
@@ -68,8 +69,8 @@ uint8_t spi_getJobsPending(void);
 
 void spi_init(void);
 void SPI_IRQHandler(void);
-bool spi_add_job( void(*chipSelectHandler)(bool select), uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store);
-bool spi_add_job2( void(*chipSelect)(bool select), uint8_t* txpTr, uint8_t bytes_to_write, uint8_t *array_to_store, uint8_t bytes_to_read);
+//bool spi_add_job( void(*chipSelectHandler)(bool select), uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store);
+bool spi_add_job( void(*chipSelect)(bool select), uint8_t* txpTr, uint8_t bytes_to_write, uint8_t *array_to_store, uint8_t bytes_to_read );
 
 
 //bool gyro_init(void);
