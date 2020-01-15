@@ -101,18 +101,19 @@ void read_transmit_sensors()
 	Chip_ADC_ReadValue(LPC_ADC, ADC_SUPPLY_CURRENT_CH, &adc_val);
 
 	float val = (adc_val * (3.3/4096) - 0.01) /100/0.1;
-	printf("Supply: %.3f A\n", val);
+	printf("\nMCU-Supply: %.2f mA\n", 1000*val);
 
 	//adc_val = ADC_ChannelGetData(LPC_ADC, ADC_SUPPLY_CURRENT_SP_CH);
 	Chip_ADC_ReadValue(LPC_ADC, ADC_SUPPLY_CURRENT_SP_CH, &adc_val);
 	val = (adc_val * (3.3/4096) - 0.01) /100/0.1 -0.006;
-	printf("SP: %.3f A\n", val);
+	printf("SP-Supply: %.2f mA\n", 1000*val);
 
 	//adc_val = ADC_ChannelGetData(LPC_ADC, ADC_TEMPERATURE_CH);
 	Chip_ADC_ReadValue(LPC_ADC, ADC_TEMPERATURE_CH, &adc_val);
 	val = 25 + (adc_val * (3.3/4096) - 0.75) / 0.01;
-	printf("Temp: %.3f C\n", val);
+	printf("AN-Temp: %.3f C\n", val);
 
+	printf("RTC: %d, %d \n", rtc_get_time(), rtc_get_date());
 
 //	rbf_check_inserted();
 //	char c;
