@@ -131,6 +131,7 @@ __DATA(RAM2) uint8_t ram2Target[RADTST_RAM2_TARGET_PAGES][RADTST_RAM2_TARGET_PAG
 
 
 // prototypes
+void read_transmit_sensors();
 void RadTstLogberryWatchdog();
 void RadTstResetReadExpectations();
 void RadTstExpectedSigCalculated(FlashSign_t signature);

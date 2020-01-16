@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "..\cli\cli.h"
+#include "..\tim\obc_rtc.h"
 
 #define ADC_SUPPLY_CURRENT_PIN 		23 //ok
 #define ADC_SUPPLY_CURRENT_PORT 	0 //ok
