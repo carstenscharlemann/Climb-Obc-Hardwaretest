@@ -11,5 +11,6 @@
 void FgdInit();
 void FgdMain();
 
+void FgdMakeMeasurement(uint8_t probeCount);
 
 #endif /* MOD_FGD_DOSIMETER_H_ */

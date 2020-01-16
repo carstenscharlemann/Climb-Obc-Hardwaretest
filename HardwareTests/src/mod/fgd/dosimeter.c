@@ -9,10 +9,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "dosimeter.h"
+
 #include "..\..\globals.h"
 #include "..\..\layer1\SPI\spi.h"
 #include "..\cli\cli.h"
 #include "..\tim\timer.h"
+#include "..\fgd\dosimeter.h"
 
 
 #define FLOGA_VCC_ENABLE_PORT	0
@@ -78,7 +81,6 @@ void ConfigDeviceCmd(int argc, char *argv[]);
 void Switch18VCmd(int argc, char *argv[]);
 
 bool ConfigDevice(bool step1Only);
-void MakeMessurement(uint8_t cnt);
 void LogMeasurementResult();
 
 // This is the callback used by layer1 to activate/deactivate the chip select line for the Floating gate dosimeter.
@@ -141,7 +143,7 @@ void ReadAllCmd(int argc, char *argv[]){
 	if (argc > 0) {
 		probeCount = atoi(argv[0]);
 	}
-	MakeMessurement(probeCount);
+	FgdMakeMeasurement(probeCount);
 }
 
 #if ! defined RADIATION_TEST
@@ -340,7 +342,7 @@ void LogMeasurementResult() {
 	}
 }
 
-void MakeMessurement(uint8_t probeCount) {
+void FgdMakeMeasurement(uint8_t probeCount) {
 	if (status == FLOG_STAT_IDLE && probeCount >= 1) {
 		valuesToMeassure = probeCount;
 		// We start with a 0 second delay
