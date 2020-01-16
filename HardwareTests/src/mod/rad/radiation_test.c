@@ -13,7 +13,9 @@
 #include "../tim/obc_rtc.h"
 #include "../cli/cli.h"
 #include "../main.h"		// for Flash signature
+
 #include "../../hw_obc/obc_board.h" 		// For watchdog feed pin
+#include "../fgd/dosimeter.h"
 
 #include "radtst_memory.h"
 
@@ -21,6 +23,9 @@
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
+
+#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS				10
+
 
 #define RADTST_SEQ_READCHECKS_SECONDS					10			// Initiate all read checks every n seconds
 #define RADTST_SEQ_WRITECHECKS_SECONDS				   120			// Initiate all write checks every n seconds
@@ -226,6 +231,11 @@ void RadTstMain(void) {
 		read_transmit_sensors();
 		ObcWdtFeedSet(false);
 	}
+	if ((radtstTicks % (RADTST_SEQ_DOSIMETER_REPORT_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		// Read one register set every RADTST_SEQ_DOSIMETER_REPORT_SECONDS
+		FgdMakeMeasurement(1);
+	}
+
 	if ((radtstTicks % (RADTST_SEQ_REPORTLINE_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
 		RadTstPrintReportLine();
 	}
