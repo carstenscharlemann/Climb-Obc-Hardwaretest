@@ -29,7 +29,7 @@ void TmpMain(){
 		tmpReadInProgress = false;
 		int16_t tr = ((int16_t)tmpRxBuffer[0])<<4 | ((int16_t)tmpRxBuffer[0])>>4;
 		float t = ((float)tr) * 0.0625F;
-		printf("TMP100 temperature: %02X %02X %d %.1f\n", tmpRxBuffer[0], tmpRxBuffer[1], tr, t );
+		printf("TMP100: %02X %02X %.1f C\n", tmpRxBuffer[0], tmpRxBuffer[1], t );
 	}
 }
 
@@ -47,7 +47,7 @@ void tmp_read_temperature() {
 		tmpReadTempJob.tx_data = tmpTxCommand;
 		tmpReadTempJob.rx_size = 2;
 		tmpReadTempJob.rx_data = tmpRxBuffer;
-		tmpReadTempJob.adress  = 0x48;
+		tmpReadTempJob.adress  = I2C_ADR_TEMP;
 		i2c_add_job(&tmpReadTempJob);
 	}
 }

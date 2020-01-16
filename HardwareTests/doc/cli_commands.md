@@ -32,7 +32,8 @@ Available CLI Commands
 | cliStat | none | Prints some status info of CLI module  |
 | simErr | tbd. | Provokes errors in checksums for radiation test checks. Do not use without reading current code !!!! |
 | flogRead | [repeatCount] | reads out all registers of the FGD-02F dosimeter and prints 2 lines of measurment values.<br>repeatCount defaults to 1 <br>if >1 number of repeatCount measurments are taken every 3 seconds |
-| adcRead | nonne | prints out some analouge measurments (temp, current) |
+| adcRead | none | prints out some analouge measurments (temp, current) |
+| readTemp | none | prints the TMP100 temperature |
  
 
 ### Not available during radiation test (special compiled inmage)
