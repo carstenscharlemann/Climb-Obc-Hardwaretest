@@ -99,6 +99,7 @@ void AdcInit()
 
 void read_transmit_sensors()
 {
+
 	uint16_t adc_val; // = ADC_ChannelGetData(LPC_ADC, ADC_SUPPLY_CURRENT_CH);
 	Chip_ADC_ReadValue(LPC_ADC, ADC_SUPPLY_CURRENT_CH, &adc_val);
 
@@ -122,58 +123,3 @@ void read_transmit_sensors()
 
 	printf("RBF: %d, Supply-R: %c, BL: %s\n", ObcGetRbfIsInserted(),  ObcGetSupplyRail(), ObcGetBootmodeStr());
 }
-
-
-//bool rbf_check_inserted(void)
-//{
-//    if ((GPIO_ReadValue(RBF_PORT) & (1 << RBF_PIN)))
-//    {
-//    	/* Flight mode */
-//    	obc_status.rbf_inserted = 0;
-//    	return false;
-//    }
-//    else
-//    {
-//    	/* RBF inserted - ground mode */
-//    	obc_status.rbf_inserted = 1;
-//    	return true;
-//    }
-//}
-//
-//bool supply_rail_check(void)
-//{
-//    if ((GPIO_ReadValue(SUPPLY_RAIL_PORT) & (1 << SUPPLY_RAIL_PIN)))
-//    {
-//    	return false;
-//    }
-//    else
-//    {
-//    	return true;
-//    }
-//}
-
-//void bl_init()
-//{
-//	 /* Configure P0[29] and P0[30] because 29 and 30 are a USB Pair normally */
-//    xPinConfig.Pinnum = BL_SEL1_PIN;
-//    xPinConfig.Portnum = BL_SEL1_PORT;
-//    PINSEL_ConfigPin(&(xPinConfig));
-//    GPIO_SetDir(BL_SEL1_PORT, (1 << BL_SEL1_PIN), 0); //  input
-//
-//    xPinConfig.Pinnum = 30;
-//    xPinConfig.Portnum = 0;
-//    PINSEL_ConfigPin(&(xPinConfig));
-//    GPIO_SetDir(0, (1 << 30), 0); //  input
-//}
-
-//bool bl_sel_pin_check(void)
-//{
-//    if ((GPIO_ReadValue(BL_SEL1_PORT) & (1 << BL_SEL1_PIN)))
-//    {
-//    	return false;
-//    }
-//    else
-//    {
-//    	return true;
-//    }
-//}

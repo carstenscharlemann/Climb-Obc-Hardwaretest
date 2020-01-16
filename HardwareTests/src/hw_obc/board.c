@@ -39,6 +39,8 @@
 #define RBF_PIN									21
 #define RBF_PORT								0
 
+#define STACIE_A_IO1_PIN						21
+#define STACIE_A_IO1_PORT						1
 
 
 void SwitchVccFfgDCmd(int argc, char *argv[]);
@@ -132,6 +134,10 @@ void ObcClimbBoardInit() {
 	ObcSpSupplySet(2, true);
 	ObcSpSupplySet(3, true);
 	ObcSpSupplySet(4, true);
+
+	// Stacie A GPIO -> set as output for rad-tests
+	Chip_GPIO_WriteDirBit(LPC_GPIO, STACIE_A_IO1_PORT, STACIE_A_IO1_PIN, true);
+
 
 	// Feed watchdog
 	ObcWdtFeedSet(true);
@@ -254,8 +260,9 @@ char ObcGetSupplyRail(){
 	{
 		return 'C';
 	}
-}
 
+}
+/* Returns true if the RBF is inserted */
 bool ObcGetRbfIsInserted(){
 
 	if (Chip_GPIO_ReadPortBit(LPC_GPIO, RBF_PORT, RBF_PIN))
@@ -265,6 +272,14 @@ bool ObcGetRbfIsInserted(){
 	else
 	{
 		return false;
+	}
+}
+
+/* Sets the state of the STACIE A IO-X PIN */
+void ObcLedStacieAIo(uint8_t io, bool On)
+{
+	if (io == 1) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, STACIE_A_IO1_PORT, STACIE_A_IO1_PIN, On);
 	}
 }
 

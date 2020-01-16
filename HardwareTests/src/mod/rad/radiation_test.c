@@ -216,7 +216,9 @@ void RadTstResetReadExpectations() {
 void RadTstMain(void) {
 	radtstTicks++;
 	if ((radtstTicks % (RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		ObcLedStacieAIo(1,true);
 		RadTstLogberryWatchdog();
+		ObcLedStacieAIo(1,false);
 	}
 	if ((radtstTicks % (RADTST_SEQ_SENSOR_REPORT_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
 		// Transmit sensor values and reset onboard watchdog every 4 seconds

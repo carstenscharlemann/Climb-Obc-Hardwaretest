@@ -57,6 +57,7 @@ void ObcSpSupplySet(uint8_t sp, bool On);
 void ObcWdtFeedSet(bool On);
 char ObcGetSupplyRail();
 bool ObcGetRbfIsInserted();
+void ObcLedStacieAIo(uint8_t io, bool On);
 
 uint8_t ObcGetI2CAddrForMemoryDeviceName(char* name);
 
