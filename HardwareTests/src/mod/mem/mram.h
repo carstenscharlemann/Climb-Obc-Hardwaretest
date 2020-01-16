@@ -7,8 +7,8 @@
 #ifndef MOD_MEM_MRAM_H_
 #define MOD_MEM_MRAM_H_
 
-#define MRAM_MAX_READ_SIZE	512
-#define MRAM_MAX_WRITE_SIZE	512
+#define MRAM_MAX_READ_SIZE	1024
+#define MRAM_MAX_WRITE_SIZE	1024
 
 typedef enum mram_res_e
 {
