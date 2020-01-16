@@ -49,6 +49,7 @@ void ObcClimbBoardInit();
 void ObcClimbBoardSystemInit();
 bootmode_t ObcGetBootmode();
 char* ObcGetBootmodeStr();
+void obc_reset_source_check(void);
 
 void ObcLedToggle(uint8_t ledNr);
 void ObcLedSet(uint8_t ledNr,  bool On);
