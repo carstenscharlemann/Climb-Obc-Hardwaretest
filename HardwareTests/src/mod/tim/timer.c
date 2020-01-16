@@ -10,6 +10,7 @@
 #include <string.h>		// for strcmp()
 #include <stdlib.h>		// for atoi()
 
+#include "..\..\globals.h"
 #include "..\cli\cli.h"
 
 #include "timer.h"
@@ -87,9 +88,11 @@ void TimInit() {
 
 
 	// Register module Commands
-	RegisterCommand("clkOut", TimOutputClockCmd);
 	RegisterCommand("getSeconds", TimOutputSecondsCmd);
 
+#if !defined RADIATION_TEST
+	RegisterCommand("clkOut", TimOutputClockCmd);
+#endif
 }
 
 // This 'overwrites' the weak definition of this IRQ in cr_startup_lpc175x_6x.c
@@ -195,6 +198,14 @@ void TimBlockMs(uint8_t ms) {
 	while (mlTimer->TC < waitFor);
 }
 
+
+
+void TimOutputSecondsCmd(int argc, char *argv[]) {
+	printf("Seconds since reset: %d.%03d\n", secondsAfterReset,MILLISECOND_TIMER->TC );
+}
+
+
+#if ! defined RADIATION_TEST
 // Command to switch one of the internal Clock signals to the output PIN43 P1[27] 'CLKOUT'
 // In OBC there is the 'Probe CLKO' pad connected. In LPCX this is on 'C16' - 'PAD16'
 //
@@ -239,9 +250,5 @@ void TimOutputClockCmd(int argc, char *argv[]) {
 		printf("CLKOUT (P1.27) disabled\n");
 	}
 }
-
-void TimOutputSecondsCmd(int argc, char *argv[]) {
-	printf("Seconds since reset: %d.%03d\n", secondsAfterReset,MILLISECOND_TIMER->TC );
-}
-
+#endif
 
