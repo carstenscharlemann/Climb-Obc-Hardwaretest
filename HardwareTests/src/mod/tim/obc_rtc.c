@@ -441,7 +441,7 @@ void RTC_IRQHandler(void)
 			LPC_RTC->RTC_AUX &= RTC_AUX_RTC_OSCF;	// Clear the error by writing to this bit now.
 		}
 		// TODO: is this assumption here correct. We had an unknown time from init until now but it seems to run from here on.
-		//       For sure it is not synchronised any more.....
+		//       For sure it is not synchronized any more.....
 		RtcWriteGpr(RTC_GPRIDX_STATUS, RTC_STAT_UNKNOWN);
 	}
 	/* Do powersave modes or other things here */

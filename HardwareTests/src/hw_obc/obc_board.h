@@ -53,6 +53,11 @@ char* ObcGetBootmodeStr();
 void ObcLedToggle(uint8_t ledNr);
 void ObcLedSet(uint8_t ledNr,  bool On);
 bool ObcLedTest(uint8_t ledNr);
+void ObcSpSupplySet(uint8_t sp, bool On);
+void ObcWdtFeedSet(bool On);
+char ObcGetSupplyRail();
+bool ObcGetRbfIsInserted();
+void ObcLedStacieAIo(uint8_t io, bool On);
 
 uint8_t ObcGetI2CAddrForMemoryDeviceName(char* name);
 

@@ -17,6 +17,8 @@
 #include "mem/eeprom.h"
 #include "mem/flash.h"
 #include "mem/mram.h"
+#include "sen/obc_adc.h"
+#include "fgd/dosimeter.h"
 
 #ifdef RADIATION_TEST
 #include "rad/radiation_test.h"
@@ -58,7 +60,9 @@ void MainInit() {
 	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
 	RtcInit();
+	AdcInit();
 	ThrInit();
+	FgdInit();
 	EepromInit();
 	FlashInit();
 	MramInit();
@@ -87,6 +91,7 @@ void MainMain() {
 #ifdef RADIATION_TEST
 		RadTstMain();
 #endif
+		FgdMain();
 	}
 
 	// Main modules own functions
