@@ -13,10 +13,11 @@
 #include "../tim/obc_rtc.h"
 #include "../cli/cli.h"
 #include "../main.h"		// for Flash signature
+#include "../../hw_obc/obc_board.h" 		// For watchdog feed pin
 
 #include "radtst_memory.h"
 
-#define RADTST_SEQ_SENSOR_REPORT_SECONDS				5			// Send all sensor values every 5 seconds
+#define RADTST_SEQ_SENSOR_REPORT_SECONDS				4			// Send all sensor values every 5 seconds
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
@@ -218,7 +219,10 @@ void RadTstMain(void) {
 		RadTstLogberryWatchdog();
 	}
 	if ((radtstTicks % (RADTST_SEQ_SENSOR_REPORT_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+		// Transmit sensor values and reset onboard watchdog every 4 seconds
+		ObcWdtFeedSet(true);
 		read_transmit_sensors();
+		ObcWdtFeedSet(false);
 	}
 	if ((radtstTicks % (RADTST_SEQ_REPORTLINE_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
 		RadTstPrintReportLine();

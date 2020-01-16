@@ -24,6 +24,16 @@
 #define DEBUG_SELECT_GPIO_PORT_NUM               0
 #define DEBUG_SELECT_GPIO_BIT_NUM                5
 
+#define SP1_VCC_EN_PIN							28
+#define SP1_VCC_EN_PORT							1
+#define SP2_VCC_EN_PIN							7
+#define SP2_VCC_EN_PORT							2
+#define SP3_VCC_EN_PIN							15
+#define SP3_VCC_EN_PORT							1
+#define SP4_VCC_EN_PIN							22
+#define SP4_VCC_EN_PORT							1
+
+
 
 void SwitchVccFfgDCmd(int argc, char *argv[]);
 /* Pin muxing configuration */
@@ -101,6 +111,23 @@ void ObcClimbBoardInit() {
 
 	// Init I2c bus for Onboard devices (3xEEProm, 1xTemp, 1x FRAM)
 	InitOnboardI2C(ONBOARD_I2C);
+
+	// Sidepanel supply swiches (outputs)
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP1_VCC_EN_PORT, SP1_VCC_EN_PIN, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP2_VCC_EN_PORT, SP2_VCC_EN_PIN, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP3_VCC_EN_PORT, SP3_VCC_EN_PIN, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP4_VCC_EN_PORT, SP4_VCC_EN_PIN, true);
+
+	// Enable supply to all sidepanels
+	ObcSpSupplySet(1, true);
+	ObcSpSupplySet(2, true);
+	ObcSpSupplySet(3, true);
+	ObcSpSupplySet(4, true);
+
+	// Feed watchdog
+	ObcWdtFeedSet(true);
+	ObcWdtFeedSet(false);
+
 
 	//Chip_GPIO_SetPinState(LPC_GPIO, 0, 26, false);
 }
@@ -181,5 +208,29 @@ uint8_t ObcGetI2CAddrForMemoryDeviceName(char* name) {
     }
 
     return 0;
+}
+
+/* Sets the state of the specified supply panel switch to on or off (logic low on pin turns on output) */
+void ObcSpSupplySet(uint8_t sp, bool On)
+{
+	/* There is only one LED */
+	if (sp == 1) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP1_VCC_EN_PORT, SP1_VCC_EN_PIN, !On);
+	}
+	else if (sp == 2) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP2_VCC_EN_PORT, SP2_VCC_EN_PIN, !On);
+	}
+	else if (sp == 3) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP3_VCC_EN_PORT, SP3_VCC_EN_PIN, !On);
+	}
+	else if (sp == 4) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP4_VCC_EN_PORT, SP4_VCC_EN_PIN, !On);
+	}
+}
+
+/* Sets the state of the watchdog feed pin to on/off */
+void ObcWdtFeedSet(bool On)
+{
+	Chip_GPIO_WritePortBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, On);
 }
 
