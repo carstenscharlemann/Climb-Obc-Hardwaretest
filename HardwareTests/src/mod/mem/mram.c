@@ -38,7 +38,7 @@ void (*mramCallback)(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t le
 uint8_t tx[4];
 uint8_t rx[1];
 uint8_t MramReadData[MRAM_MAX_READ_SIZE];
-uint8_t MramWriteData[MRAM_MAX_WRITE_SIZE];
+uint8_t MramWriteData[MRAM_MAX_WRITE_SIZE + 4];
 
 // prototypes
 void ReadMramCmd(int argc, char *argv[]);
@@ -112,9 +112,8 @@ void MramMain() {
 	} else {
 		if (mramStatus == MRAM_STAT_RX_INPROGRESS) {
 			// Rx job finished.
-			mramCallback(MRAM_RES_SUCCESS, mramAdr, mramData, mramLen);
 			mramStatus = MRAM_STAT_IDLE;
-
+			mramCallback(MRAM_RES_SUCCESS, mramAdr, mramData, mramLen);
 		} else if (mramStatus == MRAM_STAT_WREN_SET) {
 			// Write enable set job finished
 
@@ -147,8 +146,8 @@ void MramMain() {
 
 		} else if (mramStatus == MRAM_STAT_WREN_CLR) {
 			// Write disable job finished.
-			mramCallback(MRAM_RES_SUCCESS, mramAdr, mramData, mramLen);
 			mramStatus = MRAM_STAT_IDLE;
+			mramCallback(MRAM_RES_SUCCESS, mramAdr, mramData, mramLen);
 		}
 	}
 }
@@ -232,7 +231,7 @@ void ReadMramAsync(uint32_t adr,  uint8_t *rx_data,  uint32_t len, void (*finish
 		return;
 	}
 
-	if (adr + len >  0x01FFFF) {
+	if (adr + len >  0x020000) {
 		finishedHandler(MRAM_RES_INVALID_ADR,  adr, 0, len);
 		return;
 	}
@@ -275,7 +274,7 @@ void WriteMramAsync(uint32_t adr, uint8_t *data, uint32_t len,  void (*finishedH
 		return;
 	}
 
-	if (adr + len >  0x01FFFF) {
+	if (adr + len >  0x020000) {
 		finishedHandler(MRAM_RES_INVALID_ADR,  adr, 0, len);
 		return;
 	}

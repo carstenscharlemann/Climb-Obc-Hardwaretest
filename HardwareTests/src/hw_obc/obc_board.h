@@ -15,7 +15,7 @@
 #define I2C_ADR_EEPROM1				0x57
 #define I2C_ADR_EEPROM2				0x53
 #define I2C_ADR_EEPROM3				0x51
-#define I2C_ADR_TEMP				0x90
+#define I2C_ADR_TEMP				0x48		// !!! its not correct on schematics !!!
 #define I2C_ADR_FRAM				0x50
 
 
