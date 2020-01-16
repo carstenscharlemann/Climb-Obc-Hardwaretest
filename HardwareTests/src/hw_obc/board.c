@@ -33,6 +33,12 @@
 #define SP4_VCC_EN_PIN							22
 #define SP4_VCC_EN_PORT							1
 
+#define SUPPLY_RAIL_PIN 						25
+#define SUPPLY_RAIL_PORT 						3
+
+#define RBF_PIN									21
+#define RBF_PORT								0
+
 
 
 void SwitchVccFfgDCmd(int argc, char *argv[]);
@@ -105,6 +111,9 @@ void ObcClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM, false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM, false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 30, false);
+
+	// Supply rail status input
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SUPPLY_RAIL_PORT, SUPPLY_RAIL_PIN, false);
 
 	// UART for comand line interface init
 	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
@@ -233,4 +242,31 @@ void ObcWdtFeedSet(bool On)
 {
 	Chip_GPIO_WritePortBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, On);
 }
+
+/* Reads the status of the active supply rail */
+char ObcGetSupplyRail(){
+
+	if (Chip_GPIO_ReadPortBit(LPC_GPIO, SUPPLY_RAIL_PORT, SUPPLY_RAIL_PIN))
+	{
+		return 'A';
+	}
+	else
+	{
+		return 'C';
+	}
+}
+
+bool ObcGetRbfIsInserted(){
+
+	if (Chip_GPIO_ReadPortBit(LPC_GPIO, RBF_PORT, RBF_PIN))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
 

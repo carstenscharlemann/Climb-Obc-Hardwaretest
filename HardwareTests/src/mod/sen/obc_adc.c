@@ -3,6 +3,7 @@
 
 #include "..\cli\cli.h"
 #include "..\tim\obc_rtc.h"
+#include "..\..\hw_obc\obc_board.h"
 
 #define ADC_SUPPLY_CURRENT_PIN 		23 //ok
 #define ADC_SUPPLY_CURRENT_PORT 	0 //ok
@@ -114,15 +115,12 @@ void read_transmit_sensors()
 	val = 25 + (adc_val * (3.3/4096) - 0.75) / 0.01;
 	printf("TMP-AN: %.3f C;", val);
 
+
+
 	printf("RTC: %d, %d \n", rtc_get_time(), rtc_get_date());
 
-//	rbf_check_inserted();
-//	char c;
-//	if(supply_rail_check() == 0)
-//		c = 'A';
-//	else
-//		c = 'C';
-//	debug_sprintf("RBF: %d, Supply-R: %c, BL: %d\n", obc_status.rbf_inserted, c, bl_sel_pin_check());
+
+	printf("RBF: %d, Supply-R: %c, BL: %s\n", ObcGetRbfIsInserted(),  ObcGetSupplyRail(), ObcGetBootmodeStr());
 }
 
 
