@@ -9,5 +9,6 @@
 #define MOD_SEN_OBC_ADC_H_
 
 void AdcInit();
+void read_transmit_sensors();
 
 #endif /* MOD_SEN_OBC_ADC_H_ */

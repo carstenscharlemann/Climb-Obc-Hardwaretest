@@ -9,7 +9,6 @@ Available CLI Commands
 | setTime | [hours] [min] [seconds] [sync]  | Sets the time portion of RTC.<br>if par omitted default = 0, sync any value -> true |
 | setDate | [year] [month] [day]            | Sets the date portion of RTC. |
 | getSeconds| none                           | Gets seconds ticked (timer with 12Mhz clock) since last reset |
-| clkOut | [source] [divider] | Puts the internal clock on the CLKOUT (P1.27) pin<br>source (default='CPU'):<br>'OFF','CPU','OSC','IRC','USB','RTC'<br>devider 1..16 (default=10) |
 
 
 ### Memory Commands
@@ -30,12 +29,17 @@ Available CLI Commands
 ### Other Commands
 | Command  | Parameters        | Description                               |
 | -------- | ----------------- | ----------------------------------------- |
-| cliStat | none | Prints some status info of CLI module |
+| cliStat | none | Prints some status info of CLI module  |
 | simErr | tbd. | Provokes errors in checksums for radiation test checks. Do not use without reading current code !!!! |
-
-
-
+| flogRead | [repeatCount] | reads out all registers of the FGD-02F dosimeter and prints 2 lines of measurment values.<br>repeatCount defaults to 1 <br>if >1 number of repeatCount measurments are taken every 3 seconds |
+| adcRead | nonne | prints out some analouge measurments (temp, current) |
  
+
+### Not available during radiation test (special compiled inmage)
+
+ Command  | Parameters        | Description                               |
+| -------- | ----------------- | ----------------------------------------- |
+| clkOut | [source] [divider] | Puts the internal clock on the CLKOUT (P1.27) pin<br>source (default='CPU'):<br>'OFF','CPU','OSC','IRC','USB','RTC'<br>devider 1..16 (default=10) |
 
 
 

@@ -1,6 +1,7 @@
 #include <Chip.h>
 #include <stdio.h>
 
+#include "obc_adc.h"
 #include "..\cli\cli.h"
 #include "..\tim\obc_rtc.h"
 #include "..\..\hw_obc\obc_board.h"
@@ -20,8 +21,6 @@
 bool adc_initialized;
 bool adc_error_counter;
 
-
-void read_transmit_sensors();
 
 void AdcReadCmd(int argc, char *argv[]){
 	read_transmit_sensors();
