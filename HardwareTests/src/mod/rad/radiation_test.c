@@ -15,7 +15,9 @@
 #include "../main.h"		// for Flash signature
 
 #include "../../hw_obc/obc_board.h" 		// For watchdog feed pin
+#include "../sen/obc_adc.h"
 #include "../fgd/dosimeter.h"
+#include "../sen/temp.h"
 
 #include "radtst_memory.h"
 
@@ -225,6 +227,7 @@ void RadTstMain(void) {
 		// Transmit sensor values and reset onboard watchdog every 4 seconds
 		ObcWdtFeedSet(true);
 		read_transmit_sensors();
+		tmp_read_temperature();
 		ObcWdtFeedSet(false);
 	}
 	if ((radtstTicks % (RADTST_SEQ_DOSIMETER_REPORT_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {

@@ -19,6 +19,7 @@
 #include "mem/mram.h"
 #include "sen/obc_adc.h"
 #include "fgd/dosimeter.h"
+#include "sen/temp.h"
 
 #ifdef RADIATION_TEST
 #include "rad/radiation_test.h"
@@ -66,6 +67,7 @@ void MainInit() {
 	EepromInit();
 	FlashInit();
 	MramInit();
+	TmpInit();
 	CliInit();
 #ifdef RADIATION_TEST
 	RadTstInit();
@@ -82,6 +84,7 @@ void MainMain() {
 	ThrMain();
 	FlashMain();
 	MramMain();
+	TmpMain();
 	bool tick = TimMain();
 	if (tick) {
 		ClimbLedToggle(0);
