@@ -33,6 +33,7 @@ uint8_t readPageTx[2];
 uint8_t readPageRx[EEPROM_PAGE_SIZE];
 bool readInProgress = false;
 void (*readFinishedHandler)(eeprom_page_t *page) = 0;
+void (*writeFinishedHandler)(void) = 0;
 
 // Prototypes
 void WriteStatusCmd(int argc, char *argv[]);
@@ -145,13 +146,13 @@ void WritePageCmd(int argc, char *argv[]) {
 	}
 
 	// Binary Command
-	if (! WritePageAsync(chipAdr, pageNr, data)) {
+	if (! WritePageAsync(chipAdr, pageNr, data, NULL)) {
 		printf("Not possible to initialize the page write operation! (currently used?)\n");
 	}
 
 }
 
-bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data) {
+bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data, void (*finishedHandler)(void)) {
 	if (writeInProgress) {
 		return false;
 	}
@@ -166,6 +167,7 @@ bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data) {
 	writePageJob.tx_data = writePageTx;
 	writePageJob.rx_data = NULL;
 	writePageJob.rx_size = 0;
+	writeFinishedHandler = finishedHandler;
 	i2c_add_job(&writePageJob);
 
 	return true;
@@ -193,7 +195,7 @@ void WriteStatusCmd(int argc, char *argv[]) {
 	/* Calculate checksum */
 	page.cs = crc32((uint8_t *)(&page), 28);
 
-	WritePageAsync(I2C_ADR_EEPROM1, EEPROM_STATUS_PAGE, (char *)&page);
+	WritePageAsync(I2C_ADR_EEPROM1, EEPROM_STATUS_PAGE, (char *)&page, NULL);
 //		writePageJob.device = ONBOARD_I2C;
 //		writePageJob.adress = I2C_ADR_EEPROM1;
 //		writePageTx[0] = ((EEPROM_STATUS_PAGE * 32) >> 8); 		// Address high
@@ -211,33 +213,47 @@ void EepromMain() {
 	if (writeInProgress) {
 		if (writePageJob.job_done == 1) {
 			// Result is finshed -> call handler routine
-			if (writePageJob.error != I2C_ERROR_NO_ERROR) {
-				printf("Error %d while writting to EEPROM", writePageJob.error);
-			} else {
-				uint16_t pagenr = (writePageTx[0] << 8 | writePageTx[1]) / 32;
-				printf("Page %d (ID:%x) written.", pagenr, writePageTx[2]);
-			}
+//			if (writePageJob.error != I2C_ERROR_NO_ERROR) {
+//				printf("Error %d while writting to EEPROM", writePageJob.error);
+//			} else {
+//				if (writeFinishedHandler != 0) {
+//					writeFinishedHandler();
+//				} else {
+//					uint16_t pagenr = (writePageTx[0] << 8 | writePageTx[1]) / 32;
+//					printf("Page %d (ID:%x) written.", pagenr, writePageTx[2]);
+//				}
+//			}
 			// Our Main-tick is 250ms, so it is very unlikely that we have not had the 5ms Page Write time for our EEPROMS when we are here.
 			// to be 100%sure
 			// either wait another tick here -> wastes 250ms
 			//
 			// or lets waste this 5ms here now (and block the main loop for this time).
 			TimBlockMs(5);
-
 			writeInProgress = false;
+
+			if (writePageJob.error != I2C_ERROR_NO_ERROR) {
+					printf("Error %d while writting to EEPROM", writePageJob.error);
+			} else {
+				if (writeFinishedHandler != 0) {
+					writeFinishedHandler();
+				} else {
+					uint16_t pagenr = (writePageTx[0] << 8 | writePageTx[1]) / 32;
+						printf("Page %d (ID:%x) written.", pagenr, writePageTx[2]);
+				}
+			}
 		}
 	}
 
 	if (readInProgress) {
 		if (readPageJob.job_done == 1) {
 			// Result is finshed -> call handler routine
+			readInProgress = false;
 			if (readFinishedHandler != 0 && readPageJob.error == I2C_ERROR_NO_ERROR) {
 				readFinishedHandler((eeprom_page_t *)readPageRx);
 			}
 			if (readPageJob.error != I2C_ERROR_NO_ERROR) {
 				printf("I2C Error '%d'. No received handler called!", readPageJob.error);
 			}
-			readInProgress = false;
 		}
 	}
 }

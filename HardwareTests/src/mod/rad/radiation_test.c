@@ -24,16 +24,16 @@
 #include "../mem/mram.h"
 
 
-#define RADTST_SEQ_SENSOR_REPORT_SECONDS			1000 //	4			// Send all sensor values every 5 seconds
+#define RADTST_SEQ_SENSOR_REPORT_SECONDS				4			// Send all sensor values every 5 seconds
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
 
-#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS			1000 //	10
+#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS				10
 
 
-#define RADTST_SEQ_READCHECKS_SECONDS					10			// Initiate all read checks every n seconds
-#define RADTST_SEQ_WRITECHECKS_SECONDS				 60  //120			// Initiate all write checks every n seconds
+#define RADTST_SEQ_READCHECKS_SECONDS					15			// Initiate all read checks every n seconds
+#define RADTST_SEQ_WRITECHECKS_SECONDS				   120			// Initiate all write checks every n seconds
 
 
 #define RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS	   600			// Every 10 minutes we make a new baseline for the expected read values
@@ -41,51 +41,10 @@
 #define RADTST_FLASHSIG_PARTS	4										// Program Flash Check is divided in 4 Sections ..
 #define RADTST_PART_FLASHSIZE	(0x0007FFFF / RADTST_FLASHSIG_PARTS)	// .. each having this size.
 
-//
-//typedef struct radtst_counter_s {				// only add uint32_t values (its printed as uint32_t[] !!!
-//	uint32_t rtcgprTestCnt;
-//	uint32_t signatureCheckCnt;
-//	uint32_t ram2PageReadCnt;
-//	uint32_t ram2PageWriteCnt;
-//	uint32_t mramPageReadCnt;
-//	uint32_t mramPageWriteCnt;
-//
-//	uint32_t expSignatureChanged;				// This should stay on RADTST_FLASHSIG_PARTS (first time read after reset).
-//	uint32_t expRam2BytesChanged;
-//
-//	uint32_t signatureCheckBlocked;
-//	uint32_t signatureRebaseBlocked;
-//	uint32_t rtcgprTestErrors;
-//	uint32_t signatureErrorCnt;
-//	uint32_t ram2PageReadError;
-//	uint32_t ram2PageWriteError;
-//	uint32_t mramPageReadError;
-//	uint32_t mramPageWriteError;
-//
-//} radtst_counter_t;
-
-//typedef enum radtst_sources_e {
-//	RADTST_SRC_PRGFLASH2,				// The upper half of program flash (0x00040000 - 0x0007FFFF)
-//	RADTST_SRC_RTCGPR,					// 20 bytes (5Words) general purpose registers in RTC (battery buffered)
-//	RADTST_SRC_RAM2,					// The 'upper' (unused) RAM Bank (0x2007C000 - 0x20084000(?))
-//	RADTST_SRC_MRAM,
-//} radtst_sources_t;
-
-//typedef struct radtst_readcheckenabled_s {
-//	unsigned int 	prgFlash 	:1;
-//	unsigned int  	rtcGpr		:1;
-//	unsigned int  	ram2		:1;
-//	unsigned int  	mram		:1;
-//	unsigned int  	:1;
-//	unsigned int  	:1;
-//	unsigned int  	:1;
-//	unsigned int  	:1;
-//} radtst_readcheckenabled_t;
-
 typedef struct radtst_workload_s {
 	// Read processes running (async to mainloop call)
 	unsigned int radtest_caclulate_flashsig 	:1;
-	unsigned int radtest_mramread_running	 	:1;
+	unsigned int  	:1;
 	unsigned int  	:1;
 	unsigned int  	:1;
 	unsigned int  	:1;
@@ -132,6 +91,7 @@ static uint8_t rtRtcGprExpectedData[20];
 uint8_t		flashPartIdx = 0;
 FlashSign_t 	expectedFlashSig[RADTST_FLASHSIG_PARTS];
 uint8_t 		*expectedPagePatternsPtr; // points fillpattern bytes[0..3]
+bool 			initFirstMainloop;
 
 #define RADTST_MRAM_TARGET_PAGESIZE		MRAM_MAX_WRITE_SIZE						// 1k pages ->
 //#define RADTST_MRAM_TARGET_PAGES		(128 * 1024) / MRAM_MAX_WRITE_SIZE		// 128k available
@@ -160,8 +120,13 @@ void RadTstCheckPrgFlash();
 void RadTstSigCalculated(FlashSign_t signature);
 void RadTstPrintReportLine();
 void RadTstInitRam2Content();
+
+// from extmemory.c - no h file :-(
 void RadTstCheckMram();
 void RadTstWriteMram();
+void RadTstCheckFram();
+void RadTstWriteFram();
+
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]);
 
@@ -178,6 +143,7 @@ void RadTstInit(void) {
 	readEnabled.mram	 = false;			//       "                the firstwrite pattern was finalized.
 
 	RegisterCommand("simErr", RadTstProvokeErrorCmd);
+	initFirstMainloop = true;				// this triggers the write memory in first mailoop only once
 }
 
 void RadTstInitRam2Content() {
@@ -260,7 +226,10 @@ void RadTstMain(void) {
 
 
 
-	if ((radtstTicks % (RADTST_SEQ_WRITECHECKS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0) {
+	if (((radtstTicks % (RADTST_SEQ_WRITECHECKS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0)
+	    || initFirstMainloop) {
+		// We start first mainloop only with immediately  writing to all memory target areas.
+		initFirstMainloop = false;
 		// increment to next page pattern base pointer
 		expectedPagePatternsPtr++;
 		if (expectedPagePatternsPtr > &expectedPagePatternsSeq[3]) {
@@ -275,7 +244,10 @@ void RadTstMain(void) {
 		readEnabled.mram 	= false;
 		RadTstWriteMram();
 
-		// ... mram, fram eeproms ....
+		readEnabled.fram 	= false;
+		RadTstWriteFram();
+
+		//  flash1 2, eeproms 1 - 3 ....
 	}
 
 	// read checks have lower prio if requested in same mainloop tick. Disabled by above write tests inits...
@@ -291,6 +263,9 @@ void RadTstMain(void) {
 			}
 			if (readEnabled.mram) {
 				RadTstCheckMram();
+			}
+			if (readEnabled.fram) {
+				RadTstCheckFram();
 			}
 		}
 }
@@ -364,7 +339,7 @@ void RadTstLogWriteError2(radtst_sources_t source, uint8_t expByte, uint8_t *act
 }
 
 
-void RadTstLogReadError2(radtst_sources_t source, uint8_t expByte, uint8_t *actPtr, uint16_t len) {
+void RadTstLogReadError2(radtst_sources_t source, uint8_t pageNr, uint8_t expByte, uint8_t *actPtr, uint16_t len) {
 	uint16_t diffCntBits  = 0;
 	uint16_t diffCntBytes = 0;
 
@@ -380,7 +355,7 @@ void RadTstLogReadError2(radtst_sources_t source, uint8_t expByte, uint8_t *actP
 	}
 
 	if (diffCntBytes > 0) {
-		printf("ReadError from %d: %d bits in %d/%d bytes\n", source, diffCntBits, diffCntBytes, len);
+		printf("*** ReadError from %d [%d]: %d bits in %d/%d bytes\n", source, pageNr,  diffCntBits, diffCntBytes, len);
 	}
 
 }
@@ -418,7 +393,7 @@ void RadTstCheckRam2() {
 			}
 			if (pageError) {
 				radtstCounter.ram2PageReadError++;
-				RadTstLogReadError2(RADTST_SRC_RAM2, expByte, &(ram2Target[page][0]), RADTST_RAM2_TARGET_PAGESIZE);
+				RadTstLogReadError2(RADTST_SRC_RAM2, page, expByte, &(ram2Target[page][0]), RADTST_RAM2_TARGET_PAGESIZE);
 			}
 		}
 	}

@@ -85,11 +85,12 @@ void MainMain() {
 	FlashMain();
 	MramMain();
 	TmpMain();
+	EepromMain();
 	bool tick = TimMain();
 	if (tick) {
 		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
-		EepromMain();
+		//EepromMain();
 		RtcMain();			// At this moment we only track day changes here so Tick time is enough.
 #ifdef RADIATION_TEST
 		RadTstMain();
