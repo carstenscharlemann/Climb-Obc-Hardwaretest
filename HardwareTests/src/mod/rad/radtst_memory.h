@@ -15,4 +15,5 @@
 extern uint8_t expectedPagePatternsSeq[2 * RADTST_EXPECTED_PATTERN_CNT];
 extern uint8_t prgFlash2Target[RADTST_PRGFLASH2_TARGET_PAGES][RADTST_PRGFLASH2_TARGET_PAGESIZE];
 
+
 #endif /* MOD_RAD_RADTST_MEMORY_H_ */

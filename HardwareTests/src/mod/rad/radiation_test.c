@@ -9,6 +9,9 @@
 
 #include <cr_section_macros.h>
 
+#include "radiation_test.h"
+#include "radtst_memory.h"
+
 #include "../tim/timer.h"
 #include "../tim/obc_rtc.h"
 #include "../cli/cli.h"
@@ -20,18 +23,17 @@
 #include "../sen/temp.h"
 #include "../mem/mram.h"
 
-#include "radtst_memory.h"
 
-#define RADTST_SEQ_SENSOR_REPORT_SECONDS				4			// Send all sensor values every 5 seconds
+#define RADTST_SEQ_SENSOR_REPORT_SECONDS			1000 //	4			// Send all sensor values every 5 seconds
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
 
-#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS				10
+#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS			1000 //	10
 
 
 #define RADTST_SEQ_READCHECKS_SECONDS					10			// Initiate all read checks every n seconds
-#define RADTST_SEQ_WRITECHECKS_SECONDS				   120			// Initiate all write checks every n seconds
+#define RADTST_SEQ_WRITECHECKS_SECONDS				 60  //120			// Initiate all write checks every n seconds
 
 
 #define RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS	   600			// Every 10 minutes we make a new baseline for the expected read values
@@ -39,46 +41,46 @@
 #define RADTST_FLASHSIG_PARTS	4										// Program Flash Check is divided in 4 Sections ..
 #define RADTST_PART_FLASHSIZE	(0x0007FFFF / RADTST_FLASHSIG_PARTS)	// .. each having this size.
 
+//
+//typedef struct radtst_counter_s {				// only add uint32_t values (its printed as uint32_t[] !!!
+//	uint32_t rtcgprTestCnt;
+//	uint32_t signatureCheckCnt;
+//	uint32_t ram2PageReadCnt;
+//	uint32_t ram2PageWriteCnt;
+//	uint32_t mramPageReadCnt;
+//	uint32_t mramPageWriteCnt;
+//
+//	uint32_t expSignatureChanged;				// This should stay on RADTST_FLASHSIG_PARTS (first time read after reset).
+//	uint32_t expRam2BytesChanged;
+//
+//	uint32_t signatureCheckBlocked;
+//	uint32_t signatureRebaseBlocked;
+//	uint32_t rtcgprTestErrors;
+//	uint32_t signatureErrorCnt;
+//	uint32_t ram2PageReadError;
+//	uint32_t ram2PageWriteError;
+//	uint32_t mramPageReadError;
+//	uint32_t mramPageWriteError;
+//
+//} radtst_counter_t;
 
-typedef struct radtst_counter_s {				// only add uint32_t values (its printed as uint32_t[] !!!
-	uint32_t rtcgprTestCnt;
-	uint32_t signatureCheckCnt;
-	uint32_t ram2PageReadCnt;
-	uint32_t ram2PageWriteCnt;
-	uint32_t mramPageReadCnt;
-	uint32_t mramPageWriteCnt;
+//typedef enum radtst_sources_e {
+//	RADTST_SRC_PRGFLASH2,				// The upper half of program flash (0x00040000 - 0x0007FFFF)
+//	RADTST_SRC_RTCGPR,					// 20 bytes (5Words) general purpose registers in RTC (battery buffered)
+//	RADTST_SRC_RAM2,					// The 'upper' (unused) RAM Bank (0x2007C000 - 0x20084000(?))
+//	RADTST_SRC_MRAM,
+//} radtst_sources_t;
 
-	uint32_t expSignatureChanged;				// This should stay on RADTST_FLASHSIG_PARTS (first time read after reset).
-	uint32_t expRam2BytesChanged;
-
-	uint32_t signatureCheckBlocked;
-	uint32_t signatureRebaseBlocked;
-	uint32_t rtcgprTestErrors;
-	uint32_t signatureErrorCnt;
-	uint32_t ram2PageReadError;
-	uint32_t ram2PageWriteError;
-	uint32_t mramPageReadError;
-	uint32_t mramPageWriteError;
-
-} radtst_counter_t;
-
-typedef enum radtst_sources_e {
-	RADTST_SRC_PRGFLASH2,				// The upper half of program flash (0x00040000 - 0x0007FFFF)
-	RADTST_SRC_RTCGPR,					// 20 bytes (5Words) general purpose registers in RTC (battery buffered)
-	RADTST_SRC_RAM2,					// The 'upper' (unused) RAM Bank (0x2007C000 - 0x20084000(?))
-	RADTST_SRC_MRAM,
-} radtst_sources_t;
-
-typedef struct radtst_readcheckenabled_s {
-	unsigned int 	prgFlash 	:1;
-	unsigned int  	rtcGpr		:1;
-	unsigned int  	ram2		:1;
-	unsigned int  	mram		:1;
-	unsigned int  	:1;
-	unsigned int  	:1;
-	unsigned int  	:1;
-	unsigned int  	:1;
-} radtst_readcheckenabled_t;
+//typedef struct radtst_readcheckenabled_s {
+//	unsigned int 	prgFlash 	:1;
+//	unsigned int  	rtcGpr		:1;
+//	unsigned int  	ram2		:1;
+//	unsigned int  	mram		:1;
+//	unsigned int  	:1;
+//	unsigned int  	:1;
+//	unsigned int  	:1;
+//	unsigned int  	:1;
+//} radtst_readcheckenabled_t;
 
 typedef struct radtst_workload_s {
 	// Read processes running (async to mainloop call)
@@ -127,12 +129,12 @@ static uint8_t rtRtcGprExpectedData[20];
 
 
 //static bool 		expSigReadActive = false;
-static uint8_t		flashPartIdx = 0;
-static FlashSign_t 	expectedFlashSig[RADTST_FLASHSIG_PARTS];
-static uint8_t 		*expectedPagePatternsPtr; // points fillpattern bytes[0..3]
+uint8_t		flashPartIdx = 0;
+FlashSign_t 	expectedFlashSig[RADTST_FLASHSIG_PARTS];
+uint8_t 		*expectedPagePatternsPtr; // points fillpattern bytes[0..3]
 
 #define RADTST_MRAM_TARGET_PAGESIZE		MRAM_MAX_WRITE_SIZE						// 1k pages ->
-#define RADTST_MRAM_TARGET_PAGES		(128 * 1024) / MRAM_MAX_WRITE_SIZE		// 128k available
+//#define RADTST_MRAM_TARGET_PAGES		(128 * 1024) / MRAM_MAX_WRITE_SIZE		// 128k available
 
 
 
@@ -150,7 +152,7 @@ void RadTstLogberryWatchdog();
 void RadTstResetReadExpectations();
 void RadTstExpectedSigCalculated(FlashSign_t signature);
 void RadTstLogReadError(radtst_sources_t source, uint8_t *expPtr, uint8_t *actPtr, uint16_t len);
-void RadTstLogReadError2(radtst_sources_t source, uint8_t expByte, uint8_t *actPtr, uint16_t len);
+//void RadTstLogReadError2(radtst_sources_t source, uint8_t expByte, uint8_t *actPtr, uint16_t len);
 void RadTstCheckRtcGpr();
 void RadTstCheckRam2();
 void RadTstWriteRam2();
@@ -455,84 +457,84 @@ void RadTstWriteRam2() {
 }
 
 
-uint8_t pageBuffer[RADTST_MRAM_TARGET_PAGESIZE + 4];
-uint8_t curPage;
-void RadWriteMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len);
+//uint8_t pageBuffer[RADTST_MRAM_TARGET_PAGESIZE + 4];
+//uint8_t curPage;
+//void RadWriteMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len);
 
-void RadTstWriteMram() {
-	// Write the new Patterns
-	curPage = 0;
-	radtstCounter.mramPageWriteCnt++;
-	//printf("MRAM Write all pages started\n");
+//void RadTstWriteMram() {
+//	// Write the new Patterns
+//	curPage = 0;
+//	radtstCounter.mramPageWriteCnt++;
+//	//printf("MRAM Write all pages started\n");
+//
+//	uint8_t expByte = expectedPagePatternsPtr[curPage % RADTST_EXPECTED_PATTERN_CNT];
+//	for (int x =0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
+//		pageBuffer[4 + x] = expByte;
+//	}
+//	WriteMramAsync(curPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadWriteMramFinished );
+//}
+//
+//void RadWriteMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len) {
+//	if (result != MRAM_RES_SUCCESS) {
+//		radtstCounter.mramPageWriteError++;
+//		printf("MRAM write bus error %d.\n", result);
+////      TODO: keine Ahnung, was hier besser/wahrscheinlich besser ist/wäre :-((((
+////		readEnabled.mram = true;		// Maybe this will work later ...
+////		return;							// but to continue with another page write makes no sense !?
+//	}
+//	curPage++;
+//	if (curPage < RADTST_MRAM_TARGET_PAGES) {
+//		uint8_t expByte = expectedPagePatternsPtr[curPage % RADTST_EXPECTED_PATTERN_CNT];
+//		for (int x =0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
+//			pageBuffer[4 + x] = expByte;
+//		}
+//		WriteMramAsync(curPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadWriteMramFinished );
+//	} else {
+//		// All pages written restart read tests
+//		readEnabled.mram = true;
+//		printf("MRAM Write all pages ended.\n");
+//	}
+//}
 
-	uint8_t expByte = expectedPagePatternsPtr[curPage % RADTST_EXPECTED_PATTERN_CNT];
-	for (int x =0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
-		pageBuffer[4 + x] = expByte;
-	}
-	WriteMramAsync(curPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadWriteMramFinished );
-}
 
-void RadWriteMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len) {
-	if (result != MRAM_RES_SUCCESS) {
-		radtstCounter.mramPageWriteError++;
-		printf("MRAM write bus error %d.\n", result);
-//      TODO: keine Ahnung, was hier besser/wahrscheinlich besser ist/wäre :-((((
-//		readEnabled.mram = true;		// Maybe this will work later ...
-//		return;							// but to continue with another page write makes no sense !?
-	}
-	curPage++;
-	if (curPage < RADTST_MRAM_TARGET_PAGES) {
-		uint8_t expByte = expectedPagePatternsPtr[curPage % RADTST_EXPECTED_PATTERN_CNT];
-		for (int x =0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
-			pageBuffer[4 + x] = expByte;
-		}
-		WriteMramAsync(curPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadWriteMramFinished );
-	} else {
-		// All pages written restart read tests
-		readEnabled.mram = true;
-		printf("MRAM Write all pages ended.\n");
-	}
-}
+//uint8_t curReadPage;
+//void RadReadMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len);
 
-
-uint8_t curReadPage;
-void RadReadMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len);
-
-void RadTstCheckMram() {
-	curReadPage = 0;
-	//printf("MRAM read test started\n");
-	runningBits.radtest_mramread_running = true;
-	radtstCounter.mramPageReadCnt++;
-
-	ReadMramAsync(curReadPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadReadMramFinished );
-}
-
-void RadReadMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len) {
-	if (result != MRAM_RES_SUCCESS) {
-		printf("MRAM read bus Error %d\n", result);
-		radtstCounter.mramPageReadError++;
-	}
-	uint8_t expByte = expectedPagePatternsPtr[curReadPage % RADTST_EXPECTED_PATTERN_CNT];
-	bool error = false;
-	for (int x = 0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
-		if (data[x] != expByte) {
-			error = true;
-		}
-	}
-	if (error) {
-		radtstCounter.mramPageReadError++;
-		RadTstLogReadError2(RADTST_SRC_MRAM, expByte, &data[0], RADTST_MRAM_TARGET_PAGESIZE );
-	}
-
-	curReadPage++;
-	if (curReadPage < RADTST_MRAM_TARGET_PAGES) {
-		ReadMramAsync(curReadPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadReadMramFinished );
-	} else {
-		//printf("MRAM read test stopped\n");
-		runningBits.radtest_mramread_running = false;
-	}
-}
-
+//void RadTstCheckMram() {
+//	curReadPage = 0;
+//	//printf("MRAM read test started\n");
+//	runningBits.radtest_mramread_running = true;
+//	radtstCounter.mramPageReadCnt++;
+//
+//	ReadMramAsync(curReadPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadReadMramFinished );
+//}
+//
+//void RadReadMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_t len) {
+//	if (result != MRAM_RES_SUCCESS) {
+//		printf("MRAM read bus Error %d\n", result);
+//		radtstCounter.mramPageReadError++;
+//	}
+//	uint8_t expByte = expectedPagePatternsPtr[curReadPage % RADTST_EXPECTED_PATTERN_CNT];
+//	bool error = false;
+//	for (int x = 0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
+//		if (data[x] != expByte) {
+//			error = true;
+//		}
+//	}
+//	if (error) {
+//		radtstCounter.mramPageReadError++;
+//		RadTstLogReadError2(RADTST_SRC_MRAM, expByte, &data[0], RADTST_MRAM_TARGET_PAGESIZE );
+//	}
+//
+//	curReadPage++;
+//	if (curReadPage < RADTST_MRAM_TARGET_PAGES) {
+//		ReadMramAsync(curReadPage * RADTST_MRAM_TARGET_PAGESIZE, pageBuffer, RADTST_MRAM_TARGET_PAGESIZE, RadReadMramFinished );
+//	} else {
+//		//printf("MRAM read test stopped\n");
+//		runningBits.radtest_mramread_running = false;
+//	}
+//}
+//
 
 
 
