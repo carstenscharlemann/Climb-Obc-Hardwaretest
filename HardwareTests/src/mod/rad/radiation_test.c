@@ -11,6 +11,8 @@
 
 #include "radiation_test.h"
 #include "radtst_memory.h"
+#include "radtst_extmemory.h"
+
 
 #include "../tim/timer.h"
 #include "../tim/obc_rtc.h"
@@ -121,13 +123,6 @@ void RadTstSigCalculated(FlashSign_t signature);
 void RadTstPrintReportLine();
 void RadTstInitRam2Content();
 
-// from extmemory.c - no h file :-(
-void RadTstCheckMram();
-void RadTstWriteMram();
-void RadTstCheckFram();
-void RadTstWriteFram();
-void RadTstWriteFlash();
-void RadTstCheckFlash();
 
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]);
@@ -249,8 +244,8 @@ void RadTstMain(void) {
 		readEnabled.i2cmem 	= false;
 		RadTstWriteFram();
 
-		readEnabled.flash12	= false;
-		RadTstWriteFlash();
+//		readEnabled.flash12	= false;
+//		RadTstWriteFlash();
 	}
 
 	// read checks have lower prio if requested in same mainloop tick. Disabled by above write tests inits...
@@ -271,9 +266,9 @@ void RadTstMain(void) {
 				RadTstCheckFram();
 			}
 
-			if (readEnabled.flash12) {
-				RadTstCheckFlash();
-			}
+//			if (readEnabled.flash12) {
+//				RadTstCheckFlash();
+//			}
 		}
 }
 

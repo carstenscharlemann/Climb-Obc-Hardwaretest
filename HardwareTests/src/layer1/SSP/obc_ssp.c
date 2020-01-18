@@ -324,7 +324,9 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 			}
 
 			/* Unselect device */
-			cur_job->chipSelectHandler(false);
+			if (cur_job->chipSelectHandler != 0) {
+				cur_job->chipSelectHandler(false);
+			}
 			cur_job->status = SSP_JOB_STATE_DONE;
 		}
 		else

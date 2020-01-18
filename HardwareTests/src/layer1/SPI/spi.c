@@ -34,7 +34,7 @@ spi_job_t;
 
 typedef struct spi_jobs_s
 {
-    spi_job_t job[16];
+    spi_job_t job[30];
     uint8_t current_job;
     uint8_t last_job_added;
     uint8_t jobs_pending;

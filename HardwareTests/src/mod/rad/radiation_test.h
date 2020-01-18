@@ -17,9 +17,11 @@ typedef struct radtst_counter_s {				// only add uint32_t values (its printed as
 	uint32_t mramPageWriteCnt;
 	uint32_t i2cmemPageReadCnt;
 	uint32_t i2cmemPageWriteCnt;
+	uint32_t flashSektorEraseCnt;
+	uint32_t flashPageWriteCnt;
+	uint32_t flashRaedPageCnt;
 
-
-	uint32_t expSignatureChanged;				// This should stay on RADTST_FLASHSIG_PARTS (first time read after reset).
+	uint32_t expSignatureChanged;				// This should stay on RADTST_FLASHSIG_PARTS (4) - first time read after reset
 	uint32_t expRam2BytesChanged;
 
 	uint32_t signatureCheckBlocked;
@@ -32,7 +34,10 @@ typedef struct radtst_counter_s {				// only add uint32_t values (its printed as
 	uint32_t mramPageWriteError;
 	uint32_t i2cmemPageReadError;
 	uint32_t i2cmemPageWriteError;
-
+	uint32_t flashSektorEraseError;
+	uint32_t flashSektorWriteError;
+	uint32_t flashPageWriteError;
+	uint32_t flashPageReadError;
 } radtst_counter_t;
 
 typedef struct radtst_readcheckenabled_s {
@@ -55,6 +60,7 @@ typedef enum radtst_sources_e {
 	RADTST_SRC_EE1,
 	RADTST_SRC_EE2,
 	RADTST_SRC_EE3,
+	RADTST_SRC_FLASH1,
 
 
 	RADTST_SRC_UNKNOWN = 128
