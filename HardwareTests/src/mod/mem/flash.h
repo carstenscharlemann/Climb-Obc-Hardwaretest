@@ -35,7 +35,8 @@ typedef enum flash_res_e
 	FLASH_RES_TX_ERROR,
 	FLASH_RES_TX_WRITE_TOO_LONG,
 	FLASH_RES_WRONG_FLASHNR,
-	FLASH_RES_RX_LEN_OVERFLOW
+	FLASH_RES_RX_LEN_OVERFLOW,
+	FLASH_RES_TIMEOUT
 } flash_res_t;
 
 typedef enum flash_nr_e

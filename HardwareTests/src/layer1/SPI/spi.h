@@ -72,6 +72,7 @@ void SPI_IRQHandler(void);
 //bool spi_add_job( void(*chipSelectHandler)(bool select), uint8_t cmd_to_send, uint8_t bytes_to_read, uint8_t *array_to_store);
 bool spi_add_job( void(*chipSelect)(bool select), uint8_t* txpTr, uint8_t bytes_to_write, uint8_t *array_to_store, uint8_t bytes_to_read );
 
+void DumpSpiJobs(void);
 
 //bool gyro_init(void);
 //void gyro_deinit(void);

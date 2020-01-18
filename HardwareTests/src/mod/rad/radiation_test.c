@@ -93,7 +93,7 @@ static uint8_t rtRtcGprExpectedData[20];
 uint8_t		flashPartIdx = 0;
 FlashSign_t 	expectedFlashSig[RADTST_FLASHSIG_PARTS];
 uint8_t 		*expectedPagePatternsPtr; // points fillpattern bytes[0..3]
-bool 			initFirstMainloop;
+uint16_t		initFirstMainloopTicks;
 
 #define RADTST_MRAM_TARGET_PAGESIZE		MRAM_MAX_WRITE_SIZE						// 1k pages ->
 //#define RADTST_MRAM_TARGET_PAGES		(128 * 1024) / MRAM_MAX_WRITE_SIZE		// 128k available
@@ -140,7 +140,7 @@ void RadTstInit(void) {
 	readEnabled.mram	 = false;			//       "                the firstwrite pattern was finalized.
 
 	RegisterCommand("simErr", RadTstProvokeErrorCmd);
-	initFirstMainloop = true;				// this triggers the write memory in first mailoop only once
+	initFirstMainloopTicks = 25;				// this triggers the write memory after the first x mailoop ticks only once
 }
 
 void RadTstInitRam2Content() {
@@ -222,11 +222,18 @@ void RadTstMain(void) {
 	}
 
 
+	if (initFirstMainloopTicks > 1) {
+		readEnabled.ram2	= false;		// Disable the read check until write is done
+		readEnabled.mram 	= false;
+		readEnabled.i2cmem 	= false;
+		//readEnabled.flash12	= false;
+		initFirstMainloopTicks--;
+	}
 
 	if (((radtstTicks % (RADTST_SEQ_WRITECHECKS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0)
-	    || initFirstMainloop) {
+	    || (initFirstMainloopTicks == 1)) {
 		// We start first mainloop only once with immediately  writing to all memory target areas.
-		initFirstMainloop = false;
+		initFirstMainloopTicks = 0;
 		// increment to next page pattern base pointer
 		expectedPagePatternsPtr++;
 		if (expectedPagePatternsPtr > &expectedPagePatternsSeq[3]) {

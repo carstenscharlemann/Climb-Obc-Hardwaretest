@@ -19,7 +19,7 @@ typedef struct radtst_counter_s {				// only add uint32_t values (its printed as
 	uint32_t i2cmemPageWriteCnt;
 	uint32_t flashSektorEraseCnt;
 	uint32_t flashPageWriteCnt;
-	uint32_t flashRaedPageCnt;
+	uint32_t flashReadPageCnt;
 
 	uint32_t expSignatureChanged;				// This should stay on RADTST_FLASHSIG_PARTS (4) - first time read after reset
 	uint32_t expRam2BytesChanged;

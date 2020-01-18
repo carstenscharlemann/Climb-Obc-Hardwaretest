@@ -6,6 +6,7 @@
  */
 
 // ===== INCLUDES =====
+#include <stdio.h>
 
 #include "spi.h"
 
@@ -19,6 +20,7 @@
 #define SPI_MISO_PIN	17
 
 #define SPI_INTERRUPT_PRIORITY 5		//TODO check with all other prios??
+#define SPI_JOBQUEUE_SIZE	  16
 
 typedef struct spi_job_s
 {
@@ -34,7 +36,7 @@ spi_job_t;
 
 typedef struct spi_jobs_s
 {
-    spi_job_t job[30];
+    spi_job_t job[SPI_JOBQUEUE_SIZE];
     uint8_t current_job;
     uint8_t last_job_added;
     uint8_t jobs_pending;
@@ -718,5 +720,12 @@ bool spi_add_job( void(*chipSelectCallback)(bool select),
 //    GPIO_SetValue(PRESSURE_CS_PORT, 1 << PRESSURE_CS_PIN);
 //}
 
+void DumpSpiJobs(void) {
+	printf("spijobs cur: %d, pen: %d, add: %d\n", spi_jobs.current_job, spi_jobs.jobs_pending, spi_jobs.last_job_added );
+	for (int i= 0; i<SPI_JOBQUEUE_SIZE; i++) {
+		printf("%s[%d]: ", ((i==spi_jobs.current_job)?"c->":((i==spi_jobs.last_job_added)?"+->":"   ")),i);
+		printf("tx: %d/%d rx: %d/%d\n",  spi_jobs.job[i].bytes_sent, spi_jobs.job[i].bytes_to_send, spi_jobs.job[i].bytes_read, spi_jobs.job[i].bytes_to_read );
+	}
 
+}
 
