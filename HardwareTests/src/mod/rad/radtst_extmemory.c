@@ -242,9 +242,9 @@ void RadReadFramFinished(eeprom_page_t *page){
 
 
 
-#define RADTST_FLASH_TARGET_PAGESIZE	FLASH_MAX_WRITE_SIZE				// 512 byte
-#define RADTST_FLASH_TARGET_PAGES		100 // (((FLASH_SIZE / RADTST_FLASH_TARGET_PAGESIZE))	// 64M byte available >
-#define RADTST_FLASH_TARGET_SECTORS		5   // FLASH_SECTOR_NUMBER			// 512 Sectors a 256 kByte
+#define RADTST_FLASH_TARGET_PAGESIZE	FLASH_PAGE_SIZE					// 512 byte
+#define RADTST_FLASH_TARGET_SECTORS		4 						 // FLASH_SECTOR_NUMBER			   		    // 512 Sectors a 256 kByte
+#define RADTST_FLASH_TARGET_PAGES		RADTST_FLASH_TARGET_SECTORS * FLASH_SECTOR_SIZE / FLASH_PAGE_SIZE   // (((FLASH_SIZE / RADTST_FLASH_TARGET_PAGESIZE))	// 64M byte available >
 
 uint8_t pageBufferFlash[RADTST_FLASH_TARGET_PAGESIZE+5];
 uint32_t curPageFlash;
@@ -256,7 +256,7 @@ void RadTstFlashPageWritten(uint8_t result, uint8_t flashNr, uint32_t adr, uint3
 void RadTstFlashPageRead(flash_res_t rxtxResult, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len);
 
 void RadTstWriteFlash(){
-	printf("Flash Erase all sektors started %ld, %ld\n" , radtstCounter.flashSektorEraseCnt, radtstCounter.flashPageWriteCnt);
+	//printf("Flash Erase all sektors started %ld, %ld\n" , radtstCounter.flashSektorEraseCnt, radtstCounter.flashPageWriteCnt);
 	// Write the new Patterns
 	curPageFlash = 0;
 	curSectorFlash = 0;
@@ -267,9 +267,9 @@ void RadTstWriteFlash(){
 };
 
 void RadTstSektorErased(flash_res_t result, uint8_t flashNr, uint32_t adr, uint32_t len){
-	printf("e");
+	//printf("e");
 	if (result != FLASH_RES_SUCCESS) {
-		printf("Error erasing Flash sektor %d", result);
+		printf("Error erasing Flash sector %d\n", result);
 		radtstCounter.flashSektorEraseError++;
 		return;
 	}
@@ -279,8 +279,7 @@ void RadTstSektorErased(flash_res_t result, uint8_t flashNr, uint32_t adr, uint3
 		EraseFlashAsync(curFlash, curSectorFlash * FLASH_SECTOR_SIZE, RadTstSektorErased);
 	} else {
 		// Erase finished goto page write sequence
-		printf("Flash Write all pages started %ld, %ld\n" , radtstCounter.flashSektorEraseCnt, radtstCounter.flashPageWriteCnt);
-
+		//printf("Flash Write all pages started %ld, %ld\n" , radtstCounter.flashSektorEraseCnt, radtstCounter.flashPageWriteCnt);
 		radtstCounter.flashPageWriteCnt++;
 		uint8_t expByte = expectedPagePatternsPtr[curPageFlash % RADTST_EXPECTED_PATTERN_CNT];
 		for (int x =0; x < RADTST_FLASH_TARGET_PAGESIZE; x++) {
@@ -317,7 +316,7 @@ void RadTstCheckFlash(){
 	curSectorFlash = 0;
 	curFlash = FLASH_NR1;
 
-	printf("Flash read test started %ld\n", radtstCounter.flashRaedPageCnt);
+	//printf("Flash read test started %ld\n", radtstCounter.flashRaedPageCnt);
 	radtstCounter.flashRaedPageCnt++;
 	ReadFlashAsync(curFlash,  curPageFlash * RADTST_FLASH_TARGET_PAGESIZE, pageBufferFlash, RADTST_FLASH_TARGET_PAGESIZE, RadTstFlashPageRead);
 };
@@ -325,7 +324,7 @@ void RadTstCheckFlash(){
 
 void RadTstFlashPageRead(flash_res_t result, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len){
 	if (result != FLASH_RES_SUCCESS) {
-		printf("Error reading Flash page %d", result);
+		printf("Err reading Flash %d\n", result);
 		radtstCounter.flashPageReadError++;
 	}
 	uint8_t expByte = expectedPagePatternsPtr[curPageFlash % RADTST_EXPECTED_PATTERN_CNT];
@@ -346,6 +345,6 @@ void RadTstFlashPageRead(flash_res_t result, uint8_t flashNr, uint32_t adr, uint
 		ReadFlashAsync(curFlash,  curPageFlash * RADTST_FLASH_TARGET_PAGESIZE, pageBufferFlash, RADTST_FLASH_TARGET_PAGESIZE, RadTstFlashPageRead);
 	} else {
 		// TODO change to other flash chip.
-		printf("Flash Read all pages ended %ld \n" , radtstCounter.flashRaedPageCnt);
+		//printf("Flash Read all pages ended %ld \n" , radtstCounter.flashRaedPageCnt);
 	}
 }
