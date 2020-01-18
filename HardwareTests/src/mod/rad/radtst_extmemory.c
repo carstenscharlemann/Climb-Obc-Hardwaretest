@@ -32,8 +32,9 @@ void RadReadFramFinished(eeprom_page_t *page);
 void RadTstWriteMram() {
 	// Write the new Patterns
 	curPage = 0;
+	//printf("MRAM Write all pages started %ld\n", radtstCounter.mramPageWriteCnt);
 	radtstCounter.mramPageWriteCnt++;
-	//printf("MRAM Write all pages started\n");
+
 
 	uint8_t expByte = expectedPagePatternsPtr[curPage % RADTST_EXPECTED_PATTERN_CNT];
 	for (int x =0; x < RADTST_MRAM_TARGET_PAGESIZE; x++) {
@@ -62,7 +63,7 @@ void RadWriteMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32
 	} else {
 		// All pages written restart read tests
 		readEnabled.mram = true;
-		printf("MRAM Write all pages ended.\n");
+		printf("MRAM Write all pages ended %ld.\n", radtstCounter.mramPageWriteCnt);
 	}
 }
 
@@ -147,42 +148,48 @@ radtst_sources_t RadI2CGetCurrentSource() {
 }
 
 void RadTstWriteFram(){
-	printf("I2CE Write all pages started %ld\n" , radtstCounter.framPageWriteCnt);
+	//printf("I2CE Write all pages started %ld\n" , radtstCounter.framPageWriteCnt);
 	// Write the new Patterns
 	curDevice = I2C_ADR_FRAM;
 	curMaxPage = RADTST_FRAM_TARGET_PAGES;
 	curPageFram = 0;
-	radtstCounter.framPageWriteCnt++;
+	radtstCounter.i2cmemPageWriteCnt++;
 	uint8_t expByte = expectedPagePatternsPtr[curPageFram % RADTST_EXPECTED_PATTERN_CNT];
 	for (int x =0; x < RADTST_FRAM_TARGET_PAGESIZE; x++) {
 		pageBufferFram[x] = expByte;
 	}
-	WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished);
+	if (! WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished)) {
+		radtstCounter.i2cmemPageWriteError++;
+	}
 }
 
 void RadWriteFramFinished(){
 	curPageFram++;
 	//printf(".");
 	if (curPageFram < curMaxPage) {
-		radtstCounter.framPageWriteCnt++;
+		radtstCounter.i2cmemPageWriteCnt++;
 		uint8_t expByte = expectedPagePatternsPtr[curPageFram % RADTST_EXPECTED_PATTERN_CNT];
 		for (int x =0; x < RADTST_FRAM_TARGET_PAGESIZE; x++) {
 			pageBufferFram[x] = expByte;
 		}
-		WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished);
+		if (!WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished)) {
+			radtstCounter.i2cmemPageWriteError++;
+		}
 	} else {
 		// All pages written for this device. take next one.
 		if (RadI2CMemHasNextDevice()) {
-			radtstCounter.framPageWriteCnt++;
+			radtstCounter.i2cmemPageWriteCnt++;
 			uint8_t expByte = expectedPagePatternsPtr[curPageFram % RADTST_EXPECTED_PATTERN_CNT];
 			for (int x =0; x < RADTST_FRAM_TARGET_PAGESIZE; x++) {
 				pageBufferFram[x] = expByte;
 			}
-			WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished);
+			if (!WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished)) {
+				radtstCounter.i2cmemPageWriteError++;
+			}
 		} else {
 			// no other device needed
-			readEnabled.fram = true;
-			printf("I2C Write all pages ended %ld\n", radtstCounter.framPageWriteCnt);
+			readEnabled.i2cmem = true;
+			printf("I2C Write all pages ended %ld\n", radtstCounter.i2cmemPageWriteCnt);
 		}
 	}
 }
@@ -192,9 +199,8 @@ void RadTstCheckFram(){
 	curDevice = I2C_ADR_FRAM;
 	curMaxPage = RADTST_FRAM_TARGET_PAGES;
 	curPageFram = 0;
-	printf("I2C read test started %ld\n", radtstCounter.framPageReadCnt);
-	//runningBits.radtest_mramread_running = true;
-	radtstCounter.framPageReadCnt++;
+	//printf("I2C read test started %ld\n", radtstCounter.framPageReadCnt);
+	radtstCounter.i2cmemPageReadCnt++;
 	ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);
 }
 
@@ -208,22 +214,26 @@ void RadReadFramFinished(eeprom_page_t *page){
 		}
 	}
 	if (error) {
-		radtstCounter.framPageReadError++;
+		radtstCounter.i2cmemPageReadError++;
 		RadTstLogReadError2(RadI2CGetCurrentSource(), curPageFram,  expByte, &data[0], RADTST_FRAM_TARGET_PAGESIZE );
 	}
 
 	curPageFram++;
 	if (curPageFram < curMaxPage) {
-		radtstCounter.framPageReadCnt++;
+		radtstCounter.i2cmemPageReadCnt++;
 		ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);
 	} else {
 		if (RadI2CMemHasNextDevice()) {
-			radtstCounter.framPageReadCnt++;
+			radtstCounter.i2cmemPageReadCnt++;
 			ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);
 		} else {
 			//no other device left
-			printf("I2C read test finished %ld\n", radtstCounter.framPageReadCnt++);
+			//printf("I2C read test finished %ld\n", radtstCounter.framPageReadCnt++);
 		}
 	}
 
 }
+
+
+void RadTstWriteFlash(){};
+void RadTstCheckFlash(){};

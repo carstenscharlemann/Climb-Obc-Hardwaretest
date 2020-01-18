@@ -126,6 +126,8 @@ void RadTstCheckMram();
 void RadTstWriteMram();
 void RadTstCheckFram();
 void RadTstWriteFram();
+void RadTstWriteFlash();
+void RadTstCheckFlash();
 
 
 void RadTstProvokeErrorCmd(int argc, char *argv[]);
@@ -228,7 +230,7 @@ void RadTstMain(void) {
 
 	if (((radtstTicks % (RADTST_SEQ_WRITECHECKS_SECONDS * 1000 / TIM_MAIN_TICK_MS))  == 0)
 	    || initFirstMainloop) {
-		// We start first mainloop only with immediately  writing to all memory target areas.
+		// We start first mainloop only once with immediately  writing to all memory target areas.
 		initFirstMainloop = false;
 		// increment to next page pattern base pointer
 		expectedPagePatternsPtr++;
@@ -244,10 +246,11 @@ void RadTstMain(void) {
 		readEnabled.mram 	= false;
 		RadTstWriteMram();
 
-		readEnabled.fram 	= false;
+		readEnabled.i2cmem 	= false;
 		RadTstWriteFram();
 
-		//  flash1 2, eeproms 1 - 3 ....
+		readEnabled.flash12	= false;
+		RadTstWriteFlash();
 	}
 
 	// read checks have lower prio if requested in same mainloop tick. Disabled by above write tests inits...
@@ -264,16 +267,20 @@ void RadTstMain(void) {
 			if (readEnabled.mram) {
 				RadTstCheckMram();
 			}
-			if (readEnabled.fram) {
+			if (readEnabled.i2cmem) {
 				RadTstCheckFram();
+			}
+
+			if (readEnabled.flash12) {
+				RadTstCheckFlash();
 			}
 		}
 }
 
 void RadTstLogberryWatchdog() {
-	printf("RunningBits: %d%d%d%d%d%d%d%d", 0,0,0,0,0,0,0,runningBits.radtest_rebase_flashsig);
-	printf(" %d%d%d%d%d%d%d%d", 0,0,0,0,0,0,0,0);
-	printf(" %d%d%d%d%d%d%d%d\n", 0,0,0,0,0,0,0,runningBits.radtest_caclulate_flashsig);
+//	printf("RunningBits: %d%d%d%d%d%d%d%d", 0,0,0,0,0,0,0,runningBits.radtest_rebase_flashsig);
+//	printf(" %d%d%d%d%d%d%d%d", 0,0,0,0,0,0,0,0);
+//	printf(" %d%d%d%d%d%d%d%d\n", 0,0,0,0,0,0,0,runningBits.radtest_caclulate_flashsig);
 	printf("Supervision watchdog feed\n");
 }
 

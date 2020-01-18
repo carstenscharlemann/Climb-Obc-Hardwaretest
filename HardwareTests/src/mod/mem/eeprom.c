@@ -168,9 +168,9 @@ bool WritePageAsync(uint8_t chipAdress, uint16_t pageNr, char *data, void (*fini
 	writePageJob.rx_data = NULL;
 	writePageJob.rx_size = 0;
 	writeFinishedHandler = finishedHandler;
-	i2c_add_job(&writePageJob);
+	//i2c_add_job(&writePageJob);
 
-	return true;
+	return ( i2c_add_job(&writePageJob) == 0 );
 }
 
 
