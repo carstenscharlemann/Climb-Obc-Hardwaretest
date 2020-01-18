@@ -103,27 +103,60 @@ void RadReadMramFinished(mram_res_t result, uint32_t adr, uint8_t *data, uint32_
 }
 
 #define RADTST_FRAM_TARGET_PAGESIZE		EEPROM_PAGE_SIZE					// 32 byte
-#define RADTST_FRAM_TARGET_PAGES		100 //(16 * 1024) / EEPROM_PAGE_SIZE	// 16k available
-#define RADTST_EEPROM_TARGET_PAGES		100 //(8 * 1024) / EEPROM_PAGE_SIZE		// 8k available
+#define RADTST_FRAM_TARGET_PAGES		(((16 * 1024) / EEPROM_PAGE_SIZE))	// 16k available
+#define RADTST_EEPROM_TARGET_PAGES	     ((8 * 1024) / EEPROM_PAGE_SIZE)	// 8k available
 
 uint8_t pageBufferFram[RADTST_FRAM_TARGET_PAGESIZE];
-uint8_t curPageFram;
+uint16_t curPageFram;
 uint8_t curDevice;
-uint8_t curMaxPage;
+uint16_t curMaxPage;
 
+
+bool RadI2CMemHasNextDevice() {
+	bool deviceFound = false;
+	if (curDevice == I2C_ADR_FRAM){
+		curDevice = I2C_ADR_EEPROM1;
+		curMaxPage =  RADTST_EEPROM_TARGET_PAGES;
+		curPageFram = 5;		// keep status and first 4 pages untouched/unchecked
+		deviceFound = true;
+	} else if ( curDevice == I2C_ADR_EEPROM1){
+		curDevice = I2C_ADR_EEPROM2;
+		curMaxPage =  RADTST_EEPROM_TARGET_PAGES;
+		curPageFram = 0;
+		deviceFound = true;
+	} else if ( curDevice == I2C_ADR_EEPROM2){
+		curDevice = I2C_ADR_EEPROM3;
+		curMaxPage =  RADTST_EEPROM_TARGET_PAGES;
+		curPageFram = 0;
+		deviceFound = true;
+	}
+	return deviceFound;
+}
+
+radtst_sources_t RadI2CGetCurrentSource() {
+	if (curDevice == I2C_ADR_FRAM){
+		return RADTST_SRC_FRAM;
+	} else if (curDevice == I2C_ADR_EEPROM1){
+		return RADTST_SRC_EE1;
+	} else if (curDevice == I2C_ADR_EEPROM2){
+		return RADTST_SRC_EE2;
+	} else if (curDevice == I2C_ADR_EEPROM3){
+		return RADTST_SRC_EE3;
+	}
+	return RADTST_SRC_UNKNOWN;
+}
 
 void RadTstWriteFram(){
+	printf("I2CE Write all pages started %ld\n" , radtstCounter.framPageWriteCnt);
 	// Write the new Patterns
+	curDevice = I2C_ADR_FRAM;
+	curMaxPage = RADTST_FRAM_TARGET_PAGES;
 	curPageFram = 0;
 	radtstCounter.framPageWriteCnt++;
-	//printf("FRAM/EE Write all pages started ");
-
 	uint8_t expByte = expectedPagePatternsPtr[curPageFram % RADTST_EXPECTED_PATTERN_CNT];
 	for (int x =0; x < RADTST_FRAM_TARGET_PAGESIZE; x++) {
 		pageBufferFram[x] = expByte;
 	}
-	curDevice = I2C_ADR_FRAM;
-	curMaxPage = RADTST_FRAM_TARGET_PAGES;
 	WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished);
 }
 
@@ -139,10 +172,7 @@ void RadWriteFramFinished(){
 		WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished);
 	} else {
 		// All pages written for this device. take next one.
-		if (curDevice == I2C_ADR_FRAM){
-			curDevice = I2C_ADR_EEPROM2;
-			curMaxPage =  RADTST_EEPROM_TARGET_PAGES;
-			curPageFram = 0;
+		if (RadI2CMemHasNextDevice()) {
 			radtstCounter.framPageWriteCnt++;
 			uint8_t expByte = expectedPagePatternsPtr[curPageFram % RADTST_EXPECTED_PATTERN_CNT];
 			for (int x =0; x < RADTST_FRAM_TARGET_PAGESIZE; x++) {
@@ -150,23 +180,21 @@ void RadWriteFramFinished(){
 			}
 			WritePageAsync( curDevice, curPageFram,  (char *)pageBufferFram, RadWriteFramFinished);
 		} else {
-
 			// no other device needed
 			readEnabled.fram = true;
-			printf("FRAM/EE Write all pages ended.\n");
+			printf("I2C Write all pages ended %ld\n", radtstCounter.framPageWriteCnt);
 		}
 	}
 }
 
-void RadTstCheckFram(){
-	curPageFram = 0;
-	//printf("FRAM/EE read test started\n");
-	//runningBits.radtest_mramread_running = true;
-	radtstCounter.framPageReadCnt++;
 
+void RadTstCheckFram(){
 	curDevice = I2C_ADR_FRAM;
 	curMaxPage = RADTST_FRAM_TARGET_PAGES;
-
+	curPageFram = 0;
+	printf("I2C read test started %ld\n", radtstCounter.framPageReadCnt);
+	//runningBits.radtest_mramread_running = true;
+	radtstCounter.framPageReadCnt++;
 	ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);
 }
 
@@ -181,11 +209,7 @@ void RadReadFramFinished(eeprom_page_t *page){
 	}
 	if (error) {
 		radtstCounter.framPageReadError++;
-		radtst_sources_t src = RADTST_SRC_FRAM;
-		if (curDevice == I2C_ADR_EEPROM2) {
-			src = RADTST_SRC_EE2;
-		}
-		RadTstLogReadError2(src, curPageFram,  expByte, &data[0], RADTST_FRAM_TARGET_PAGESIZE );
+		RadTstLogReadError2(RadI2CGetCurrentSource(), curPageFram,  expByte, &data[0], RADTST_FRAM_TARGET_PAGESIZE );
 	}
 
 	curPageFram++;
@@ -193,19 +217,12 @@ void RadReadFramFinished(eeprom_page_t *page){
 		radtstCounter.framPageReadCnt++;
 		ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);
 	} else {
-		// All pages read for this device. take next one.
-		if (curDevice == I2C_ADR_FRAM){
-			curDevice = I2C_ADR_EEPROM2;
-			curMaxPage =  RADTST_EEPROM_TARGET_PAGES;
-			curPageFram = 0;
+		if (RadI2CMemHasNextDevice()) {
 			radtstCounter.framPageReadCnt++;
-			ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);;
+			ReadPageAsync(curDevice, curPageFram, RadReadFramFinished);
 		} else {
-
 			//no other device left
-
-			//printf("FRAM/EE read test finished\n");
-			//runningBits.radtest_mramread_running = false;
+			printf("I2C read test finished %ld\n", radtstCounter.framPageReadCnt++);
 		}
 	}
 

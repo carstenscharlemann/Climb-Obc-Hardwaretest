@@ -52,7 +52,12 @@ typedef enum radtst_sources_e {
 	RADTST_SRC_RAM2,					// The 'upper' (unused) RAM Bank (0x2007C000 - 0x20084000(?))
 	RADTST_SRC_MRAM,
 	RADTST_SRC_FRAM,
-	RADTST_SRC_EE2
+	RADTST_SRC_EE1,
+	RADTST_SRC_EE2,
+	RADTST_SRC_EE3,
+
+
+	RADTST_SRC_UNKNOWN = 128
 } radtst_sources_t;
 
 // Module Main API
