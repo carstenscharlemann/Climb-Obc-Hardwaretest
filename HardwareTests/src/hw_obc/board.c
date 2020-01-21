@@ -65,7 +65,7 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
 	{0,  30, IOCON_MODE_INACT | IOCON_FUNC0},	/* ...    */
 
-	{3,  25, IOCON_MODE_PULLDOWN | IOCON_FUNC0},	/* Supply Rail    */
+	{3,  25, IOCON_MODE_INACT | IOCON_FUNC0},	/* Supply Rail    */
 
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
 
