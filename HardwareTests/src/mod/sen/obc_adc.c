@@ -1,5 +1,6 @@
 #include <Chip.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "obc_adc.h"
 #include "..\cli\cli.h"
@@ -111,7 +112,11 @@ void AdcInit()
 
 void read_transmit_sensors()
 {
-	Chip_UART_SendBlocking(LPC_UART0,(uint8_t*) "Hello\n",7);
+	char str[] = "RS485 Test 123456789\n";
+	Chip_UART_SendBlocking(LPC_UART0,(uint8_t*) str,strlen(str));
+
+
+
 	//hip_GPIO_SetPinState(LPC_GPIO, 0, 26, true);
 	uint16_t adc_val;
 	Chip_ADC_ReadValue(LPC_ADC, ADC_SUPPLY_CURRENT_CH, &adc_val);
