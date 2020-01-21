@@ -86,6 +86,19 @@ void AdcInit()
 
 	RegisterCommand("adcRead", AdcReadCmd);
 
+	/* Setup UART */
+
+		    Chip_UART_Init(LPC_UART0);
+		    Chip_UART_SetBaud(LPC_UART0, 115200);
+		    Chip_UART_ConfigData(LPC_UART0,(UART_LCR_WLEN8 | UART_LCR_SBS_1BIT));
+		    Chip_UART_TXEnable(LPC_UART0);
+
+		    NVIC_SetPriority(UART0_IRQn, 1);
+		    NVIC_EnableIRQ(UART0_IRQn);
+
+
+		    Chip_UART_SendBlocking(LPC_UART0,(uint8_t*) "Hello\n",7);
+
 }
 
 #define RBF_PIN			21  //ok
@@ -98,6 +111,7 @@ void AdcInit()
 
 void read_transmit_sensors()
 {
+	Chip_UART_SendBlocking(LPC_UART0,(uint8_t*) "Hello\n",7);
 	//hip_GPIO_SetPinState(LPC_GPIO, 0, 26, true);
 	uint16_t adc_val;
 	Chip_ADC_ReadValue(LPC_ADC, ADC_SUPPLY_CURRENT_CH, &adc_val);

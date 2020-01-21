@@ -24,7 +24,7 @@
 #include "../mem/mram.h"
 
 
-#define RADTST_SEQ_SENSOR_REPORT_SECONDS				1000 //4			// Send all sensor values every 5 seconds
+#define RADTST_SEQ_SENSOR_REPORT_SECONDS				4			// Send all sensor values every 5 seconds
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
