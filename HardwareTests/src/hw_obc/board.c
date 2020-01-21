@@ -43,6 +43,15 @@
 #define STACIE_A_IO1_PIN						21
 #define STACIE_A_IO1_PORT						1
 
+/* UART0 */
+#define UART_TX_D_PIN				2 //ok
+#define UART_TX_D_PORT				0 //ok
+#define UART_RX_D_PIN				3 //ok
+#define UART_RX_D_PORT				0 //ok
+#define UART_FUNCTION_NUMBER_D		1 // ok
+#define RS485_TX_RX_PORT			1
+#define RS485_TX_RX_PIN				0
+
 
 void SwitchVccFfgDCmd(int argc, char *argv[]);
 /* Pin muxing configuration */
