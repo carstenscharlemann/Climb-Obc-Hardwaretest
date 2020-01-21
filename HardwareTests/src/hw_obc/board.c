@@ -80,6 +80,10 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0, 10, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SDA */
 	{0, 11, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SCL */
 
+	{UART_TX_D_PORT, UART_TX_D_PIN, IOCON_MODE_INACT | IOCON_FUNC1},	/* RS485 TX */
+	{UART_RX_D_PORT, UART_RX_D_PIN, IOCON_MODE_INACT | IOCON_FUNC1},	/* RS485 RX */
+	{RS485_TX_RX_PORT, RS485_TX_RX_PIN, IOCON_MODE_INACT | IOCON_FUNC0},	/* RS485 selector */
+
 	//{0,  26,  IOCON_MODE_INACT | IOCON_FUNC0},	/* FLOGA_EN  */
 
 };
@@ -145,6 +149,10 @@ void ObcClimbBoardInit() {
 	// Feed watchdog
 	ObcWdtFeedSet(true);
 	ObcWdtFeedSet(false);
+
+	// RS485 RX/TX
+	Chip_GPIO_SetPinDIROutput(LPC_GPIO, RS485_TX_RX_PORT, RS485_TX_RX_PIN);
+	Chip_GPIO_WritePortBit(LPC_GPIO, RS485_TX_RX_PORT, RS485_TX_RX_PIN, true); // Enable TX
 
 
 
