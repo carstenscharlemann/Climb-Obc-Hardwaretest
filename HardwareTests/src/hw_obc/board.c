@@ -12,6 +12,7 @@
 #include "obc_board.h"
 #include "..\mod\cli\cli.h"
 #include "..\layer1\I2C\obc_i2c.h"
+#include "stdio.h"
 
 #define LED_GREEN_WD_GPIO_PORT_NUM               1
 #define LED_GREEN_WD_GPIO_BIT_NUM               18
@@ -64,6 +65,8 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
 	{0,  30, IOCON_MODE_INACT | IOCON_FUNC0},	/* ...    */
 
+	{3,  25, IOCON_MODE_PULLDOWN | IOCON_FUNC0},	/* Supply Rail    */
+
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
 
 	{1, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* CLOCKOUT */
@@ -115,7 +118,7 @@ void ObcClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 30, false);
 
 	// Supply rail status input
-	Chip_GPIO_WriteDirBit(LPC_GPIO, SUPPLY_RAIL_PORT, SUPPLY_RAIL_PIN, false);
+	Chip_GPIO_SetPinDIRInput(LPC_GPIO, SUPPLY_RAIL_PORT, SUPPLY_RAIL_PIN);
 
 	// UART for comand line interface init
 	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
@@ -144,7 +147,34 @@ void ObcClimbBoardInit() {
 	ObcWdtFeedSet(false);
 
 
+
+
+
 	//Chip_GPIO_SetPinState(LPC_GPIO, 0, 26, false);
+}
+
+void obc_reset_source_check(void)
+{
+
+	uint32_t reset_val = Chip_SYSCTL_GetSystemRSTStatus();
+
+	if (reset_val & (1 << 2))
+	{
+		/* Watchdog reset (Watchdog timeout occured)*/
+		printf("OBC-RESET; Reset by internal watchdog\n");
+
+	}
+	if ((reset_val & (1 << 3)) && ((reset_val & (1 << 0)) == 0)) // BODR = 1 && POR = 0
+	{
+		/* Brown out reset  (Supply voltage was below 1.85V)*/
+		printf("OBC-RESET; Reset by brown-out\n");
+	}
+
+	if (reset_val & (1 << 1))
+	{
+		/* External reset (Reset by reset pin) */
+		printf("OBC-RESET; Reset by reset pin\n");
+	}
 }
 
 

@@ -29,7 +29,8 @@ void TmpMain(){
 		tmpReadInProgress = false;
 		int16_t tr = ((int16_t)tmpRxBuffer[0])<<4 | ((int16_t)tmpRxBuffer[0])>>4;
 		float t = ((float)tr) * 0.0625F;
-		printf("TMP100: %02X %02X %.1f C\n", tmpRxBuffer[0], tmpRxBuffer[1], t );
+		//printf("TMP100: %02X %02X %.1f C\n", tmpRxBuffer[0], tmpRxBuffer[1], t );
+		printf("TMP100; %.3f; C\n", t);
 	}
 }
 
