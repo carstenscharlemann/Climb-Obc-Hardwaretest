@@ -243,7 +243,7 @@ void RadReadFramFinished(eeprom_page_t *page){
 
 
 #define RADTST_FLASH_TARGET_PAGESIZE	FLASH_PAGE_SIZE					// 512 byte
-#define RADTST_FLASH_TARGET_SECTORS		8						 // FLASH_SECTOR_NUMBER			   		    // 512 Sectors a 256 kByte
+#define RADTST_FLASH_TARGET_SECTORS		3						 // FLASH_SECTOR_NUMBER			   		    // 512 Sectors a 256 kByte
 #define RADTST_FLASH_TARGET_PAGES		RADTST_FLASH_TARGET_SECTORS * FLASH_SECTOR_SIZE / FLASH_PAGE_SIZE   // (((FLASH_SIZE / RADTST_FLASH_TARGET_PAGESIZE))	// 64M byte available >
 
 uint8_t pageBufferFlash[RADTST_FLASH_TARGET_PAGESIZE+5];

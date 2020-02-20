@@ -26,17 +26,15 @@
 #include "../mem/mram.h"
 
 
-#define RADTST_SEQ_SENSOR_REPORT_SECONDS				1000 //4			// Send all sensor values every 5 seconds
+#define RADTST_SEQ_SENSOR_REPORT_SECONDS				4			// Send all sensor values every 5 seconds
 
 #define RADTST_SEQ_LOGBERRY_WATCHDOG_SECONDS			60			// Send Watchdog message every 60 seconds
 #define RADTST_SEQ_REPORTLINE_SECONDS				   300			// print out a report line with all check and error counters.
 
-#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS				1000 //10
-
+#define RADTST_SEQ_DOSIMETER_REPORT_SECONDS				10
 
 #define RADTST_SEQ_READCHECKS_SECONDS					15			// Initiate all read checks every n seconds
-#define RADTST_SEQ_WRITECHECKS_SECONDS				   600			// Initiate all write checks every n seconds
-
+#define RADTST_SEQ_WRITECHECKS_SECONDS				  2400			// Initiate all write checks every n seconds
 
 #define RADTST_SEQ_RESET_READ_EXPECTATIONS_SECONDS	   600			// Every 10 minutes we make a new baseline for the expected read values
 

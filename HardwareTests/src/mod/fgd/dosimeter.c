@@ -64,6 +64,7 @@ typedef enum flog_status_e {
 	FLOG_STAT_SPIERROR_3,
 	FLOG_STAT_ERROR_CHIPID,
 
+	FLOG_STATE_NOTINITIALIZED,
 	FLOG_STAT_ERROR
 } flog_status_t;
 
@@ -134,7 +135,7 @@ void FgdInit() {
 	// This commands are not allowed during automatic Radiation testing.
 	RegisterCommand("flogVcc", Switch18VCmd);
 	RegisterCommand("flogConfig", ConfigDeviceCmd);
-	status = FLOG_STAT_NOTINITIALIZED;
+	status = FLOG_STAT_IDLE;
 #endif
 }
 
@@ -148,14 +149,20 @@ void ReadAllCmd(int argc, char *argv[]){
 
 #if ! defined RADIATION_TEST
 void ConfigDeviceCmd(int argc, char *argv[]){
-	configStep1Only = false;
+	bool configStep1Only = false;
 	if (argc > 0 && strcmp(argv[0],"FSTO") == 0) {
 		configStep1Only = true;
 	}
 
-	if (!ConfigDevice(configStep1Only)) {
-		printf("Error adding SPI Job 1!\n");
-	}
+	// Trigger the init sequence from here ....
+//	if (!ConfigDevice(configStep1Only)) {
+//		printf("Error adding SPI Job 1!\n");
+//	}
+	// Initialize the State mainloop machine to configure the FGD-02F
+	// TODO make config step1 only !? ....
+	//	status = FLOG_STATE_CHECKINIT;
+	//	delayTicks = FLOGA_WAIT_INIT_SEC * 1000 / TIM_MAIN_TICK_MS;		// give some time for Power supply  to stabilize ....
+
 }
 
 void Switch18VCmd(int argc, char *argv[]){
