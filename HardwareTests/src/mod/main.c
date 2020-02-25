@@ -61,13 +61,13 @@ void MainInit() {
 	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
 	RtcInit();
-	AdcInit();
+	//AdcInit();
 	ThrInit();
-	FgdInit();
-	EepromInit();
-	FlashInit();
-	MramInit();
-	TmpInit();
+	//FgdInit();
+	//EepromInit();
+	//FlashInit();
+	//MramInit();
+	//TmpInit();
 	CliInit();
 #ifdef RADIATION_TEST
 	RadTstInit();
@@ -82,10 +82,10 @@ void MainMain() {
 	// Call module mains with 'fast - requirement'
 	CliMain();
 	ThrMain();
-	FlashMain();
-	MramMain();
-	TmpMain();
-	EepromMain();
+//	FlashMain();
+//	MramMain();
+//	TmpMain();
+//	EepromMain();
 	bool tick = TimMain();
 	if (tick) {
 		ClimbLedToggle(0);
@@ -95,7 +95,7 @@ void MainMain() {
 #ifdef RADIATION_TEST
 		RadTstMain();
 #endif
-		FgdMain();
+	//	FgdMain();
 	}
 
 	// Main modules own functions

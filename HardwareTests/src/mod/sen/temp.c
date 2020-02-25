@@ -47,7 +47,7 @@ void tmp_read_temperature() {
 		tmpReadTempJob.tx_data = tmpTxCommand;
 		tmpReadTempJob.rx_size = 2;
 		tmpReadTempJob.rx_data = tmpRxBuffer;
-		tmpReadTempJob.adress  = I2C_ADR_TEMP;
+//		tmpReadTempJob.adress  = I2C_ADR_TEMP;
 		i2c_add_job(&tmpReadTempJob);
 	}
 }
