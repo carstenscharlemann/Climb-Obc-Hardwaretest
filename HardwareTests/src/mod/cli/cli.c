@@ -10,9 +10,13 @@
 
 #include "..\..\globals.h"
 
-#define CLI_PROMPT BOARD_SHORT  ">"
+#ifdef RADIATION_TEST
+	#define CLI_PROMPT 	""
+#else
+	#define CLI_PROMPT 	BOARD_SHORT ">"
+#endif
 #define CLI_MAX_COMMANDS		100
-#define CLI_MAX_PARAMS			10
+#define CLI_MAX_PARAMS			16
 
 //
 // local module variables
@@ -25,16 +29,16 @@ char cliRxBuffer[CLI_RXBUFFER_SIZE];
 int cliRxPtrIdx = 0;
 
 // The Tx 'ringbuffer' used for TX with interrupt routine
-#define CLI_TXBUFFER_SIZE 128
+#define CLI_TXBUFFER_SIZE 1024
 bool prtTxInProgress = false;
 int prtBufferRead = 0;
 int prtBufferWrite = 0;
 char prtBuffer[CLI_TXBUFFER_SIZE];
 
 // Command Line parsing and registry
-char cmdLine[CLI_RXBUFFER_SIZE];
-cliCommand_t commands[CLI_MAX_COMMANDS];
+char cmdLine[CLI_RXBUFFER_SIZE+10];
 int  cliRegisteredCommands = 0;
+cliCommand_t commands[CLI_MAX_COMMANDS];
 
 
 // module statistics
@@ -42,7 +46,6 @@ int ignoredTxChars = 0;
 int bufferErrors   = 0;
 int linesProcessed = 0;
 int cmdsProcessed = 0;
-
 
 //
 // local module prototypes
@@ -152,9 +155,10 @@ int CliGetChar() {
 void RegisterCommand(char* cmdStr, void (*callback)(int argc, char *argv[])) {
 	// TODO check if duplicate entry !!!
 	if ( cliRegisteredCommands < CLI_MAX_COMMANDS) {
-		 strcpy(commands[cliRegisteredCommands].cmdStr,cmdStr);
-		 commands[cliRegisteredCommands].func = callback;
-		 cliRegisteredCommands++;
+
+		strncpy(commands[cliRegisteredCommands].cmdStr,cmdStr,C_MAX_CMDSTR_LEN);
+		commands[cliRegisteredCommands].func = callback;
+		cliRegisteredCommands++;
 	} else {
 		printf("No Command slot left for registering new command.");
 	}
@@ -207,9 +211,10 @@ void processLine() {
 		pars[i] = NULL;
 	}
 	for (int i = 0, p=0; cmdLine[i] != 0x00; i++) {
-		if (cmdLine[i] == ' ') {
+		if ( (cmdLine[i] == ' ') &&
+			 (p < CLI_MAX_PARAMS) )	{
 			cmdLine[i] = 0x00;
-			pars[p++] = (&cmdLine[i]) + 1;		// TODO: Check if MAX_PARAM is overrun here!!!!
+			pars[p++] = (&cmdLine[i]) + 1;
 			parCnt++;
 		}
 	}
@@ -225,19 +230,24 @@ void processLine() {
 	}
 
 	if (!processed) {
-		printf("Command '%s' not found. Try one of these: ",  &cmdLine[0]);
+#ifndef RADIATION_TEST		// No need to inform sbd. - nobody is watching ;-)
+		printf("Command '%s' not found. Try one of these:\n",  &cmdLine[0]);
 		for (int cmd = 0; cmd < cliRegisteredCommands; cmd++ ) {
 			printf("'%s' ", commands[cmd].cmdStr);
 		}
 		printf("\n");
+#endif
 	}
+
 
 }
 
 void CliShowStatistics(int argc, char *argv[]){
-	printf("CliShowStatistics was called !!! :-)\n");
-
+	printf("CliShowStatistics called with\n");
 	for (int i = 0; i < argc; i++) {
-		printf("Param[%d]: %s\n", i, argv[i]);
+		printf("p-%d %s\n", i, argv[i]);
 	}
+
+	printf("\nlinesProcessed: %d\ncmdsProcessed: %d\nignoredTxChars: %d\nbufferErrors: %d\n",
+	          linesProcessed, cmdsProcessed,  ignoredTxChars, bufferErrors);
 }

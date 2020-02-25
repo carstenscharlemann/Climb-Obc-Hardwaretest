@@ -1,12 +1,17 @@
 /*
  * board_impl.c
  *
+ * This is the Board Abstraction Layer for the OBC EM1 Hardware.
+ *
  *  Created on: 02.11.2019
  *      Author: Robert
  */
 
+#include <string.h>
+
 #include "obc_board.h"
 #include "..\mod\cli\cli.h"
+#include "..\layer1\I2C\obc_i2c.h"
 
 #define LED_GREEN_WD_GPIO_PORT_NUM               1
 #define LED_GREEN_WD_GPIO_BIT_NUM               18
@@ -15,10 +20,30 @@
 
 #define BOOT_SELECT_GPIO_PORT_NUM                0
 #define BOOT_SELECT_GPIO_BIT_NUM                29
+
 #define DEBUG_SELECT_GPIO_PORT_NUM               0
 #define DEBUG_SELECT_GPIO_BIT_NUM                5
 
+#define SP1_VCC_EN_PIN							28
+#define SP1_VCC_EN_PORT							1
+#define SP2_VCC_EN_PIN							7
+#define SP2_VCC_EN_PORT							2
+#define SP3_VCC_EN_PIN							15
+#define SP3_VCC_EN_PORT							1
+#define SP4_VCC_EN_PIN							22
+#define SP4_VCC_EN_PORT							1
 
+#define SUPPLY_RAIL_PIN 						25
+#define SUPPLY_RAIL_PORT 						3
+
+#define RBF_PIN									21
+#define RBF_PORT								0
+
+#define STACIE_A_IO1_PIN						21
+#define STACIE_A_IO1_PORT						1
+
+
+void SwitchVccFfgDCmd(int argc, char *argv[]);
 /* Pin muxing configuration */
 STATIC const PINMUX_GRP_T pinmuxing[] = {
 	// UARTS
@@ -37,50 +62,91 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 
 	// GPIOs
 	{0,  29, IOCON_MODE_INACT | IOCON_FUNC0},	/* BL_SEL1    */
+	{0,  30, IOCON_MODE_INACT | IOCON_FUNC0},	/* ...    */
+
 	{0,   5, IOCON_MODE_INACT | IOCON_FUNC0},	/* Debug_SEL2 */
+
+	{1, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* CLOCKOUT */
+
+	{0, 27, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SDA */
+	{0, 28, IOCON_MODE_INACT | IOCON_FUNC1},	/* I2C0 SCL */
+
+	{0, 19, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SDA */
+	{0, 20, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SCL */
+
+	{0, 10, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SDA */
+	{0, 11, IOCON_MODE_INACT | IOCON_FUNC2},	/* I2C2 SCL */
+
+	//{0,  26,  IOCON_MODE_INACT | IOCON_FUNC0},	/* FLOGA_EN  */
+
 };
+
+
+//
+// Public API Implementation
+//
 
 // This routine is called prior to main(). We setup all pin Functions and Clock settings here.
 void ObcClimbBoardSystemInit() {
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
-	Chip_SetupXtalClocking();
+	Chip_SetupXtalClocking();		// Asumes 12Mhz Quarz -> PLL0 frq=384Mhz -> CPU frq=96MHz
 
 	/* Setup FLASH access to 4 clocks (100MHz clock) */
 	Chip_SYSCTL_SetFLASHAccess(FLASHTIM_100MHZ_CPU);
 }
 
-
 // This routine is called from main() at startup (prior entering main loop).
 void ObcClimbBoardInit() {
-	/* Sets up DEBUG UART */
-	//DEBUGINIT();
-
 	/* Initializes GPIO */
 	Chip_GPIO_Init(LPC_GPIO);
-	Chip_IOCON_Init(LPC_IOCON);
 
+	/* Initialize IO Dirs */
+	// TODO: make a nice loop here (like/or combine as the function selects on all IOS...)
 	/* The LED Pins are configured as GPIO pin (FUNC0) during SystemInit */
 	// Here we define them as OUTPUT
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_BLUE_RGB_GPIO_PORT_NUM, LED_BLUE_RGB_GPIO_BIT_NUM, true);
+	//Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 26, true);
+
 
 	// Die Boot bits sind inputs
 	Chip_GPIO_WriteDirBit(LPC_GPIO, DEBUG_SELECT_GPIO_PORT_NUM, DEBUG_SELECT_GPIO_BIT_NUM, false);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, BOOT_SELECT_GPIO_PORT_NUM, BOOT_SELECT_GPIO_BIT_NUM, false);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 30, false);
+
+	// Supply rail status input
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SUPPLY_RAIL_PORT, SUPPLY_RAIL_PIN, false);
 
 	// UART for comand line interface init
 	CliInitUart(LPC_UART2, UART2_IRQn);		// We use SP - B (same side as JTAG connector) as Debug UART.);
-//	Chip_UART_Init(CLI_UART);
-//	Chip_UART_SetBaud(CLI_UART, 115200);
-//	Chip_UART_ConfigData(CLI_UART, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
-//
-//	/* preemption = 1, sub-priority = 1 */
-//	NVIC_SetPriority(UART2_IRQn, 1);
-//	NVIC_EnableIRQ(UART2_IRQn);
-//
-//	/* Enable UART Transmit */
-//	Chip_UART_TXEnable(CLI_UART);
+
+	// Init I2c bus for Onboard devices (3xEEProm, 1xTemp, 1x FRAM)
+	InitOnboardI2C(ONBOARD_I2C);
+
+	// Sidepanel supply swiches (outputs)
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP1_VCC_EN_PORT, SP1_VCC_EN_PIN, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP2_VCC_EN_PORT, SP2_VCC_EN_PIN, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP3_VCC_EN_PORT, SP3_VCC_EN_PIN, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, SP4_VCC_EN_PORT, SP4_VCC_EN_PIN, true);
+
+	// Enable supply to all sidepanels
+	ObcSpSupplySet(1, true);
+	ObcSpSupplySet(2, true);
+	ObcSpSupplySet(3, true);
+	ObcSpSupplySet(4, true);
+
+	// Stacie A GPIO -> set as output for rad-tests
+	Chip_GPIO_WriteDirBit(LPC_GPIO, STACIE_A_IO1_PORT, STACIE_A_IO1_PIN, true);
+
+
+	// Feed watchdog
+	ObcWdtFeedSet(true);
+	ObcWdtFeedSet(false);
+
+
+	//Chip_GPIO_SetPinState(LPC_GPIO, 0, 26, false);
 }
+
 
 void UART2_IRQHandler(void) {
 	CliUartIRQHandler(LPC_UART2);
@@ -144,5 +210,78 @@ char* ObcGetBootmodeStr() {
 	}
 	return "Unknown";
 }
+
+uint8_t ObcGetI2CAddrForMemoryDeviceName(char* name) {
+    if (strcmp(name,C_MEM_EEPROM1_NAME) == 0) {
+    	return I2C_ADR_EEPROM1;
+    } else if (strcmp(name,C_MEM_EEPROM2_NAME) == 0) {
+    	return I2C_ADR_EEPROM2;
+    } else if (strcmp(name,C_MEM_EEPROM3_NAME) == 0) {
+    	return I2C_ADR_EEPROM3;
+    } else if (strcmp(name,C_MEM_FRAM_NAME) == 0) {
+    	return I2C_ADR_FRAM;
+    }
+
+    return 0;
+}
+
+/* Sets the state of the specified supply panel switch to on or off (logic low on pin turns on output) */
+void ObcSpSupplySet(uint8_t sp, bool On)
+{
+	/* There is only one LED */
+	if (sp == 1) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP1_VCC_EN_PORT, SP1_VCC_EN_PIN, !On);
+	}
+	else if (sp == 2) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP2_VCC_EN_PORT, SP2_VCC_EN_PIN, !On);
+	}
+	else if (sp == 3) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP3_VCC_EN_PORT, SP3_VCC_EN_PIN, !On);
+	}
+	else if (sp == 4) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, SP4_VCC_EN_PORT, SP4_VCC_EN_PIN, !On);
+	}
+}
+
+/* Sets the state of the watchdog feed pin to on/off */
+void ObcWdtFeedSet(bool On)
+{
+	Chip_GPIO_WritePortBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, On);
+}
+
+/* Reads the status of the active supply rail */
+char ObcGetSupplyRail(){
+
+	if (Chip_GPIO_ReadPortBit(LPC_GPIO, SUPPLY_RAIL_PORT, SUPPLY_RAIL_PIN))
+	{
+		return 'A';
+	}
+	else
+	{
+		return 'C';
+	}
+
+}
+/* Returns true if the RBF is inserted */
+bool ObcGetRbfIsInserted(){
+
+	if (Chip_GPIO_ReadPortBit(LPC_GPIO, RBF_PORT, RBF_PIN))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+/* Sets the state of the STACIE A IO-X PIN */
+void ObcLedStacieAIo(uint8_t io, bool On)
+{
+	if (io == 1) {
+		Chip_GPIO_WritePortBit(LPC_GPIO, STACIE_A_IO1_PORT, STACIE_A_IO1_PIN, On);
+	}
+}
+
 
 
