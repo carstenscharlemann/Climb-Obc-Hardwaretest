@@ -28,7 +28,7 @@ void MainMain() {
 	CliMain();
 	ThrMain();
 	i++ ;
-	if (i % 400000 == 0) {
+	if (i % 100000 == 0) {
 		ClimbLedToggle(0);
 		//printf(".");
 	}
