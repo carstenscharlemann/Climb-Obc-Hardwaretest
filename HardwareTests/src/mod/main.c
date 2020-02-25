@@ -58,7 +58,7 @@ bool IEC60335_IsEqualSignature(FlashSign_t *sign1, FlashSign_t *sign2)
 
 // Call all Module Inits
 void MainInit() {
-	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
+	printf("Hello %s HardwareTest with LPCX. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
 	RtcInit();
 	//AdcInit();

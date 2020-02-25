@@ -17,6 +17,8 @@
 STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD3 */
 	{0,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD3 */
+	{0,  2,   IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD3 */
+	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD3 */
 	{0,  4,   IOCON_MODE_INACT | IOCON_FUNC2},	/* CAN-RD2 */
 	{0,  5,   IOCON_MODE_INACT | IOCON_FUNC2},	/* CAN-TD2 */
 	{LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM ,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led 0 */
@@ -77,8 +79,8 @@ void LpcxClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
 
 	// Decide the UART to use for command line interface.
-	CliInitUart(LPC_UART3, UART3_IRQn);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
-
+	InitUart(LPC_UART3, UART3_IRQn, 115200);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
+	SetCliUart(LPC_UART3);
 	// Init I2c bus for Onboard device(s) (1xEEProm)
 	InitOnboardI2C(ONBOARD_I2C);
 
