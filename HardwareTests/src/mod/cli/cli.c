@@ -58,18 +58,21 @@ void CliShowStatistics(int argc, char *argv[]);
 // -------------------------------
 
 // This is called from BoardInit. So the specific Uart to be used is decided there!
-void CliInitUart(LPC_USART_T *pUart, LPC175X_6X_IRQn_Type irqType){
+//void CliInitUart(LPC_USART_T *pUart, LPC175X_6X_IRQn_Type irqType){
+//	cliUart = pUart;
+//	Chip_UART_Init(pUart);
+//	Chip_UART_SetBaud(pUart, 115200);
+//	Chip_UART_ConfigData(pUart, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
+//
+//	/* preemption = 1, sub-priority = 1 */
+//	//	NVIC_SetPriority(UART2_IRQn, 1);
+//	NVIC_EnableIRQ(irqType);
+//	//
+//	/* Enable UART Transmit */
+//	Chip_UART_TXEnable(pUart);
+//}
+void SetCliUart(LPC_USART_T *pUart){
 	cliUart = pUart;
-	Chip_UART_Init(pUart);
-	Chip_UART_SetBaud(pUart, 115200);
-	Chip_UART_ConfigData(pUart, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
-
-	/* preemption = 1, sub-priority = 1 */
-	//	NVIC_SetPriority(UART2_IRQn, 1);
-	NVIC_EnableIRQ(irqType);
-	//
-	/* Enable UART Transmit */
-	Chip_UART_TXEnable(pUart);
 }
 
 // The UART Interrupt handler. We only use 'TX empty' interrupt to get out the next byte from our tx 'ringbuffer'

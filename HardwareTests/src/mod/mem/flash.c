@@ -57,6 +57,7 @@ typedef struct flash_worker_s
 	int     CheckTxCounter;
 	int		DelayCounter;
 	int     DelayValue;
+	uint32_t   BusyTmoTicks;
 	void (*RxCallback)(uint8_t rxtxResult, uint8_t flashNr, uint32_t adr, uint8_t *data, uint32_t len);
 	void (*TxEraseCallback)(uint8_t rxtxResult, uint8_t flashNr, uint32_t adr, uint32_t len);
 } flash_worker_t;
@@ -71,6 +72,8 @@ typedef struct flash_worker_s
 #define FLASH1_CS2_PIN 2
 #define FLASH1_CS2_PORT 2
 
+#define FLASH_RX_TIMEOUTTICKS_PERBYTE		1000
+#define FLASH_TX_TIMEOUTTICKS				1000
 
 
 // prototypes
@@ -85,6 +88,8 @@ void WriteFlashFinished(uint8_t rxtxResult, flash_nr_t flashNr, uint32_t adr, ui
 
 void EraseFlashCmd(int argc, char *argv[]);
 void EraseFlashFinished(flash_res_t rxtxResult, flash_nr_t flashNr, uint32_t adr, uint32_t len);
+
+void DumpSspJobCmd(int argc, char *argv[]);
 
 // local variables
 volatile bool flash1_busy;
@@ -183,6 +188,7 @@ void FlashInit() {
 	RegisterCommand("fRead", ReadFlashCmd);
 	RegisterCommand("fWrite", WriteFlashCmd);
 	RegisterCommand("fErase", EraseFlashCmd);
+	RegisterCommand("dumpSsp",DumpSspJobCmd);
 }
 
 void FlashMain(void) {
@@ -222,6 +228,14 @@ bool flash_init(ssp_busnr_t busNr, bool (*ChipSelect)(bool select) )
 		return false;
 	}
 	return true;
+}
+
+void DumpSspJobCmd(int argc, char *argv[]) {
+	int bus = 0;
+	if (argc > 0) {
+		bus = atoi(argv[0]);
+	}
+	DumpSspJobs(bus);
 }
 
 void ReadFlashCmd(int argc, char *argv[]) {
@@ -336,7 +350,7 @@ void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_
 //	if (! *initializedFlag)
 //	{
 		// Flash was not initialized correctly		// TODO this also checks for all other busy states now  -> ret val ok????
-		finishedHandler(FLASH_RES_BUSY, flashNr, adr, 0, len);
+		finishedHandler(FLASH_RES_BUSY, flashNr, worker->FlashStatus, 0, len);
 		return;
 	}
 
@@ -395,8 +409,10 @@ void ReadFlashAsync (flash_nr_t flashNr, uint32_t adr, uint8_t *rx_data, uint32_
 	worker->adr = adr;
 	worker->busNr = busNr;
 	worker->RxCallback = finishedHandler;
+	worker->TxEraseCallback = NULL;
 
 	// next step(s) is/are done in mainloop
+	worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS;
 	worker->FlashStatus = FLASH_STAT_RX_CHECKWIP;
 	return;
 }
@@ -423,7 +439,7 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 
 	if (worker->FlashStatus != FLASH_STAT_IDLE) {
 		// TODO this also checks for all other busy states now  -> make own values for 'unitialized', 'Error', .... !?
-		finishedHandler(FLASH_RES_BUSY, flashNr, adr, len);
+		finishedHandler(FLASH_RES_BUSY, flashNr, worker->FlashStatus, len);
 		return;
 	}
 
@@ -481,6 +497,7 @@ void WriteFlashAsync(flash_nr_t flashNr, uint32_t adr, uint8_t *data, uint32_t l
 	worker->adr = adr;
 	worker->busNr = busNr;
 	worker->TxEraseCallback = finishedHandler;
+	worker->RxCallback = NULL;
 	worker->FlashStatus = FLASH_STAT_TX_CHECKWIP;
 	worker->DelayValue = 1;			// Write in Progress check will be executed each mainloop for 25 tries.
 }
@@ -507,7 +524,7 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 
 	if (worker->FlashStatus != FLASH_STAT_IDLE) {
 		// TODO this also checks for all other busy states now  -> make own values for 'unitialized', 'Error', .... !?
-		finishedHandler(FLASH_RES_BUSY, flashNr, adr, 0);
+		finishedHandler(FLASH_RES_BUSY, flashNr, worker->FlashStatus, 0);
 		return;
 	}
 
@@ -553,6 +570,7 @@ void EraseFlashAsync(flash_nr_t flashNr, uint32_t adr, void (*finishedHandler)(f
 	worker->len = 0;
 	worker->DelayValue = 20000;		// Write in Progress check will be executed every 20000th mainloop for 25 tries.
 	worker->TxEraseCallback = finishedHandler;
+	worker->RxCallback = NULL;
 	worker->FlashStatus = FLASH_STAT_ERASE_CHECKWIP;
 }
 
@@ -572,7 +590,24 @@ void FlashMainFor(flash_nr_t flashNr) {
 
 	if (*busyFlag) {
 		// TODO: make TMO check(s) here !!!
+		if (worker->BusyTmoTicks > 0) {
+			worker->BusyTmoTicks--;
+			if (worker->BusyTmoTicks == 0){
+				// Timeout !!! What to do next !?
+				*busyFlag = false;							//TODO: is this wise here to fall back to idle !?=
+				flash_res_t failedStatus = worker->FlashStatus;
+				worker->FlashStatus = FLASH_STAT_ERROR;
+				if (worker->RxCallback != NULL) {
+					worker->RxCallback(FLASH_RES_TIMEOUT, flashNr, failedStatus, NULL, 0);
+				}
+				if (worker->TxEraseCallback != NULL) {
+					worker->TxEraseCallback(FLASH_RES_TIMEOUT, flashNr, failedStatus, 0);
+				}
+				FlashInit();			// Maybe also not good -> also resets mram !?
+			}
+		}
 	} else {
+		worker->BusyTmoTicks = 0;			// Next time set it again, if needed.
 		// pending job was finished
 		switch (worker->FlashStatus) {
 		case FLASH_STAT_RX_CHECKWIP: {
@@ -598,6 +633,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->RxCallback(FLASH_RES_JOB_ADD_ERROR, flashNr,worker->adr, worker->data, worker->len);
 				break;
 			}
+			worker->BusyTmoTicks = worker->len * FLASH_RX_TIMEOUTTICKS_PERBYTE;
 			worker->FlashStatus = FLASH_STAT_RX_INPROGRESS;
 			break;
 
@@ -629,6 +665,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
 				break;
 			}
+			worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS;
 			worker->FlashStatus = FLASH_STAT_TX_SETWRITEBIT;
 			break;
 		}
@@ -650,6 +687,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
 				break;
 			}
+			worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS * (5 + worker->len) ;
 			worker->FlashStatus = FLASH_STAT_TX_ERASE_TRANSFER_INPROGRESS;
 			break;
 		}
@@ -666,6 +704,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
 				break;
 			}
+			worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS * 100;
 			worker->FlashStatus = FLASH_STAT_WRITE_ERASE_INPROGRESS;
 			break;
 		}
@@ -701,6 +740,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 						worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
 						break;
 					}
+					worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS;
 					worker->FlashStatus = FLASH_STAT_CLEAR_ERRORS;
 					worker->TxEraseCallback(FLASH_RES_TX_ERROR,flashNr, worker->adr, worker->len);
 				} else {
@@ -732,6 +772,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 						worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, worker->len);
 						break;
 					}
+					worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS;
 					worker->FlashStatus = FLASH_STAT_WRITE_ERASE_INPROGRESS;
 				}
 			}
@@ -764,6 +805,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, 0);
 				break;
 			}
+			worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS;
 			worker->FlashStatus = FLASH_STAT_ERASE_SETWRITEBIT;
 			break;
 		}
@@ -785,6 +827,7 @@ void FlashMainFor(flash_nr_t flashNr) {
 				worker->TxEraseCallback(FLASH_RES_JOB_ADD_ERROR,flashNr, worker->adr, 0);
 				break;
 			}
+			worker->BusyTmoTicks = FLASH_TX_TIMEOUTTICKS;
 			worker->FlashStatus = FLASH_STAT_TX_ERASE_TRANSFER_INPROGRESS;		// From here on its same as write process (wait for WIP to be cleared)
 			break;
 		}

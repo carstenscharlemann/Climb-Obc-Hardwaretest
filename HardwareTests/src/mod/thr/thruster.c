@@ -9,7 +9,8 @@
 // #include <string.h>			// use if needed (e.g. for strcpy, str... )
 
 // #include "..\..\globals.h"   // use if needed
-#include "thruster.h"			// always include your own public prototypes and definitions.
+#include "thruster.h"
+#include "..\..\layer1\UART\uart.h"
 // ... include dependencies on other modules if needed ....
 
 // module defines
@@ -27,7 +28,8 @@ int myStateExample;
 void ThrInit() {
 	// initialize the thruster UART ....
 	// maybe register commands with the cli !?
-
+	InitUart(LPC_UART0, UART0_IRQn, 9600);
+	Chip_UART_SendBlocking(LPC_UART0, "Hello Thrust", 12);
 	// example code
 	myStateExample = 0;
 }

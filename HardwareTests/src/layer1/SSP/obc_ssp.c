@@ -88,9 +88,9 @@ typedef struct ssp_busstatus_s
 
 typedef struct ssp_jobs_s
 {
-	ssp_job_t job[SPI_MAX_JOBS];
+	ssp_job_t job[SSP_MAX_JOBS];
 	uint8_t current_job;
-	uint8_t last_job_added;
+	uint8_t last_job_added;				// TODO: remove. not used any more
 	uint8_t jobs_pending;
 	ssp_busstatus_t bus_status;
 } volatile ssp_jobs_t;
@@ -324,7 +324,9 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 			}
 
 			/* Unselect device */
-			cur_job->chipSelectHandler(false);
+			if (cur_job->chipSelectHandler != 0) {
+				cur_job->chipSelectHandler(false);
+			}
 			cur_job->status = SSP_JOB_STATE_DONE;
 		}
 		else
@@ -356,7 +358,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 		jobs->current_job++;
 		jobs->jobs_pending--;
 
-		if (jobs->current_job == SPI_MAX_JOBS)
+		if (jobs->current_job == SSP_MAX_JOBS)
 		{
 			jobs->current_job = 0;
 		}
@@ -381,7 +383,7 @@ void SSP01_IRQHandler(LPC_SSP_T *device, ssp_busnr_t busNr) {
 				jobs->current_job++;
 				jobs->jobs_pending--;
 
-				if (jobs->current_job == SPI_MAX_JOBS)
+				if (jobs->current_job == SSP_MAX_JOBS)
 				{
 					jobs->current_job = 0;
 				}
@@ -469,7 +471,7 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 		return SSP_JOB_NOT_INITIALIZED;
 	}
 
-	if (jobs->jobs_pending >= SPI_MAX_JOBS)
+	if (jobs->jobs_pending >= SSP_MAX_JOBS)
 	{
 		/* Maximum amount of jobs stored, job can't be added! */
 		/* This is possibly caused by a locked interrupt -> remove all jobs and re-init SSP */
@@ -484,7 +486,7 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 
 	// taskENTER_CRITICAL();		TODO: need for real multithreading.!?!?
 	{
-		position = (jobs->current_job + jobs->jobs_pending) % SPI_MAX_JOBS;
+		position = (jobs->current_job + jobs->jobs_pending) % SSP_MAX_JOBS;
 
 		jobs->job[position].array_to_send = array_to_send;
 		jobs->job[position].bytes_to_send = bytes_to_send;
@@ -524,7 +526,7 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 				jobs->current_job++;
 				jobs->jobs_pending--;
 
-				if (jobs->current_job == SPI_MAX_JOBS)
+				if (jobs->current_job == SSP_MAX_JOBS)
 				{
 					jobs->current_job = 0;
 				}
@@ -596,5 +598,15 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 
 	// taskEXIT_CRITICAL();	TODO needed for real multithreading
 	return SSP_JOB_ADDED; /* Job added successfully */
+}
+
+
+void DumpSspJobs(uint8_t bus) {
+	bus = bus & 0x01;
+	printf("sspjobs[%d] cur: %d, pen: %d, stat\n", bus, ssp_jobs[bus].current_job, ssp_jobs[bus].jobs_pending, ssp_jobs[bus].bus_status );
+	for (int i= 0; i<SSP_MAX_JOBS; i++) {
+		printf("%s[%d]: ", ((i==ssp_jobs[bus].current_job)?"c->":"   "), i);
+		printf("st:%d dir:%d tx:%d/%d rx:%d/%d\n", ssp_jobs[bus].job[i].status, ssp_jobs[bus].job[i].dir, ssp_jobs[bus].job[i].bytes_sent,ssp_jobs[bus].job[i].bytes_to_send, ssp_jobs[bus].job[i].bytes_read, ssp_jobs[bus].job[i].bytes_to_read );
+	}
 }
 

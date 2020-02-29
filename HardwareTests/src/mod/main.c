@@ -58,16 +58,16 @@ bool IEC60335_IsEqualSignature(FlashSign_t *sign1, FlashSign_t *sign2)
 
 // Call all Module Inits
 void MainInit() {
-	printf("Hello %s HardwareTest. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
+	printf("Hello %s HardwareTest with LPCX. Bootmode: %s [%d]\n", BOARD_SHORT, ClimbGetBootmodeStr(), ClimbGetBootmode());
 	TimInit();
 	RtcInit();
-	AdcInit();
+	//AdcInit();
 	ThrInit();
-	FgdInit();
-	EepromInit();
-	FlashInit();
-	MramInit();
-	TmpInit();
+	//FgdInit();
+	//EepromInit();
+	//FlashInit();
+	//MramInit();
+	//TmpInit();
 	CliInit();
 #ifdef RADIATION_TEST
 	RadTstInit();
@@ -82,19 +82,20 @@ void MainMain() {
 	// Call module mains with 'fast - requirement'
 	CliMain();
 	ThrMain();
-	FlashMain();
-	MramMain();
-	TmpMain();
+//	FlashMain();
+//	MramMain();
+//	TmpMain();
+//	EepromMain();
 	bool tick = TimMain();
 	if (tick) {
 		ClimbLedToggle(0);
 		// Call module mains with 'tick - requirement'
-		EepromMain();
+		//EepromMain();
 		RtcMain();			// At this moment we only track day changes here so Tick time is enough.
 #ifdef RADIATION_TEST
 		RadTstMain();
 #endif
-		FgdMain();
+	//	FgdMain();
 	}
 
 	// Main modules own functions

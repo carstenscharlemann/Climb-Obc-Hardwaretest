@@ -12,7 +12,7 @@
 #include <chip.h>
 
 /* Max SPI buffer length */
-#define SPI_MAX_JOBS 16
+#define SSP_MAX_JOBS (16)
 
 typedef enum ssp_busnr_e
 {
@@ -38,5 +38,7 @@ ssp_jobdef_ret_t ssp_add_job2( ssp_busnr_t busNr,
 							   uint16_t bytes_to_read,
 							   uint8_t **job_status,
 							   bool(*chipSelectHandler)(bool select));
+
+void DumpSspJobs(uint8_t bus);
 
 #endif /* STC_SPI_H_ */
