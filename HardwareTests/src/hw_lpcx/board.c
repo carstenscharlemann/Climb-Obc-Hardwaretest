@@ -79,17 +79,17 @@ void LpcxClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
 
 	// Decide the UART to use for command line interface.
-	InitUart(LPC_UART3, UART3_IRQn, 115200);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
+	InitUart(LPC_UART3, 115200, CliUartIRQHandler);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
 	SetCliUart(LPC_UART3);
 	// Init I2c bus for Onboard device(s) (1xEEProm)
 	InitOnboardI2C(ONBOARD_I2C);
 
 }
 
-// This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.
-void UART3_IRQHandler(void) {
-	CliUartIRQHandler(LPC_UART3);
-}
+//// This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.
+//void UART3_IRQHandler(void) {
+//	CliUartIRQHandler(LPC_UART3);
+//}
 
 void LpcxLedToggle(uint8_t ledNr) {
 	if (ledNr == 0) {

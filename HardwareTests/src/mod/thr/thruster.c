@@ -2,7 +2,6 @@
  * thruster.c
  *
  *  Created on: 11.11.2019
- *      Author:
  */
 
 #include <stdio.h>			// use if needed (e.g. for printf, ...)
@@ -14,7 +13,7 @@
 // ... include dependencies on other modules if needed ....
 
 // module defines
-#define THR_HELLO_STR	"Hi there. "
+#define THR_HELLO_STR	"Hi there.\n"
 
 // module prototypes
 void exampleFeedback(int par1);
@@ -28,8 +27,8 @@ int myStateExample;
 void ThrInit() {
 	// initialize the thruster UART ....
 	// maybe register commands with the cli !?
-	InitUart(LPC_UART0, UART0_IRQn, 9600);
-	Chip_UART_SendBlocking(LPC_UART0, "Hello Thrust", 12);
+	InitUart(LPC_UART0, 9600, 0);
+	Chip_UART_Send(LPC_UART0, "Hello Thruster ABCDEFG\n", 23);
 	// example code
 	myStateExample = 0;
 }
@@ -42,10 +41,10 @@ void ThrMain() {
 	// Example code
 	myStateExample++;
 
-	if (myStateExample % 100000 == 0) {
+	if (myStateExample % 800000 == 0) {
 		// Note printf should not take too much time (once CLI module is really ready), but keep the texts small!
-//		printf(THR_HELLO_STR);
-//		printf("ThrMain() called %d times.\n", myStateExample);
+		printf("Hello this goes to CLI UART!\n");
+		Chip_UART_Send(LPC_UART0, "Hello Thruster ABCDEFG\n", 23);
 	}
 
 }
