@@ -9,8 +9,10 @@ void InitUart(LPC_USART_T *pUart, int baud, void(*irqHandler)(LPC_USART_T *pUART
 	Chip_UART_Init(pUart);
 	Chip_UART_SetBaud(pUart, baud);				// Sets the next available 'un-fractioned' baud rate.
 	Chip_UART_ConfigData(pUart, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);	//	8N1
-	Chip_UART_SetupFIFOS(pUart, UART_FCR_FIFO_EN | UART_FCR_TRG_LEV1 ); 	//	RX IRQ all 4 bytes
+	//Chip_UART_SetupFIFOS(pUart, 0 ); 	//	No FIFOs - no effect on TX FIFO  !?
+	//Chip_UART_SetupFIFOS(pUart, UART_FCR_FIFO_EN | UART_FCR_TRG_LEV1 | UART_FCR_TX_RS ); 	//	RX IRQ all 4 bytes
 
+	uint8_t dummy = pUart->IIR;		// clear pending TX IRQs
 	if (irqHandler != 0) {
 		if (pUart == LPC_UART0) {
 			irqHandler0 = irqHandler;
@@ -26,7 +28,6 @@ void InitUart(LPC_USART_T *pUart, int baud, void(*irqHandler)(LPC_USART_T *pUART
 			NVIC_EnableIRQ(UART3_IRQn);
 		}
 	}
-
 	/* Enable UART Transmit */
 	Chip_UART_TXEnable(pUart);
 }

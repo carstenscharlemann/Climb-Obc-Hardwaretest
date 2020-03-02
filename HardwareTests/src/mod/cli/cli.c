@@ -24,7 +24,7 @@
 LPC_USART_T *cliUart;						// pointer to UART used for CLI
 
 // The Rx line buffer - used with polling from mainloop
-#define CLI_RXBUFFER_SIZE 64
+#define CLI_RXBUFFER_SIZE 128
 char cliRxBuffer[CLI_RXBUFFER_SIZE];
 int cliRxPtrIdx = 0;
 
