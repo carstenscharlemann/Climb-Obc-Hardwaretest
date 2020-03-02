@@ -137,6 +137,7 @@ bool RadI2CMemHasNextDevice() {
 //		deviceFound = true;
 //	}
 //	return deviceFound;
+	return 0;
 }
 
 radtst_sources_t RadI2CGetCurrentSource() {

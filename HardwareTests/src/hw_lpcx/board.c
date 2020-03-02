@@ -10,6 +10,7 @@
 #include "lpcx_board.h"
 #include "..\mod\cli\cli.h"
 #include "..\layer1\I2C\obc_i2c.h"
+#include "..\layer1\UART\uart.h"
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22
@@ -91,11 +92,6 @@ void LpcxClimbBoardInit() {
 	InitOnboardI2C(ONBOARD_I2C);
 
 }
-
-//// This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.
-//void UART3_IRQHandler(void) {
-//	CliUartIRQHandler(LPC_UART3);
-//}
 
 void LpcxLedToggle(uint8_t ledNr) {
 	if (ledNr == 0) {

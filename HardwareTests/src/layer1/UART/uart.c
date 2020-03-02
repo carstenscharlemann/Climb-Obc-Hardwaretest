@@ -12,7 +12,6 @@ void InitUart(LPC_USART_T *pUart, int baud, void(*irqHandler)(LPC_USART_T *pUART
 	//Chip_UART_SetupFIFOS(pUart, 0 ); 	//	No FIFOs - no effect on TX FIFO  !?
 	//Chip_UART_SetupFIFOS(pUart, UART_FCR_FIFO_EN | UART_FCR_TRG_LEV1 | UART_FCR_TX_RS ); 	//	RX IRQ all 4 bytes
 
-	uint8_t dummy = pUart->IIR;		// clear pending TX IRQs
 	if (irqHandler != 0) {
 		if (pUart == LPC_UART0) {
 			irqHandler0 = irqHandler;

@@ -106,11 +106,11 @@ void ThrUartIrq(LPC_USART_T *pUart){
 		// There is an Irq pending
 		if (( irqid & (UART_IIR_INTID_RLS) ) == 0 ) {
 			// This was a line status-error IRQ
-			uint32_t ls = pUart->LSR;		// clear this pending IRQ
+//			uint32_t ls = pUart->LSR;		// clear this pending IRQ
 
 		} else if ((irqid & (UART_IIR_INTID_RDA || UART_IIR_INTID_CTI )) != 0) {
 			// This was a "Rx Fifo treshhold reached" or a "char timeout" IRQ -> Bytes are available in RX FIFO to be processsed
-			uint8_t rbr = pUart->RBR;
+//			uint8_t rbr = pUart->RBR;
 
 			// not used (yet?) in thruster module
 		} else if ((irqid & (UART_IIR_INTID_THRE)) != 0) {
