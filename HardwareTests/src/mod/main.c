@@ -20,6 +20,7 @@
 #include "sen/obc_adc.h"
 #include "fgd/dosimeter.h"
 #include "sen/temp.h"
+#include "com/obc_ttc.h"
 
 #ifdef RADIATION_TEST
 #include "rad/radiation_test.h"
@@ -63,6 +64,7 @@ void MainInit() {
 	RtcInit();
 	//AdcInit();
 	ThrInit();
+	TtcInit();
 	//FgdInit();
 	//EepromInit();
 	//FlashInit();
@@ -82,6 +84,7 @@ void MainMain() {
 	// Call module mains with 'fast - requirement'
 	CliMain();
 	ThrMain();
+	TtcMain();
 //	FlashMain();
 //	MramMain();
 //	TmpMain();
