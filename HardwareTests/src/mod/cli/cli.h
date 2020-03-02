@@ -13,7 +13,7 @@
 
 
 // Module API Prototypes
-void CliInitUart(LPC_USART_T *pUART, LPC175X_6X_IRQn_Type irqType);		//  Choose the UART to be used for CLI
+//void CliInitUart(LPC_USART_T *pUART, LPC175X_6X_IRQn_Type irqType);		//  Choose the UART to be used for CLI
 void CliUartIRQHandler(LPC_USART_T *pUART);								//  Wrap the right Interrupt to this method (done in board.c)!
 void CliInit();										// Module Init called once prior mainloop
 void CliMain();										// Module routine participating each mainloop.

@@ -149,10 +149,10 @@ void ReadAllCmd(int argc, char *argv[]){
 
 #if ! defined RADIATION_TEST
 void ConfigDeviceCmd(int argc, char *argv[]){
-	bool configStep1Only = false;
-	if (argc > 0 && strcmp(argv[0],"FSTO") == 0) {
-		configStep1Only = true;
-	}
+//	bool configStep1Only = false;
+//	if (argc > 0 && strcmp(argv[0],"FSTO") == 0) {
+//		configStep1Only = true;
+//	}
 
 	// Trigger the init sequence from here ....
 //	if (!ConfigDevice(configStep1Only)) {

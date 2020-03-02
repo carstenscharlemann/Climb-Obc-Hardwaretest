@@ -10,6 +10,7 @@
 #include "lpcx_board.h"
 #include "..\mod\cli\cli.h"
 #include "..\layer1\I2C\obc_i2c.h"
+#include "..\layer1\UART\uart.h"
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22
@@ -21,7 +22,7 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD0 */
 	{0,  4,   IOCON_MODE_INACT | IOCON_FUNC2},	/* CAN-RD2 */
 	{0,  5,   IOCON_MODE_INACT | IOCON_FUNC2},	/* CAN-TD2 */
-	{LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM ,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led 0 */
+	{LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM ,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led red */
 	{0,  23,  IOCON_MODE_INACT | IOCON_FUNC1},	/* ADC 0 */
 	{0,  26,  IOCON_MODE_INACT | IOCON_FUNC2},	/* DAC */
 
@@ -51,6 +52,9 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 	{0, 20, IOCON_MODE_INACT | IOCON_FUNC3},	/* I2C1 SCL */      // and is also on PAD2/PAD8
 
 
+	{3,  25,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led green */
+	{3,  26,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led blue */
+
 };
 
 //
@@ -59,6 +63,7 @@ STATIC const PINMUX_GRP_T pinmuxing[] = {
 
 // This routine is called prior to main(). We setup all pin Functions and Clock settings here.
 void LpcxClimbBoardSystemInit() {
+
 	Chip_IOCON_SetPinMuxing(LPC_IOCON, pinmuxing, sizeof(pinmuxing) / sizeof(PINMUX_GRP_T));
 	Chip_SetupXtalClocking();		// Asumes 12Mhz Quarz -> PLL0 frq=384Mhz -> CPU frq=96MHz
 
@@ -77,18 +82,15 @@ void LpcxClimbBoardInit() {
 	/* Pin PIO0_22 is configured as GPIO pin during SystemInit */
 	/* Set the PIO_22 as output */
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, 3, 25, true);
+	Chip_GPIO_WriteDirBit(LPC_GPIO, 3, 26, true);
 
 	// Decide the UART to use for command line interface.
-	InitUart(LPC_UART3, UART3_IRQn, 115200);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
+	InitUart(LPC_UART3, 115200, CliUartIRQHandler);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
 	SetCliUart(LPC_UART3);
 	// Init I2c bus for Onboard device(s) (1xEEProm)
 	InitOnboardI2C(ONBOARD_I2C);
 
-}
-
-// This is the Wrapper function for connecting the chosen UART to the CLI IRQ Handler implementation.
-void UART3_IRQHandler(void) {
-	CliUartIRQHandler(LPC_UART3);
 }
 
 void LpcxLedToggle(uint8_t ledNr) {

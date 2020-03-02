@@ -9,6 +9,8 @@
 #define LAYER1_UART_UART_H_
 
 #include <chip.h>
-void InitUart(LPC_USART_T *pUart, LPC175X_6X_IRQn_Type irqType, int baud);
+
+
+void InitUart(LPC_USART_T *pUart, int baud, void(*irqHandler)(LPC_USART_T *pUART));
 
 #endif /* LAYER1_UART_UART_H_ */
