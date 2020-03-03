@@ -6,9 +6,17 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include "cli.h"
 
 #include "..\..\globals.h"
+
+// Command Interface
+#define C_MAX_CMDSTR_LEN	16
+typedef struct cliCommand {
+	char	cmdStr[C_MAX_CMDSTR_LEN];
+	void (*func)(int argc, char *argv[]);
+} cliCommand_t;
 
 #ifdef RADIATION_TEST
 	#define CLI_PROMPT 	""
@@ -53,24 +61,27 @@ int cmdsProcessed = 0;
 void processLine();
 void CliShowStatistics(int argc, char *argv[]);
 
+//void CallApiVoid(int idx, ...) {
+//	va_list valist;
+//	if (idx == 1) {
+//		va_start(valist, 2);
+////		char* cmdStr;
+////		void(*callback)(int argc, char *argv[]);
+////
+////		va_start(valist, 2);
+////		cmdStr = va_arg(valist, char*);
+////		callback = va_arg(valist, void(*)(int argc, char *argv[]));
+////        va_end(valist);
+//
+//		RegisterCommand(va_arg(valist, char*),va_arg(valist,void(*)(int argc, char *argv[])));
+//
+//	}
+//	va_end(valist);
+//}
+
 //
 // Module function implementations
 // -------------------------------
-
-// This is called from BoardInit. So the specific Uart to be used is decided there!
-//void CliInitUart(LPC_USART_T *pUart, LPC175X_6X_IRQn_Type irqType){
-//	cliUart = pUart;
-//	Chip_UART_Init(pUart);
-//	Chip_UART_SetBaud(pUart, 115200);
-//	Chip_UART_ConfigData(pUart, UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS);
-//
-//	/* preemption = 1, sub-priority = 1 */
-//	//	NVIC_SetPriority(UART2_IRQn, 1);
-//	NVIC_EnableIRQ(irqType);
-//	//
-//	/* Enable UART Transmit */
-//	Chip_UART_TXEnable(pUart);
-//}
 void SetCliUart(LPC_USART_T *pUart){
 	cliUart = pUart;
 }

@@ -34,6 +34,8 @@ void TtcInit() {
 	InitUart(TTC_A_UART, 9600, TtcUartIrq);
 	InitUart(TTC_C_UART, 9600, TtcUartIrq);
 
+	Chip_UART_IntEnable(TTC_A_UART, UART_IER_RLSINT | UART_IER_RBRINT);
+
 	RegisterCommand("ttcSend", TtcSendCmd);
 }
 
@@ -44,13 +46,13 @@ void TtcMain() {
 void TtcUartIrq(LPC_USART_T *pUart){
 	Chip_GPIO_SetPinOutLow(LPC_GPIO, 3, 26);
 
-	RINGBUFF_T *pRingBuffer;
+	RINGBUFF_T *pTxRingBuffer;
 	bool *progressFlag;
 	if (pUart == TTC_A_UART) {
-		pRingBuffer = &ttcaTxRingbuffer;
+		pTxRingBuffer = &ttcaTxRingbuffer;
 		progressFlag = &ttcaTxInProgress;
 	} else if (pUart == TTC_C_UART) {
-		pRingBuffer = &ttccTxRingbuffer;
+		pTxRingBuffer = &ttccTxRingbuffer;
 		progressFlag = &ttccTxInProgress;
 	} else {
 		// ???????
@@ -58,23 +60,41 @@ void TtcUartIrq(LPC_USART_T *pUart){
 	}
 
 	uint32_t irqid = pUart->IIR;
+	uint8_t irqSource = (irqid & 0x0E)>>1;
+	int error = 0;
+	int i = 0;
+
+
 	if (( irqid & UART_IIR_INTSTAT_PEND ) == 0) {
 		// There is an Irq pending
-		if (( irqid & (UART_IIR_INTID_RLS) ) == 0 ) {
+		if ( irqSource == 0x03 ) {
 			// This was a line status-error IRQ
-//			uint32_t ls = pUart->LSR;		// clear this pending IRQ
-
-		} else if ((irqid & (UART_IIR_INTID_RDA || UART_IIR_INTID_CTI )) != 0) {
+			uint32_t ls = pUart->LSR;		// clear this pending IRQ
+			if (( ls & ( UART_LSR_BI | UART_LSR_FE | UART_LSR_OE | UART_LSR_PE)) > 0 ) {
+				error++;
+			}
+		} else if ( (irqSource == 0x02) || (irqSource == 0x06)) {
 			// This was a "Rx Fifo treshhold reached" or a "char timeout" IRQ -> Bytes are available in RX FIFO to be processsed
-//			uint8_t rbr = pUart->RBR;
+			uint8_t buffer[20];
 
-			// not used (yet?) in thruster module
-		} else if ((irqid & (UART_IIR_INTID_THRE)) != 0) {
+			uint32_t status;
+			while (1) {
+				status = pUart->LSR;
+				if (( status & ( UART_LSR_BI | UART_LSR_FE | UART_LSR_OE | UART_LSR_PE)) > 0 ) {
+					error++;
+				}
+				if ((status & UART_LSR_RDR) > 0) {
+					buffer[i++] = pUart->RBR;
+				} else {
+					break;
+				}
+			}
+		} else if (irqSource == 0x01) {
 			// The Tx FIFO is empty (now). Lets fill it up. It can hold up to 16 (UART_TX_FIFO_SIZE) bytes.
 			char c;
 			int  i = 0;
 			while( i++ < UART_TX_FIFO_SIZE) {
-				if (RingBuffer_Pop(pRingBuffer, &c) == 1) {
+				if (RingBuffer_Pop(pTxRingBuffer, &c) == 1) {
 					Chip_UART_SendByte(pUart, c);
 				} else {
 					// We have to stop because our tx ringbuffer is empty now.
@@ -84,6 +104,7 @@ void TtcUartIrq(LPC_USART_T *pUart){
 				}
 			}
 		}
+		i = i + 10;
 	}
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 26);
 }

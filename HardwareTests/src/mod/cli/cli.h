@@ -10,8 +10,6 @@
 
 #include <chip.h>
 
-
-
 // Module API Prototypes
 //void CliInitUart(LPC_USART_T *pUART, LPC175X_6X_IRQn_Type irqType);		//  Choose the UART to be used for CLI
 void CliUartIRQHandler(LPC_USART_T *pUART);								//  Wrap the right Interrupt to this method (done in board.c)!
@@ -22,13 +20,8 @@ void SetCliUart(LPC_USART_T *pUart);
 void CliPutChar(char ch);
 int  CliGetChar();
 
-// Command Interface
-#define C_MAX_CMDSTR_LEN	16
-typedef struct cliCommand {
-	char	cmdStr[C_MAX_CMDSTR_LEN];
-	void (*func)(int argc, char *argv[]);
-} cliCommand_t;
-
 void RegisterCommand(char* cmdStr, void (*callback)(int argc, char *argv[]));
+
+
 
 #endif /* MOD_CLI_CLI_H_ */
