@@ -28,6 +28,8 @@
 #define TTC_ACTION_EXEC  0x4B
 #define TTC_ACTION_NACK  0x7F
 
+#define TTC_PAYLOAD_FULL_SIZE 46 		// 46 bytes of payload including pid, source and destination excluding function and action code byte and data crc byte.
+
 
 // 'new defined' structures and constants
 
@@ -222,29 +224,29 @@ static inline void processRxByteIRQ(TTC_T *pTtc, uint8_t byte) {
 
 	case TTC_RX_OPMODE_DATA:
 	case TTC_RX_RECEIVE_DATA:
-		pTtc->RxDataBuffer[pTtc->RxIdx] = byte;
+		pTtc->RxDataBuffer[pTtc->RxIdx++] = byte;
 		//pTtc->RxChecksum =
 		c_CRC8(byte, &pTtc->RxChecksum);
 		pTtc->RxExpectedDataBytes--;
 		if (pTtc->RxExpectedDataBytes <= 0) {
-			pTtc->RxState = TTC_RX_IDLE;
 			if (pTtc->RxChecksum == 0) {
 				// Valid Checksum
 				if (pTtc->RxState == TTC_RX_OPMODE_DATA) {
 					TtcPackageReceivedIRQ(pTtc, TTC_PRID_OPMODE, pTtc->RxDataBuffer , 1);
 				} else if (pTtc->RxState == TTC_RX_RECEIVE_DATA) {
-					TtcPackageReceivedIRQ(pTtc, TTC_PRID_GSRECEIVED, pTtc->RxDataBuffer , 48);
+					TtcPackageReceivedIRQ(pTtc, TTC_PRID_GSRECEIVED, pTtc->RxDataBuffer , TTC_PAYLOAD_FULL_SIZE);
 				}
 			} else {
 				// TODO Checksum error
 				error++;
 			}
+			pTtc->RxState = TTC_RX_IDLE;
 		}
 		break;
 
 	case TTC_RX_RECEIVE_C:
 		if (byte == TTC_ACTION_EXEC) {
-			pTtc->RxExpectedDataBytes = 49;		// including Checksum byte
+			pTtc->RxExpectedDataBytes = TTC_PAYLOAD_FULL_SIZE + 1;		// including Checksum byte
 			pTtc->RxIdx = 0;
 			pTtc->RxChecksum = 0;
 			pTtc->RxState = TTC_RX_RECEIVE_DATA;
