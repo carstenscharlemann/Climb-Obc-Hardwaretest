@@ -27,7 +27,7 @@ void InitUart(LPC_USART_T *pUart, int baud, void(*irqHandler)(LPC_USART_T *pUART
 			NVIC_EnableIRQ(UART3_IRQn);
 		}
 	}
-	/* Enable UART Transmit */
+	/* Enable UART IRQs */
 	Chip_UART_TXEnable(pUart);
 }
 
