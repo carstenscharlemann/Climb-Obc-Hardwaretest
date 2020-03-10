@@ -30,6 +30,14 @@
 
 #define TTC_PAYLOAD_FULL_SIZE 46 		// 46 bytes of payload including pid, source and destination excluding function and action code byte and data crc byte.
 
+#define TTC_TELEMETRY_TRX1_TEMP	         1
+#define TTC_TELEMETRY_TRX2_TEMP			 2
+//#define TTC_TELEMETRY_RST_COUNT          3
+#define TTC_TELEMETRY_MODE              4
+#define TTC_TELEMETRY_VERSION           5
+#define TTC_TELEMETRY_RSSI              6
+
+
 
 // 'new defined' structures and constants
 
@@ -40,7 +48,8 @@ typedef enum ttc_protid_e
 	TTC_PRID_OPMODE_ACK,
 	TTC_PRID_OPMODE_NAK,
 	TTC_PRID_OPMODE,
-	TTC_PRID_GSRECEIVED
+	TTC_PRID_GSRECEIVED,
+	TTC_PRID_TELEMETRY_ACK
 } ttc_protid_t;
 
 
@@ -51,7 +60,6 @@ typedef struct ttc_prot_s
 	uint8_t			*pData;
 } ttc_prot_t;
 
-
 typedef enum ttc_rxstatus_e
 {
 	TTC_RX_IDLE,
@@ -60,8 +68,9 @@ typedef enum ttc_rxstatus_e
 	TTC_RX_OPMODE_DATA,
 	TTC_RX_RECEIVE_C,
 	TTC_RX_RECEIVE_DATA,
-	TTC_RX_GETTELEMETRY_C,
-
+	TTC_RX_TELEMETRY_C,
+	TTC_RX_TELEMETRY_ID,
+	TTC_RX_TELEMETRY_DATA
 } ttc_rxstatus_t;
 
 typedef struct TTC_S
@@ -101,13 +110,13 @@ void TtcStatusCmd(int argc, char *argv[]);
 void TtcInit() {
 	ttca.pUart = TTC_A_UART;
 	ttca.TxInProgress = false;
-	ttca.RxState = TTC_RX_IDLE;
 	ttca.PackageReceived = false;
+	ttca.RxState = TTC_RX_IDLE;
 
 	ttcc.pUart = TTC_C_UART;
 	ttcc.TxInProgress = false;
-	ttcc.RxState = TTC_RX_IDLE;
 	ttcc.PackageReceived = false;
+	ttcc.RxState = TTC_RX_IDLE;
 
 	RingBuffer_Init(&ttca.TxRingbuffer,(void *)ttca.TxBuffer, 1, TTC_TXBUFFER_SIZE);
 	RingBuffer_Init(&ttcc.TxRingbuffer,(void *)ttcc.TxBuffer, 1, TTC_TXBUFFER_SIZE);
@@ -170,7 +179,7 @@ static inline void TtcPackageReceivedIRQ(TTC_T *pTtc, ttc_protid_t id, uint8_t *
 	}
 }
 
-// This is only called once from IRQ! Inline here only makes seperate routine clearer but avoids another call stack.
+// This is only called once from IRQ! Inline here only makes separate routine clearer but avoids another call stack.
 static inline void processRxByteIRQ(TTC_T *pTtc, uint8_t byte) {
 	switch (pTtc->RxState) {
 	case TTC_RX_IDLE:
@@ -179,13 +188,13 @@ static inline void processRxByteIRQ(TTC_T *pTtc, uint8_t byte) {
 		} else if (byte == TTC_OP_TRANSMIT) {
 			pTtc->RxState = TTC_RX_TRANSMIT_C;
 		} else if (byte == TTC_OP_GETTELEMETRY) {
-			pTtc->RxState = TTC_RX_GETTELEMETRY_C;
+			pTtc->RxState = TTC_RX_TELEMETRY_C;
 		} else if (byte == TTC_OP_OPMODE) {
 			pTtc->RxState = TTC_RX_OPMODE_C;
 		} else {
 			// Sequence error. this seems not to be the 'real' first byte
 			// TODO!!!
-			error++; 	// keep stae idle for resync.
+			error++; 	// keep state idle for resync.
 		}
 		break;
 
@@ -224,6 +233,7 @@ static inline void processRxByteIRQ(TTC_T *pTtc, uint8_t byte) {
 
 	case TTC_RX_OPMODE_DATA:
 	case TTC_RX_RECEIVE_DATA:
+	case TTC_RX_TELEMETRY_DATA:
 		pTtc->RxDataBuffer[pTtc->RxIdx++] = byte;
 		//pTtc->RxChecksum =
 		c_CRC8(byte, &pTtc->RxChecksum);
@@ -235,6 +245,8 @@ static inline void processRxByteIRQ(TTC_T *pTtc, uint8_t byte) {
 					TtcPackageReceivedIRQ(pTtc, TTC_PRID_OPMODE, pTtc->RxDataBuffer , 1);
 				} else if (pTtc->RxState == TTC_RX_RECEIVE_DATA) {
 					TtcPackageReceivedIRQ(pTtc, TTC_PRID_GSRECEIVED, pTtc->RxDataBuffer , TTC_PAYLOAD_FULL_SIZE);
+				} else if (pTtc->RxState == TTC_RX_TELEMETRY_DATA) {
+					TtcPackageReceivedIRQ(pTtc, TTC_PRID_TELEMETRY_ACK, pTtc->RxDataBuffer , pTtc->RxIdx - 2);
 				}
 			} else {
 				// TODO Checksum error
@@ -253,18 +265,36 @@ static inline void processRxByteIRQ(TTC_T *pTtc, uint8_t byte) {
 		} else {
 			// TODO:
 			// in PEG this is answered with a NAK !? we do not process it here. if needed we have to define extra 'error' packages to mainloop.....
-			// There is no valid 'Receive' action other then exec !!!! -< try to resync....
+			// There is no valid 'Receive' action other then exec !!!! -< try to resync ...
 			error++;
 			pTtc->RxState = TTC_RX_IDLE;	//TODO !!!???
 		}
 		break;
 
-	case TTC_RX_GETTELEMETRY_C:
-		// not implemented yet!!! it was already agreed for CLIMB to simplify this part of the protocol (single direction only OBC-> STACIE) and no need for ACK/NAK !?
-		pTtc->RxState = TTC_RX_IDLE;	//TODO !!!???
+	case TTC_RX_TELEMETRY_C:
+		if (byte == TTC_ACTION_ACK) {
+			pTtc->RxState = TTC_RX_TELEMETRY_ID;
+		} else {  // PEG: NAK with content !? and Telemetry from OBC to Stacie not implemented here !!!  Telemtry should be simplified to one single data package!
+			error++;
+			pTtc->RxState = TTC_RX_IDLE;
+		}
+		break;
+
+	case TTC_RX_TELEMETRY_ID:
+		pTtc->RxIdx = 0;
+		pTtc->RxChecksum = 0;
+		pTtc->RxDataBuffer[pTtc->RxIdx++] = byte;
+		c_CRC8(byte, &pTtc->RxChecksum);
+		if (byte == TTC_TELEMETRY_RSSI) {
+			pTtc->RxExpectedDataBytes = 3;		// including Checksum byte (excluding this ID byte)
+		} else {
+			pTtc->RxExpectedDataBytes = 2;		// including Checksum byte (excluding this ID byte)
+		}
+		pTtc->RxState = TTC_RX_TELEMETRY_DATA;
 		break;
 
 	default:
+		pTtc->RxState = TTC_RX_IDLE;
 		break;
 	}
 }
@@ -319,7 +349,7 @@ void TtcUartIrq(TTC_T *pTtc){
 					Chip_UART_SendByte( pTtc->pUart, c);
 				} else {
 					// We have to stop because our tx ringbuffer is empty now.
-					 pTtc->TxInProgress = false;
+					pTtc->TxInProgress = false;
 					Chip_UART_IntDisable( pTtc->pUart, UART_IER_THREINT);
 					break;
 				}
