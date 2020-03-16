@@ -20,6 +20,7 @@ class StacieSim:
             else:
                 p = '/dev/ttyS' + p
             self.ser = serial.Serial(p, 9600)
+            self.commands = data['commands']
 
     def main_non_blocking(self):
         while self.ser.inWaiting() > 0:
@@ -37,3 +38,19 @@ class StacieSim:
                 print(self.ser.portstr + " received:")
                 print(''.join('0x{:02x} '.format(x) for x in self.received))
                 print(list(self.received))
+
+    def has_command(self, c):
+        for cmd in self.commands:
+            if (cmd['short'] == c):
+                return True
+        return False
+
+    def send_command(self, c):
+        for cmd in self.commands:
+            if (cmd['short'] == c):
+                print(self.ser.portstr+' Tx: ', end='')
+                for hex in cmd['hexbytes']:
+                    self.ser.write(bytes.fromhex(hex))
+                    print(hex+' ', end='')
+                print(' ')
+    

@@ -30,9 +30,11 @@ while True:
             break
         elif ord(c) == 13:
             lineend = '\n'
-        # echo each char and send to UART ...
-        print(c, end=lineend,  flush=True)
-        #cliSer.write(str.encode(c))
+        # check for commands towards serials
+        if (ttcA.has_command(c)):
+            ttcA.send_command(c)
+        if (ttcC.has_command(c)):
+            ttcC.send_command(c)
     else:
         #out = ''
         #while cliSer.inWaiting() > 0:
