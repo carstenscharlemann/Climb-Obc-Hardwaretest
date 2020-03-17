@@ -60,8 +60,7 @@ void ThrMain() {
 	// Its called 'Cooperative multitasking' so be kind to your sibling-modules and return as fast as possible!
 	if (myStateExample++ % 800000 == 0) {
 		// Note printf() does not take too much time here, but keep the texts small and do not float the CLI (its slow)!
-		printf("Hello this goes to CLI UART!\n");
-
+		//printf("Hello this goes to CLI UART!\n");
 	}
 
 }

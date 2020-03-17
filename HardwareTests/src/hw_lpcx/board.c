@@ -16,10 +16,15 @@
 #define LED0_GPIO_BIT_NUM   22
 
 STATIC const PINMUX_GRP_T pinmuxing[] = {
-	{0,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD3 */
-	{0,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD3 */
-	{0,  2,   IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD0 */
-	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD0 */
+	{0,  2,   IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD0 "Uart D" used (on OBC) for Thruster RS485 here normal UART without enable pin */
+	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD0 "Uart D" used (on OBC) for Thruster RS485 here normal UART without enable pin */
+	{2,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD1 "Uart C" same pins as OBC*/
+	{2,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD1 "Uart C" same pins as OBC*/
+	{0,  10,  IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD2 "Uart B" ! on OBC this pins are used as SPI ! here we use them as CLI Uart*/
+	{0,  11,  IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD2 "Uart B" ! on OBC this pins are used as SPI ! here we use them as CLI Uart*/
+	{0,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD3 "UART A" same pins as OBC*/
+	{0,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD3 "UART A" same pins as OBC*/
+
 	{0,  4,   IOCON_MODE_INACT | IOCON_FUNC2},	/* CAN-RD2 */
 	{0,  5,   IOCON_MODE_INACT | IOCON_FUNC2},	/* CAN-TD2 */
 	{LED0_GPIO_PORT_NUM, LED0_GPIO_BIT_NUM ,  IOCON_MODE_INACT | IOCON_FUNC0},	/* Led red */
@@ -86,8 +91,8 @@ void LpcxClimbBoardInit() {
 	Chip_GPIO_WriteDirBit(LPC_GPIO, 3, 26, true);
 
 	// Decide the UART to use for command line interface.
-	InitUart(LPC_UART3, 115200, CliUartIRQHandler);		// UART3 - J2 Pin 9/10 on LPCXpresso 1769 Developer board
-	SetCliUart(LPC_UART3);
+	InitUart(LPC_UART2, 115200, CliUartIRQHandler);		// UART2 - J2 Pin 40/41 on LPCXpresso 1769 Developer board.
+	SetCliUart(LPC_UART2);
 	// Init I2c bus for Onboard device(s) (1xEEProm)
 	InitOnboardI2C(ONBOARD_I2C);
 
