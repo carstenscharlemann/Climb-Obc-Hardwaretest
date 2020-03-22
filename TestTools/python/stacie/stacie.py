@@ -26,6 +26,10 @@ class StacieSim:
         while self.ser.inWaiting() > 0:
             self.process_byte(ord(self.ser.read(1)))
 
+    def main_loop(self):
+        while True:
+            self.main_non_blocking()
+
     def process_byte(self, byte):
         if self.state == ComState.IDLE:
             if byte == 0x31:

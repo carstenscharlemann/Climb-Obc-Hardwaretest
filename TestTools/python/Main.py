@@ -1,48 +1,22 @@
 import os
-import serial
+import threading
 from stacie.stacie import StacieSim
 
-from Keyboard import KBHit
-cliPort = '21'
-
-if os.name == 'nt':
-    portPrefix = 'COM'
-else:
-    portPrefix = '/dev/ttyS'
-
-cliPort = portPrefix + cliPort
-
-#cliSer = serial.Serial(cliPort, 115200)  # open serial port
-
 ttcA = StacieSim('ttca.json')
+ttcA_thread = threading.Thread(target=ttcA.main_loop, args=(), daemon=True)
+ttcA_thread.start()
+
 ttcC = StacieSim('ttcc.json')
+ttcC_thread = threading.Thread(target=ttcC.main_loop, args=(), daemon=True)
+ttcC_thread.start()
 
-kb = KBHit()
-
-print('Hit any key, or ESC to exit')
+print("Give any cmd or 'q' for quit")
 while True:
-    x = kb.kbhit()
-    if x:
-        c = kb.getch()
-        lineend = ''
-        o = ord(c)
-        if ord(c) == 27:  # ESC
-            break
-        elif ord(c) == 13:
-            lineend = '\n'
-        # check for commands towards serials
-        if (ttcA.has_command(c)):
-            ttcA.send_command(c)
-        if (ttcC.has_command(c)):
-            ttcC.send_command(c)
-    else:
-        #out = ''
-        #while cliSer.inWaiting() > 0:
-        #    out += cliSer.read(1).decode("utf-8")
-        #if out != '':
-        #    print(out, end='')
-
-        ttcA.main_non_blocking();
-        ttcC.main_non_blocking();
-
-kb.set_normal_term()
+    nb = input('> ')
+    if nb=='q':
+        break;
+    # check for commands towards serials
+    if (ttcA.has_command(nb)):
+        ttcA.send_command(nb)
+    if (ttcC.has_command(nb)):
+        ttcC.send_command(nb)
