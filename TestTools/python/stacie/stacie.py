@@ -2,6 +2,7 @@ import json
 import os
 import serial
 import enum
+import crc8
 
 
 class ComState(enum.Enum):
@@ -45,16 +46,22 @@ class StacieSim:
 
     def has_command(self, c):
         for cmd in self.commands:
-            if (cmd['short'] == c):
+            if cmd['short'] == c:
                 return True
         return False
 
     def send_command(self, c):
         for cmd in self.commands:
-            if (cmd['short'] == c):
-                print(self.ser.portstr+' Tx: ', end='')
+            if cmd['short'] == c:
+                print(self.ser.portstr + ' Tx: ', end='')
+                crc = crc8.crc8()
+                i = 0
                 for hex in cmd['hexbytes']:
+                    i = i + 1
                     self.ser.write(bytes.fromhex(hex))
-                    print(hex+' ', end='')
-                print(' ')
-    
+                    print(hex + ' ', end='')
+                    if i > 2:  # die  bytes 1 & 2 sind nicht Teil der Checksum !!!! Crazy PEG definition !!!!!
+                        crc.update(bytes.fromhex(hex))
+                if (i>2):
+                    self.ser.write(crc.digest())    # and finally the crc byte
+                    print(' CRC: ' + crc.hexdigest())
