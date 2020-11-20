@@ -86,6 +86,7 @@ void SystemInit(void)
 #if defined(NO_BOARD_LIB)
 #if defined (HW_USED)
 	ClimbBoardSystemInit();
+	Chip_SystemInit();
 #else
 	// The original LpcOpen way of Chip inizializing if no board is defined. it sets Clock to use IRC
 	/* Chip specific SystemInit */

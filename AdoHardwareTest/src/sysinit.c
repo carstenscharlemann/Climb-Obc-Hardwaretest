@@ -29,6 +29,8 @@
  * this code.
  */
 
+#include "globals.h"
+
  #if defined(NO_BOARD_LIB)
  #include "chip.h"
  #else
@@ -79,9 +81,14 @@ void SystemInit(void)
 	fpuInit();
 #endif
 
+
+
 #if defined(NO_BOARD_LIB)
-	/* Chip specific SystemInit */
-	// Chip_SystemInit();
+	#if defined (HW_USED)
+		ClimbBoardSystemInit();
+	#else
+		Chip_SystemInit();
+	#endif
 #else
 	/* Setup system clocking and muxing */
 	Board_SystemInit();

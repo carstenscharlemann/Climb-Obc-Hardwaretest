@@ -16,6 +16,7 @@
 #endif
 #endif
 
+#include "globals.h"
 #include <cr_section_macros.h>
 
 // TODO: insert other include files here
@@ -24,28 +25,19 @@
 
 int main(void) {
 
-#if defined (__USE_LPCOPEN)
+#if defined (HW_USED)
+	// Our own board abstraction.
+	ClimbBoardInit();
+#endif
+
     // Read clock settings and update SystemCoreClock variable
     SystemCoreClockUpdate();
-#if !defined(NO_BOARD_LIB)
-    // Set up and initialize all required blocks and
-    // functions related to the board hardware
-    Board_Init();
-    // Set the LED to the state of "On"
-    Board_LED_Set(0, true);
-#endif
-#endif
-
     // TODO: insert code here
 
-    // Force the counter to be placed into memory
-    volatile static int i = 0 ;
+    printf("Hello ADO World");
     // Enter an infinite loop, just incrementing a counter
     while(1) {
-        i++ ;
-        // "Dummy" NOP to allow source level single
-        // stepping of tight while() loop
-        __asm volatile ("nop");
+    	CliMain();
     }
     return 0 ;
 }
