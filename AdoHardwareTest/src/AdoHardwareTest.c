@@ -19,7 +19,8 @@
 #include "globals.h"
 #include <cr_section_macros.h>
 
-// TODO: insert other include files here
+#include <stdio.h>
+#include <mod/cli.h>
 
 // TODO: insert other definitions and declarations here
 
