@@ -9,7 +9,7 @@
 #include <stdarg.h>
 #include "cli.h"
 
-#include "..\..\globals.h"
+#include "../../globals.h"
 
 // Command Interface
 #define C_MAX_CMDSTR_LEN	16
@@ -33,8 +33,8 @@ LPC_USART_T *cliUart;						// pointer to UART used for CLI
 
 // The Rx line buffer - used with polling from mainloop
 #define CLI_RXBUFFER_SIZE 128
-char cliRxBuffer[CLI_RXBUFFER_SIZE];
-int cliRxPtrIdx = 0;
+char cliRxBuffer[CLI_RXBUFFER_SIZE+1];
+int cliRxIdx = 0;
 
 // The Tx 'ringbuffer' used for TX with interrupt routine
 #define CLI_TXBUFFER_SIZE 1024
@@ -60,6 +60,7 @@ int cmdsProcessed = 0;
 // ----------------------
 void processLine();
 void CliShowStatistics(int argc, char *argv[]);
+void MyOwnFunction(void);
 
 //void CallApiVoid(int idx, ...) {
 //	va_list valist;
@@ -178,15 +179,27 @@ void RegisterCommand(char* cmdStr, void (*callback)(int argc, char *argv[])) {
 	}
 }
 
+
+void MyOwnFunction(void){
+	printf("Hiiiii my new command");
+	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 0, 22); //turn blue on
+	Chip_GPIO_SetPinToggle(LPC_GPIO, 0, 22);
+}
+
 // This module init from main module. Remark: The Uart initialization is done in CliInitUart() called by board init.
 void CliInit() {
 	RegisterCommand("cliStat", CliShowStatistics);
+	RegisterCommand("testCMD", MyOwnFunction); //you register commands here
 	printf(CLI_PROMPT);
 }
+
+
 
 // This is module main loop entry. Do not use (too much) time here!!!
 void CliMain(){
 	int ch;
+
+	char *myStr = "Hello";
 
 	// The UART has 16 byte Input buffer
 	// read all available bytes in this main loop call.
@@ -195,16 +208,21 @@ void CliMain(){
 		// CliPutChar((char)(ch));
 		if (ch != 0x0a &&
 		    ch != 0x0d) {
-			cliRxBuffer[cliRxPtrIdx++] = (char)(ch);
+			cliRxBuffer[cliRxIdx] = (char)(ch);
+			cliRxIdx++;
 		}
 
-		if ((cliRxPtrIdx >= CLI_RXBUFFER_SIZE) ||
+		if ((cliRxIdx >= CLI_RXBUFFER_SIZE) ||
 			 ch == 0x0a ||
 			 ch == 0x0d) 	{
-			cliRxBuffer[cliRxPtrIdx] = 0x00;
+			cliRxBuffer[cliRxIdx] = 0x00;
+			printf("PRINT RECEIVED CMD\n");
+			printf (cliRxBuffer);
+			printf("\n  GOING to process line \n");
 			processLine();
-			cliRxPtrIdx = 0;
-			printf(CLI_PROMPT);
+			cliRxIdx = 0;
+			//printf(CLI_PROMPT);
+			printf("russian_hackers>");
 		}
 	}
 }
