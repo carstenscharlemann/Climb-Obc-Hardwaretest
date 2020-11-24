@@ -60,7 +60,6 @@ int cmdsProcessed = 0;
 // ----------------------
 void processLine();
 void CliShowStatistics(int argc, char *argv[]);
-void MyOwnFunction(void);
 
 //void CallApiVoid(int idx, ...) {
 //	va_list valist;
