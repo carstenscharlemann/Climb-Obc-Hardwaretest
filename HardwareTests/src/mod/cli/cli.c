@@ -180,16 +180,11 @@ void RegisterCommand(char* cmdStr, void (*callback)(int argc, char *argv[])) {
 }
 
 
-void MyOwnFunction(void){
-	printf("Hiiiii my new command");
-	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 0, 22); //turn blue on
-	Chip_GPIO_SetPinToggle(LPC_GPIO, 0, 22);
-}
+
 
 // This module init from main module. Remark: The Uart initialization is done in CliInitUart() called by board init.
 void CliInit() {
 	RegisterCommand("cliStat", CliShowStatistics);
-	RegisterCommand("testCMD", MyOwnFunction); //you register commands here
 	printf(CLI_PROMPT);
 }
 
@@ -199,7 +194,6 @@ void CliInit() {
 void CliMain(){
 	int ch;
 
-	char *myStr = "Hello";
 
 	// The UART has 16 byte Input buffer
 	// read all available bytes in this main loop call.
@@ -216,13 +210,10 @@ void CliMain(){
 			 ch == 0x0a ||
 			 ch == 0x0d) 	{
 			cliRxBuffer[cliRxIdx] = 0x00;
-			printf("PRINT RECEIVED CMD\n");
 			printf (cliRxBuffer);
-			printf("\n  GOING to process line \n");
 			processLine();
 			cliRxIdx = 0;
-			//printf(CLI_PROMPT);
-			printf("russian_hackers>");
+			printf(CLI_PROMPT);
 		}
 	}
 }

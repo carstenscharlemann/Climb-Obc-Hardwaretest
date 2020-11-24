@@ -11,8 +11,7 @@
 
 // ... include dependencies on other modules if needed ....
 // #include "..\..\globals.h"   // use if needed
-//#include "..\..\layer1\UART\uart.h"
-#include "/home/jevgeni/climb_base/Climb-Obc-Hardwaretest/HardwareTests/src/layer1/UART/uart.h"
+#include "../../layer1/UART/uart.h"
 #include "../cli/cli.h"
 #include "thruster.h"
 

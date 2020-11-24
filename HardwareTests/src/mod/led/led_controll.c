@@ -7,8 +7,16 @@
 #include "led_controll.h"
 
 #include <chip.h>
+#include <stdio.h>
+
+#include "../../mod/cli/cli.h"
 
 
+void MyOwnFunction(int argc, char *argv[]){
+	printf("Hiiiii my new command");
+	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 0, 22); //turn blue on
+	Chip_GPIO_SetPinToggle(LPC_GPIO, 0, 22);
+}
 
 void LedInit(){
 
@@ -22,7 +30,7 @@ void LedInit(){
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 0, 22);
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 25);
 
-
+	RegisterCommand("testCMD", MyOwnFunction); //you register commands here
 
 }
 
