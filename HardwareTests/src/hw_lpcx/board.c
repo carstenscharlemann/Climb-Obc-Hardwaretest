@@ -8,9 +8,9 @@
  */
 
 #include "lpcx_board.h"
-#include "..\mod\cli\cli.h"
-#include "..\layer1\I2C\obc_i2c.h"
-#include "..\layer1\UART\uart.h"
+#include "../mod/cli/cli.h"
+#include "../layer1/I2C/obc_i2c.h"
+#include "../layer1/UART/uart.h"
 
 #define LED0_GPIO_PORT_NUM	0
 #define LED0_GPIO_BIT_NUM   22

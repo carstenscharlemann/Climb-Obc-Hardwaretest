@@ -20,7 +20,7 @@
 #include <cr_section_macros.h>
 
 // module includes
-#include "mod\main.h"
+#include "mod/main.h"
 
 
 int main(void) {
