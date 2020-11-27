@@ -11,8 +11,6 @@
 
 #include "obc_board.h"
 #include <mod/cli.h>
-//#include "..\layer1\I2C\obc_i2c.h"
-//#include "..\layer1\UART\uart.h"
 
 #define LED_GREEN_WD_GPIO_PORT_NUM               1
 #define LED_GREEN_WD_GPIO_BIT_NUM               18

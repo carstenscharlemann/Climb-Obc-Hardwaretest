@@ -9,7 +9,7 @@
 
 #include "lpcx_board.h"
 #include <mod/cli.h>
-//#include "..\layer1\I2C\obc_i2c.h"
+//#include "../layer1/I2C/obc_i2c.h"
 //#include <ado_uart.h>
 
 #define LED0_GPIO_PORT_NUM	0
