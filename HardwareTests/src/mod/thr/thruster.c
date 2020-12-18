@@ -16,7 +16,7 @@
 #include "thruster.h"
 
 // module defines
-#define THR_HELLO_STR	"Hi there.\n"
+#define THR_HELLO_STR	"Hi there CHEEEEE.\n"
 #define THRUSTER_UART	LPC_UART0					// This is the same in OBC and LPCX board
 #define THR_TXBUFFER_SIZE 64						// the biggest command should be good here
 
@@ -25,6 +25,8 @@ void ThrUartIrq(LPC_USART_T *pUart);
 void ThrusterSend(char *str);
 void ThrusterSendCmd(int argc, char *argv[]);
 void ThrusterPrintStatusCmd(int argc, char *argv[]);
+void ThrusterSendHexRequest(int argc, char *argv[]);
+void ThrusterSendVersionRequest(int argc, char *argv[]);
 
 // module variables
 int myStateExample;
@@ -33,6 +35,22 @@ int thrTxError;
 bool thrtxInProgress = false;
 char prtThrTxBuffer[THR_TXBUFFER_SIZE];
 RINGBUFF_T thrTxRingbuffer;
+
+
+
+typedef struct trxRequest{
+	uint8_t sender;
+	uint8_t receiver;
+	uint16_t len;
+} trxRequest;
+
+
+typedef struct ThrusterCharStruct{
+	char* first_name;
+	char* last_name;
+
+}ThrusterCharStruct;
+
 
 // module function implementations
 // -------------------------------
@@ -44,34 +62,159 @@ void ThrInit() {
 	InitUart(THRUSTER_UART, 9600, ThrUartIrq);
 
 	// register module commands with cli
-	RegisterCommand("trSend", ThrusterSendCmd);
+	RegisterCommand("ss", ThrusterSendCmd);
 	RegisterCommand("trStat", ThrusterPrintStatusCmd);
+	RegisterCommand("hex", ThrusterSendHexRequest);
+	RegisterCommand("trVersion", ThrusterSendVersionRequest);
+
 
 	myStateExample = 0;
 	thrTxError = 0;
 
 	// Init communications to the thruster if needed ....
-	ThrusterSend(THR_HELLO_STR);
+	ThrusterSendChar(THR_HELLO_STR);
 }
 
+//uint_8 mybuffer[20];
+//trxRequest_t  myCurThrRequest;
+//int responseByteIdx = 0;
 // thats the 'mainloop' call of the module
 void ThrMain() {
+	//trxRequest_t  myCurThrResponse;
+
+
+	//int size = sizeof(trxRequest_t);
+
+
+	int32_t stat = Chip_UART_ReadLineStatus(THRUSTER_UART);
+	if (stat & UART_LSR_RDR) {
+		// byte received
+		uint8_t byte = Chip_UART_ReadByte(THRUSTER_UART);
+		char* send ="received";
+		//send = (char)byte;
+
+		ThrusterSendChar(send);
+
+
+	//	....
+//		last byte of responser
+//		-> call some routines for reaction.
+		//e.g. for READ response Put out the read darta on CLI
+	}
+
+
 	// do your stuff here. But remember not to make 'wait' loops or other time consuming operations!!!
 	// Its called 'Cooperative multitasking' so be kind to your sibling-modules and return as fast as possible!
 	if (myStateExample++ % 800000 == 0) {
 		// Note printf() does not take too much time here, but keep the texts small and do not float the CLI (its slow)!
 		//printf("Hello this goes to CLI UART!\n");
+
+		//sendSomeCharToThruster();
+		ThrusterCharStruct someCharStruct;
+		someCharStruct.first_name ="Privet ";
+		someCharStruct.last_name = " Kak dela \n";
+		int len ;
+		len = sizeof(someCharStruct);
+
+		//ThrusterSendCharStruct(someCharStruct,len);
+
+
+
+		// try the same with uint_8 structure
+		//ThrusterSendChar("\n ping\n\n");
+
+		trxRequest debug_uint8_struct;
+		debug_uint8_struct.len= 15;
+		debug_uint8_struct.receiver = 16;
+		debug_uint8_struct.sender = 17;
+
+		len  = sizeof(debug_uint8_struct);
+		//ThrusterSendUINT_8_Struct(debug_uint8_struct,len);
+
+
+		// now try to send uint_8 request
+
+
+
+
+
+
 	}
+
+}
+
+void ThrusterSendHexRequest(int argc, char *argv[]){
+
+	//uint8_t requestHI[3];
+	//requestHI[0]= "0x48";
+	//requestHI[1]= "0x69";
+	//requestHI[2]= "0x69";
+	//uint8_t *requestHI = 0x4869;
+	//uint8_t requestHI[5] = {0x48,0x69};
+	uint8_t requestHI[4];
+	requestHI[0]= 0x48;
+	requestHI[1]= 0x69;
+	requestHI[2]= 0x69;
+	requestHI[3]= 0x00;
+
+
+	int len = sizeof(requestHI);
+
+	ThrusterSendUint8_t(requestHI,len);
+	printf("\n Hex request sent to thruster \n");
+
+}
+
+
+
+void ThrusterSendVersionRequest(int argc, char *argv[]){
+
+
+	uint8_t request[8];
+	request[0]= 0x00;
+	request[1]= 0xFF;
+	request[2]= 0x03;
+	request[3]= 0x14;
+	request[4]= 0x02;
+	request[5]= 0x00;
+	request[6]= 0x00;
+	request[7]= 0x01;
+
+
+	int len = sizeof(request);
+
+	ThrusterSendUint8_t(request,len);
+	printf("\n Version request sent to thruster \n");
+
+}
+
+
+
+void sendSomeCharToThruster(void){
+	char *tx = "Sputnik";
+	char *add = "Flying \n";
+	char sendBuffer[50];
+	int n;
+	n=sprintf (sendBuffer, "hello  %s we are %s ",tx,add);
+	ThrusterSendChar(sendBuffer);
 
 }
 
 // An example CLI Command to trigger thruster communication
 void ThrusterSendCmd(int argc, char *argv[]){
-	char *tx = "ABCabc";
-	if (argc>0) {
-		tx = argv[0];
-	}
-	ThrusterSend(tx);
+	//uint8_t tx[10] = 0x0001020305;
+	//uint16_t len = 0xF0BD ;
+	//int8_t x = 255;
+		//tx[0] = 0x00;
+		//tx[1] = 0xFF;
+//.... Get Version Number READ Commadn
+
+
+
+	char* tx = "che che";
+
+	ThrusterSendChar(tx);
+	printf("sent to thruster \n");
 }
 
 void ThrusterPrintStatusCmd(int argc, char *argv[]) {
@@ -80,7 +223,32 @@ void ThrusterPrintStatusCmd(int argc, char *argv[]) {
 
 
 // Send content of string to Thruster UART
-void ThrusterSend(char *str) {
+void ThrusterSendUint8_t(uint8_t *bytedata, int len) {
+	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 3, 25);
+
+
+	if (RingBuffer_InsertMult(&thrTxRingbuffer, (void*)bytedata, len) != len) {
+		// Tx Buffer is to small to hold all bytes
+		thrTxError++;
+	}
+	if (!thrtxInProgress) {
+		// Trigger to send the first byte and enable the TxEmptyIRQ
+		char c;
+		thrtxInProgress = true;
+		RingBuffer_Pop(&thrTxRingbuffer, &c);
+		Chip_UART_SendByte(THRUSTER_UART, c);
+		Chip_UART_IntEnable(THRUSTER_UART, UART_IER_THREINT);
+	}
+	//Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 25);
+}
+
+
+
+
+
+
+// Send content of string to Thruster UART
+void ThrusterSendChar(char *str) {
 	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 3, 25);
 	int len = strlen(str);
 	if (RingBuffer_InsertMult(&thrTxRingbuffer, (void*)str, len) != len) {
@@ -97,6 +265,54 @@ void ThrusterSend(char *str) {
 	}
 	//Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 25);
 }
+
+
+
+// Send content of string to Thruster UART
+void ThrusterSendCharStruct(ThrusterCharStruct *bytedata, int len) {
+	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 3, 25);
+
+
+	if (RingBuffer_InsertMult(&thrTxRingbuffer, (void*)bytedata, len) != len) {
+		// Tx Buffer is to small to hold all bytes
+		thrTxError++;
+	}
+	if (!thrtxInProgress) {
+		// Trigger to send the first byte and enable the TxEmptyIRQ
+		char c;
+		thrtxInProgress = true;
+		RingBuffer_Pop(&thrTxRingbuffer, &c);
+		Chip_UART_SendByte(THRUSTER_UART, c);
+		Chip_UART_IntEnable(THRUSTER_UART, UART_IER_THREINT);
+	}
+	//Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 25);
+}
+
+
+
+// Send content of UINT structure to Thruster UART
+void ThrusterSendUINT_8_Struct(trxRequest *bytedata, int len) {
+	//Chip_GPIO_SetPinOutLow(LPC_GPIO, 3, 25);
+
+
+	if (RingBuffer_InsertMult(&thrTxRingbuffer, (void*)bytedata, len) != len) {
+		// Tx Buffer is to small to hold all bytes
+		thrTxError++;
+	}
+	if (!thrtxInProgress) {
+		// Trigger to send the first byte and enable the TxEmptyIRQ
+		char c;
+		thrtxInProgress = true;
+		RingBuffer_Pop(&thrTxRingbuffer, &c);
+		Chip_UART_SendByte(THRUSTER_UART, c);
+		Chip_UART_IntEnable(THRUSTER_UART, UART_IER_THREINT);
+	}
+	//Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 25);
+}
+
+
+
+
 
 void ThrUartIrq(LPC_USART_T *pUart){
 	Chip_GPIO_SetPinOutLow(LPC_GPIO, 3, 26);
@@ -131,3 +347,29 @@ void ThrUartIrq(LPC_USART_T *pUart){
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 26);
 }
 
+/*
+void DropeNukes(int argc, char *argv[]){
+
+	if (argc != 2) {
+		printf("Please select enemy state: \n" );
+		return;
+	}
+
+
+	char *myptr = argv[0];
+
+	// CLI params to binary params
+	char* Country = argv[0];
+	char * State  = argv[1];
+	printf("%s %s selected\n",Country,State); //print to UART2
+	printf("Launching ...");
+
+	char* sendstring = "Bye Bye ";
+	int size;
+	size = sizeof(Country) / sizeof(Country[0]);
+	strncat(sendstring, &Country, size);
+	ThrusterSendChar(sendstring);
+
+
+}
+*/
