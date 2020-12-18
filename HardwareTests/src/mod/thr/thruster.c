@@ -27,6 +27,15 @@ void ThrusterSendCmd(int argc, char *argv[]);
 void ThrusterPrintStatusCmd(int argc, char *argv[]);
 void ThrusterSendHexRequest(int argc, char *argv[]);
 void ThrusterSendVersionRequest(int argc, char *argv[]);
+int ThrusterGetChar();
+
+
+
+
+#define THR_RXBUFFER_SIZE 128
+char ThrRxBuffer[THR_RXBUFFER_SIZE+1];
+int ThrRxIdx = 0;
+
 
 // module variables
 int myStateExample;
@@ -85,7 +94,7 @@ void ThrMain() {
 
 	//int size = sizeof(trxRequest_t);
 
-
+ /*
 	int32_t stat = Chip_UART_ReadLineStatus(THRUSTER_UART);
 	if (stat & UART_LSR_RDR) {
 		// byte received
@@ -100,6 +109,29 @@ void ThrMain() {
 //		last byte of responser
 //		-> call some routines for reaction.
 		//e.g. for READ response Put out the read darta on CLI
+	}
+
+	*/
+	int ch;
+	//int ThrusterGetChar()
+
+	while ((ch = ThrusterGetChar()) != -1) {
+		// make echo
+		// CliPutChar((char)(ch));
+		if (ch != 0x0a &&
+		    ch != 0x0d) {
+			ThrRxBuffer[ThrRxIdx] = (char)(ch);
+			ThrRxIdx++;
+		}
+
+		if ((ThrRxIdx >= THR_RXBUFFER_SIZE) ||
+			 ch == 0x0a ||
+			 ch == 0x0d) 	{
+			ThrRxBuffer[ThrRxIdx] = 0x00;
+			printf (ThrRxBuffer);
+			//processLine();
+			ThrRxIdx= 0;
+		}
 	}
 
 
@@ -185,6 +217,7 @@ void ThrusterSendVersionRequest(int argc, char *argv[]){
 
 	ThrusterSendUint8_t(request,len);
 	printf("\n Version request sent to thruster \n");
+
 
 }
 
@@ -346,6 +379,22 @@ void ThrUartIrq(LPC_USART_T *pUart){
 	}
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 26);
 }
+
+
+int ThrusterGetChar() {
+	int32_t stat = Chip_UART_ReadLineStatus(THRUSTER_UART);
+//	if (stat & UART_LSR_OE) {
+//		return -2;
+//	}
+//	if (stat & UART_LSR_RXFE) {
+//		return -3;
+//	}
+	if (stat & UART_LSR_RDR) {
+		return (int) Chip_UART_ReadByte(THRUSTER_UART);
+	}
+	return -1;
+}
+
 
 /*
 void DropeNukes(int argc, char *argv[]){
