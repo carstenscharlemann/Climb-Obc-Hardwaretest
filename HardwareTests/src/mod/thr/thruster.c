@@ -18,6 +18,9 @@
 // module defines
 #define THR_HELLO_STR	"Hi there.\n"
 #define THRUSTER_UART	LPC_UART0					// This is the same in OBC and LPCX board
+#define THRUSTER_RS485_TX_RX_PORT	1
+#define THRUSTER_RS485_TX_RX_PIN	0
+
 #define THR_TXBUFFER_SIZE 64						// the biggest command should be good here
 
 // module prototypes (local routines not in public API)
@@ -31,6 +34,8 @@ int myStateExample;
 int thrTxError;
 
 bool thrtxInProgress = false;
+bool thrStopTransmmissionRequested = false;		//This flag is needed because there is no change to get a 'real' transmitter finished irq for the UART
+												// So we have to delay the RS485 IO-Pin switching to mainloop checking for the bit in UART Status register !!!!
 char prtThrTxBuffer[THR_TXBUFFER_SIZE];
 RINGBUFF_T thrTxRingbuffer;
 
@@ -39,6 +44,9 @@ RINGBUFF_T thrTxRingbuffer;
 // Module Init - here goes all module init code to be done before mainloop starts.
 void ThrInit() {
 	RingBuffer_Init(&thrTxRingbuffer,(void *)prtThrTxBuffer, 1, THR_TXBUFFER_SIZE);
+
+	// Initialize the Direction bit to RX (low)
+	Chip_GPIO_SetPinOutLow(LPC_GPIO, THRUSTER_RS485_TX_RX_PORT, THRUSTER_RS485_TX_RX_PIN);
 
 	// initialize the thruster UART ....
 	InitUart(THRUSTER_UART, 9600, ThrUartIrq);
@@ -56,11 +64,29 @@ void ThrInit() {
 
 // thats the 'mainloop' call of the module
 void ThrMain() {
+	uint32_t s = Chip_UART_ReadLineStatus(THRUSTER_UART);
+
+	if (thrStopTransmmissionRequested) {
+		 if (s & UART_LSR_TEMT) {
+			// now the last byte was really put out on the line. We finally can stop our ongoing transmission
+			thrStopTransmmissionRequested = false;
+			// Disable the RS485 TX driver
+			Chip_GPIO_SetPinOutLow(LPC_GPIO, THRUSTER_RS485_TX_RX_PORT, THRUSTER_RS485_TX_RX_PIN);
+			thrtxInProgress = false;
+
+			// TODO: Check here if somebody 'reinitialized a tx block and filled some more bytes in the buffer :-( ......
+
+		 }
+	}
+
+
+
 	// do your stuff here. But remember not to make 'wait' loops or other time consuming operations!!!
 	// Its called 'Cooperative multitasking' so be kind to your sibling-modules and return as fast as possible!
-	if (myStateExample++ % 800000 == 0) {
-		// Note printf() does not take too much time here, but keep the texts small and do not float the CLI (its slow)!
-		//printf("Hello this goes to CLI UART!\n");
+
+	if (s & UART_LSR_RDR) {
+		uint8_t b = Chip_UART_ReadByte(THRUSTER_UART);
+		printf("%2.2X ", b);
 	}
 
 }
@@ -91,6 +117,8 @@ void ThrusterSend(char *str) {
 		// Trigger to send the first byte and enable the TxEmptyIRQ
 		char c;
 		thrtxInProgress = true;
+		// Enable the RS485 Output driver
+		Chip_GPIO_SetPinOutHigh(LPC_GPIO, THRUSTER_RS485_TX_RX_PORT, THRUSTER_RS485_TX_RX_PIN);
 		RingBuffer_Pop(&thrTxRingbuffer, &c);
 		Chip_UART_SendByte(THRUSTER_UART, c);
 		Chip_UART_IntEnable(THRUSTER_UART, UART_IER_THREINT);
@@ -114,20 +142,41 @@ void ThrUartIrq(LPC_USART_T *pUart){
 			// not used (yet?) in thruster module
 		} else if ((irqid & (UART_IIR_INTID_THRE)) != 0) {
 			// The Tx FIFO is empty (now). Lets fill it up. It can hold up to 16 (UART_TX_FIFO_SIZE) bytes.
-			char c;
-			int  i = 0;
-			while( i++ < UART_TX_FIFO_SIZE) {
-				if (RingBuffer_Pop(&thrTxRingbuffer, &c) == 1) {
-					Chip_UART_SendByte(THRUSTER_UART, c);
-				} else {
-					// We have to stop because our tx ringbuffer is empty now.
-					thrtxInProgress = false;
-					Chip_UART_IntDisable(THRUSTER_UART, UART_IER_THREINT);
-					break;
+			if (RingBuffer_IsEmpty(&thrTxRingbuffer)) {
+				// We have to stop because our tx ringbuffer is empty now.
+				// -> delegate back to mainloop because here the last byte is not yet over the Line!!!
+				thrStopTransmmissionRequested = true;
+//				thrtxInProgress = false;
+//				// Disable the RS485 Output driver. Now in Rx mode again.
+//				while(true) {
+//					uint32_t s = Chip_UART_ReadLineStatus(THRUSTER_UART);
+//					 if (s & UART_LSR_TEMT) {
+//						 break;
+//					 }
+//				}
+//				Chip_GPIO_SetPinOutLow(LPC_GPIO, THRUSTER_RS485_TX_RX_PORT, THRUSTER_RS485_TX_RX_PIN);
+				Chip_UART_IntDisable(THRUSTER_UART, UART_IER_THREINT);
+			} else {
+				// Bytes left in our tx ringbuffer.
+				// Fill Up the UARTs TX FIFO with as many bytes as are available.
+				char c;
+				int  i = 0;
+				while( i++ < UART_TX_FIFO_SIZE) {
+					if (RingBuffer_Pop(&thrTxRingbuffer, &c) == 1) {
+						Chip_UART_SendByte(THRUSTER_UART, c);
+					} else {
+//						// We have to stop because our tx ringbuffer is empty now.
+//						thrtxInProgress = false;
+//						// Disable the RS485 Output driver. Now in Rx mode again.
+//						Chip_GPIO_SetPinOutLow(LPC_GPIO, THRUSTER_RS485_TX_RX_PORT, THRUSTER_RS485_TX_RX_PIN);
+//						Chip_UART_IntDisable(THRUSTER_UART, UART_IER_THREINT);
+						break;
+					}
 				}
 			}
 		}
 	}
 	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 3, 26);
 }
+
 

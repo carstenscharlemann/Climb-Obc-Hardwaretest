@@ -48,8 +48,10 @@ void SwitchVccFfgDCmd(int argc, char *argv[]);
 /* Pin muxing configuration */
 STATIC const PINMUX_GRP_T pinmuxing[] = {
 	// UARTS
-	{0,  2,   IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD0 - UART SP-D	Y+ */
-	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD0 - UART SP-D Y+ */
+	{0,  2,   IOCON_MODE_INACT | IOCON_FUNC1},	/* TXD0 - UART SP-D	Y+ */	// Uart-0 D/Y+ is connected to Bus as RS485
+	{0,  3,   IOCON_MODE_INACT | IOCON_FUNC1},	/* RXD0 - UART SP-D Y+ */   //
+	{1,  0,   IOCON_MODE_INACT | IOCON_FUNC0},	/* RS485_TX_RX  */			// RS485 Bus Direction Switch GPIO - Output
+
 	{2,  0,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD1 - UART SP-C X- */
 	{2,  1,   IOCON_MODE_INACT | IOCON_FUNC2},	/* RXD1 - UART SP-C X- */
 	{2,  8,   IOCON_MODE_INACT | IOCON_FUNC2},	/* TXD2 - UART SP-B Y- */
@@ -107,7 +109,9 @@ void ObcClimbBoardInit() {
 	// Here we define them as OUTPUT
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_GREEN_WD_GPIO_PORT_NUM, LED_GREEN_WD_GPIO_BIT_NUM, true);
 	Chip_GPIO_WriteDirBit(LPC_GPIO, LED_BLUE_RGB_GPIO_PORT_NUM, LED_BLUE_RGB_GPIO_BIT_NUM, true);
-	//Chip_GPIO_WriteDirBit(LPC_GPIO, 0, 26, true);
+
+	// RS485 Direction output: low: RX high: TX
+	Chip_GPIO_WriteDirBit(LPC_GPIO, 1, 0, true);
 
 
 	// Die Boot bits sind inputs

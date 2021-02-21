@@ -15,8 +15,8 @@
 #define LPCX_BOARD	2
 
 // Switch the board used here, and only here!
-#define HW_USED	LPCX_BOARD
-//#define HW_USED OBC_BOARD
+//#define HW_USED	LPCX_BOARD
+#define HW_USED OBC_BOARD
 
 
 #if HW_USED == LPCX_BOARD
