@@ -128,7 +128,7 @@ void ThrMain() {
 			 ch == 0x0a ||
 			 ch == 0x0d) 	{
 			ThrRxBuffer[ThrRxIdx] = 0x00;
-			printf (ThrRxBuffer);
+			//printf (ThrRxBuffer); //print receiced buffer to cli uart
 			//processLine();
 			ThrRxIdx= 0;
 		}
@@ -153,7 +153,7 @@ void ThrMain() {
 
 
 		// try the same with uint_8 structure
-		//ThrusterSendChar("\n ping\n\n");
+		ThrusterSendChar("\n ping\n\n");
 
 		trxRequest debug_uint8_struct;
 		debug_uint8_struct.len= 15;
