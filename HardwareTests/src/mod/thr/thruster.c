@@ -29,6 +29,15 @@ void ThrusterSendHexRequest(int argc, char *argv[]);
 void ThrusterSendVersionRequest(int argc, char *argv[]);
 int ThrusterGetChar();
 
+void SetReservoirTemperature(int argc, char *argv[]);
+void RequestSkeleton(uint8_t value);
+
+
+
+
+uint8_t REGISTER_VALUES[1]={0x00,0x00};
+uint8_t ADRESS = 0xff;
+
 
 
 
@@ -75,6 +84,11 @@ void ThrInit() {
 	RegisterCommand("trStat", ThrusterPrintStatusCmd);
 	RegisterCommand("hex", ThrusterSendHexRequest);
 	RegisterCommand("trVersion", ThrusterSendVersionRequest);
+
+
+	RegisterCommand("sett", SetReservoirTemperature);
+
+
 
 
 	myStateExample = 0;
@@ -165,6 +179,8 @@ void ThrMain() {
 
 
 		// now try to send uint_8 request
+		//uint8_t valueMsg= 0x48;
+		//RequestSkeleton(valueMsg);
 
 
 
@@ -196,6 +212,11 @@ void ThrusterSendHexRequest(int argc, char *argv[]){
 	printf("\n Hex request sent to thruster \n");
 
 }
+
+
+
+
+
 
 
 
@@ -422,3 +443,42 @@ void DropeNukes(int argc, char *argv[]){
 
 }
 */
+
+
+
+
+void RequestSkeleton(uint8_t value){
+
+
+	uint8_t request[3];
+	request[0]= REGISTER_VALUES[0];
+	request[1]= value;
+	request[2]= value;
+
+	int len = sizeof(request);
+
+	ThrusterSendUint8_t(request,len);
+
+
+}
+
+
+
+void SetReservoirTemperature(int argc, char *argv[]){
+
+	//char* refference_temp_char = argv[0]; // take goal argument from sent command
+
+	uint8_t reff_t = atoi(argv[0]);
+	printf(" REF TEMP SET %d \n",reff_t);
+
+	uint8_t request[3];
+	request[0]= REGISTER_VALUES[0];
+	request[1]= reff_t;
+	request[2]= reff_t;
+
+	int len = sizeof(request);
+
+	ThrusterSendUint8_t(request,len);
+
+
+}
