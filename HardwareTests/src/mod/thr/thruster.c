@@ -477,19 +477,27 @@ void RequestSkeleton(uint8_t value){
 
 void SetReservoirTemperature(int argc, char *argv[]){
 
-	//char* refference_temp_char = argv[0]; // take goal argument from sent command
 
-	uint8_t reff_t = atoi(argv[0]);
+	uint16_t reff_t = atoi(argv[0]);
 	printf(" REF TEMP SET %d \n",reff_t);
+	// APPLY CONVERSION MULTIPLIER CONCEPT
+	uint16_t conversion_mult = 100;
+	reff_t = reff_t*conversion_mult;
 
-	uint8_t request[6];
+	uint8_t request[7];
 	request[0] = SENDER_ADRESS;
 	request[1] = DEVICE;
 	request[2] = MSGTYPE[3]; // WRITE -3
 	request[3]= REGISTER_VALUES[0]; // RESEIRVOUR TEMPERATURE - 0
-	request[4]= reff_t;
-	//request[4] = 0x88;
-	request[5]= 0x99;
+
+	// CONVERT uint16_t value into array of two uint8_t bytes
+	uint8_t conversionArray[2];
+	conversionArray[0] = reff_t & 0xff;
+	conversionArray[1] = (reff_t >> 8) & 0xff;
+
+	request[4]= conversionArray[0];
+	request[5] = conversionArray[1];
+	request[6]= 0x99;
 
 	int len = sizeof(request);
 
