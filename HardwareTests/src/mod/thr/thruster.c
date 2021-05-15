@@ -35,9 +35,20 @@ void RequestSkeleton(uint8_t value);
 
 
 
-uint8_t REGISTER_VALUES[1]={0x00,0x00};
-uint8_t ADRESS = 0xff;
+uint8_t REGISTER_VALUES[1]={0x61,0x00};
+// 0 - Reseirvoir Temp Ref (LSB)
+uint8_t SENDER_ADRESS = 0x00;
+uint8_t DEVICE = 0xff;
 
+uint8_t MSGTYPE[7]={0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
+// 0 - OK
+// 1 - ERROR
+// 2- READ
+// 3 - WRITE
+// 4 - DATA
+// 5 - RESET
+//6 - UPDATE
+//7  -CONFIG
 
 
 
@@ -471,10 +482,14 @@ void SetReservoirTemperature(int argc, char *argv[]){
 	uint8_t reff_t = atoi(argv[0]);
 	printf(" REF TEMP SET %d \n",reff_t);
 
-	uint8_t request[3];
-	request[0]= REGISTER_VALUES[0];
-	request[1]= reff_t;
-	request[2]= reff_t;
+	uint8_t request[6];
+	request[0] = SENDER_ADRESS;
+	request[1] = DEVICE;
+	request[2] = MSGTYPE[3]; // WRITE -3
+	request[3]= REGISTER_VALUES[0]; // RESEIRVOUR TEMPERATURE - 0
+	request[4]= reff_t;
+	//request[4] = 0x88;
+	request[5]= 0x99;
 
 	int len = sizeof(request);
 
