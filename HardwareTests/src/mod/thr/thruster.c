@@ -33,6 +33,11 @@ int ThrusterGetChar();
 void SetReservoirTemperature(int argc, char *argv[]);
 void RequestSkeleton(uint8_t value);
 void SetHeaterMode(int argc, char *argv[]);
+void SetHeaterVoltage(int argc, char *argv[]);
+void SetHeaterCurrent(int argc, char *argv[]);
+void SetHeaterPower(int argc, char *argv[]);
+
+
 
 
 
@@ -44,7 +49,7 @@ uint8_t REGISTER_VALUES[108]={0,1,2,3,4,5,6,7,8,9,10,
 		31,32,33,34,35,36,37,38,39,40,
 		41,42,43,44,45,46,48,48,49,50,
 		51,52,53,54,55,56,57,58,59,60,
-		61,62,63,64,64,66,67,68,69,70,
+		61,62,63,64,65,66,67,68,69,70,
 		71,72,73,74,75,76,77,78,79,80,
 		81,82,83,84,85,86,87,88,89,90,
 		91,92,93,94,95,96,97,98,99,100,
@@ -110,6 +115,9 @@ void ThrInit() {
 	RegisterCommand("hex", ThrusterSendHexRequest);
 	RegisterCommand("trVersion", ThrusterSendVersionRequest);
 	RegisterCommand("heatermode", SetHeaterMode);
+	RegisterCommand("setheaterv", SetHeaterVoltage);
+	RegisterCommand("setheaterc", SetHeaterCurrent);
+	RegisterCommand("setheaterp", SetHeaterPower);
 
 
 	RegisterCommand("sett", SetReservoirTemperature);
@@ -586,4 +594,114 @@ void SetHeaterMode(int argc, char *argv[]){
 
 
 }
+
+
+
+
+
+
+void SetHeaterVoltage(int argc, char *argv[]){
+
+
+	uint16_t voltage = atoi(argv[0]);
+	printf(" SET VOLTAGE  =  %d \n",voltage);
+	// APPLY CONVERSION MULTIPLIER CONCEPT
+	uint16_t conversion_mult = 1000;
+	voltage = voltage*conversion_mult;
+
+	uint8_t request[9];
+	request[0] = SENDER_ADRESS;
+	request[1] = DEVICE;
+	request[2] = MSGTYPE[3]; // WRITE -3
+	request[3] = 0x00; //checksumm
+	request[4] = 0x03; // LENGTH of payload HARDCODED (3)
+	request[5] = 0x00; //hardcoded
+	request[6]= REGISTER_VALUES[61]; // RESEIRVOUR TEMPERATURE - index 97
+
+
+
+	// CONVERT uint16_t value into array of two uint8_t bytes
+	//uint8_t conversionArray[2];
+	//conversionArray[0] = voltage & 0xff;
+	//conversionArray[1] = (voltage >> 8) & 0xff;
+
+	request[7]= voltage & 0xff;
+	request[8] = (voltage >> 8) & 0xff;
+
+	int len = sizeof(request);
+
+
+	request[3] = CRC8(request,len);
+
+	ThrusterSendUint8_t(request,len);
+
+
+}
+
+
+
+
+
+
+void SetHeaterCurrent(int argc, char *argv[]){
+
+
+	uint16_t value = atoi(argv[0]);
+	printf(" SET CURRENT  =  %d \n",value);
+	// APPLY CONVERSION MULTIPLIER CONCEPT
+	uint16_t conversion_mult = 10000;
+	value = value * conversion_mult;
+
+	uint8_t request[9];
+	request[0] = SENDER_ADRESS;
+	request[1] = DEVICE;
+	request[2] = MSGTYPE[3]; // WRITE -3
+	request[3] = 0x00; //checksumm
+	request[4] = 0x03; // LENGTH of payload HARDCODED (3)
+	request[5] = 0x00; //hardcoded
+	request[6]= REGISTER_VALUES[65]; // RESEIRVOUR TEMPERATURE - index 65
+	request[7]= value & 0xff;
+	request[8] = (value >> 8) & 0xff;
+
+	int len = sizeof(request);
+
+
+	request[3] = CRC8(request,len);
+
+	ThrusterSendUint8_t(request,len);
+
+
+}
+
+
+void SetHeaterPower(int argc, char *argv[]){
+
+
+	uint16_t value = atoi(argv[0]);
+	printf(" SET POWER  =  %d \n",value);
+	// APPLY CONVERSION MULTIPLIER CONCEPT
+	uint16_t conversion_mult = 1000;
+	value = value * conversion_mult;
+
+	uint8_t request[9];
+	request[0] = SENDER_ADRESS;
+	request[1] = DEVICE;
+	request[2] = MSGTYPE[3]; // WRITE -3
+	request[3] = 0x00; //checksumm
+	request[4] = 0x03; // LENGTH of payload HARDCODED (3)
+	request[5] = 0x00; //hardcoded
+	request[6]= REGISTER_VALUES[69]; // RESEIRVOUR TEMPERATURE - index 69
+	request[7]= value & 0xff;
+	request[8] = (value >> 8) & 0xff;
+
+	int len = sizeof(request);
+
+
+	request[3] = CRC8(request,len);
+
+	ThrusterSendUint8_t(request,len);
+
+
+}
+
 
