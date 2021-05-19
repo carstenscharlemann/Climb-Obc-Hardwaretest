@@ -14,6 +14,7 @@
 #include "../../layer1/UART/uart.h"
 #include "../cli/cli.h"
 #include "thruster.h"
+#include "../crc/obc_checksums.h"
 
 // module defines
 #define THR_HELLO_STR	"Hi there CHEEEEE.\n"
@@ -31,11 +32,24 @@ int ThrusterGetChar();
 
 void SetReservoirTemperature(int argc, char *argv[]);
 void RequestSkeleton(uint8_t value);
+void SetHeaterMode(int argc, char *argv[]);
 
 
 
 
-uint8_t REGISTER_VALUES[1]={0x61,0x00};
+//uint8_t REGISTER_VALUES[1]={0x61,0x00};
+uint8_t REGISTER_VALUES[108]={0,1,2,3,4,5,6,7,8,9,10,
+		11,12,13,14,15,16,17,18,19,20,
+		21,22,23,24,25,26,27,28,29,30,
+		31,32,33,34,35,36,37,38,39,40,
+		41,42,43,44,45,46,48,48,49,50,
+		51,52,53,54,55,56,57,58,59,60,
+		61,62,63,64,64,66,67,68,69,70,
+		71,72,73,74,75,76,77,78,79,80,
+		81,82,83,84,85,86,87,88,89,90,
+		91,92,93,94,95,96,97,98,99,100,
+		101,102,103,104,105,106,107
+		};
 // 0 - Reseirvoir Temp Ref (LSB)
 uint8_t SENDER_ADRESS = 0x00;
 uint8_t DEVICE = 0xff;
@@ -95,6 +109,7 @@ void ThrInit() {
 	RegisterCommand("trStat", ThrusterPrintStatusCmd);
 	RegisterCommand("hex", ThrusterSendHexRequest);
 	RegisterCommand("trVersion", ThrusterSendVersionRequest);
+	RegisterCommand("heatermode", SetHeaterMode);
 
 
 	RegisterCommand("sett", SetReservoirTemperature);
@@ -473,8 +488,18 @@ void RequestSkeleton(uint8_t value){
 
 }
 
+/* Compute CRC8 (binary String)
+uint8_t CRC8(uint8_t* str, size_t length)
+{
+    uint8_t checksum = 0;
 
+    for (; length--; c_CRC8(*str++, &checksum))
+        ;
 
+    return checksum;
+}
+
+ */
 void SetReservoirTemperature(int argc, char *argv[]){
 
 
@@ -484,24 +509,81 @@ void SetReservoirTemperature(int argc, char *argv[]){
 	uint16_t conversion_mult = 100;
 	reff_t = reff_t*conversion_mult;
 
-	uint8_t request[7];
+	uint8_t request[9];
 	request[0] = SENDER_ADRESS;
 	request[1] = DEVICE;
 	request[2] = MSGTYPE[3]; // WRITE -3
-	request[3]= REGISTER_VALUES[0]; // RESEIRVOUR TEMPERATURE - 0
+	//checksumm
+	request[3] = 0x00;
+
+
+
+	// payload length two bytes 03 00 | two bytes for
+	// payload length = register map + value
+	request[4] = 0x03; // LENGTH of payload HARDCODED (3)
+	request[5] = 0x00; //hardcoded
+
+	request[6]= REGISTER_VALUES[97]; // RESEIRVOUR TEMPERATURE - index 97
+
+
 
 	// CONVERT uint16_t value into array of two uint8_t bytes
 	uint8_t conversionArray[2];
 	conversionArray[0] = reff_t & 0xff;
 	conversionArray[1] = (reff_t >> 8) & 0xff;
 
-	request[4]= conversionArray[0];
-	request[5] = conversionArray[1];
-	request[6]= 0x99;
+	request[7]= conversionArray[0];
+	request[8] = conversionArray[1];
+
+
+
 
 	int len = sizeof(request);
+
+
+	request[3] = CRC8(request,len);
 
 	ThrusterSendUint8_t(request,len);
 
 
 }
+
+
+
+
+
+void SetHeaterMode(int argc, char *argv[]){
+
+	//  HEATER MODE 1 or 0
+	uint16_t heater_mode = atoi(argv[0]);
+
+	if (heater_mode ==1 || heater_mode ==0){
+
+		// APPLY CONVERSION MULTIPLIER CONCEPT
+		uint16_t conversion_mult = 1;
+		heater_mode = heater_mode*conversion_mult;
+
+		uint8_t request[8];
+		request[0] = SENDER_ADRESS;
+		request[1] = DEVICE;
+		request[2] = MSGTYPE[3]; // WRITE -3
+		request[3] = 0x00; //byte for checksum initially set to 0
+		request[4] = 0x02; // LENGTH of payload HARDCODED (2)       || payload length = register map + value
+		request[5] = 0x00; //hardcoded
+		request[6]= REGISTER_VALUES[60]; // HEATER MODE - 60
+		request[7]= heater_mode;
+
+		int len = sizeof(request);
+		request[3] = CRC8(request,len); // after actual checksum is calculated = byte is filled
+		ThrusterSendUint8_t(request,len);
+
+	}
+	else {
+		printf("HEATER MODE WRONG INPUT %d \n",heater_mode);
+
+		return;
+	}
+
+
+}
+
