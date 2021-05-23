@@ -37,9 +37,26 @@ void SetHeaterVoltage(int argc, char *argv[]);
 void SetHeaterCurrent(int argc, char *argv[]);
 void SetHeaterPower(int argc, char *argv[]);
 
+/*
+#define TR_HEATER_CURRENT_REFF 0x41
+#define  SetHeaterCurrentRef(x)   Set_Int_Reg_Value(TR_HEATER_CURRENT_REFF, x)
+
+*/
 
 
-
+//uint8_t CONVERSION[108] = {[0 ... 107]=1};
+uint16_t CONVERSION[108] = {0,1,2,3,4,5,6,7,8,9,10,
+		11,12,13,14,15,16,17,18,19,20,
+		21,22,23,24,25,26,27,28,29,30,
+		31,32,33,34,35,36,37,38,39,40,
+		41,42,43,44,45,46,48,48,49,50,
+		51,52,53,54,55,56,57,58,59,1,
+		1000,62,63,64,10000,66,67,68,1000,70,
+		71,72,73,74,75,76,77,78,79,80,
+		81,82,83,84,85,86,87,88,89,90,
+		91,92,93,94,95,96,100,98,99,100,
+		101,102,103,104,105,106,107
+		};
 
 
 //uint8_t REGISTER_VALUES[1]={0x61,0x00};
@@ -514,8 +531,10 @@ void SetReservoirTemperature(int argc, char *argv[]){
 	uint16_t reff_t = atoi(argv[0]);
 	printf(" REF TEMP SET %d \n",reff_t);
 	// APPLY CONVERSION MULTIPLIER CONCEPT
-	uint16_t conversion_mult = 100;
-	reff_t = reff_t*conversion_mult;
+	//uint16_t conversion_mult = 100;
+	//reff_t = reff_t*conversion_mult;
+	reff_t = reff_t*CONVERSION[97];
+	printf(" CONVERSION  =  %d \n",CONVERSION[97]);
 
 	uint8_t request[9];
 	request[0] = SENDER_ADRESS;
@@ -568,8 +587,10 @@ void SetHeaterMode(int argc, char *argv[]){
 	if (heater_mode ==1 || heater_mode ==0){
 
 		// APPLY CONVERSION MULTIPLIER CONCEPT
-		uint16_t conversion_mult = 1;
-		heater_mode = heater_mode*conversion_mult;
+		//uint16_t conversion_mult = 1;
+		//heater_mode = heater_mode*conversion_mult;
+		heater_mode = heater_mode * CONVERSION[60];
+		printf(" CONVERSION  =  %d \n",CONVERSION[60]);
 
 		uint8_t request[8];
 		request[0] = SENDER_ADRESS;
@@ -606,8 +627,10 @@ void SetHeaterVoltage(int argc, char *argv[]){
 	uint16_t voltage = atoi(argv[0]);
 	printf(" SET VOLTAGE  =  %d \n",voltage);
 	// APPLY CONVERSION MULTIPLIER CONCEPT
-	uint16_t conversion_mult = 1000;
-	voltage = voltage*conversion_mult;
+	//uint16_t conversion_mult = 1000;
+	//voltage = voltage*conversion_mult;
+	voltage = voltage * CONVERSION[61];
+	printf(" CONVERSION  =  %d \n",CONVERSION[61]);
 
 	uint8_t request[9];
 	request[0] = SENDER_ADRESS;
@@ -644,13 +667,27 @@ void SetHeaterVoltage(int argc, char *argv[]){
 
 
 void SetHeaterCurrent(int argc, char *argv[]){
+	// INPUT RANGE 0-3[A]  !!!!
+
+	// PARSE DOUBLE FROM ARGV
+	double input;
+	sscanf(argv[0], "%lf", &input);
+
+	printf(" \n ARGV  =  %s \n",argv[0]);
+	printf(" \n ORIGINAL INPUT  =  %f \n",input);
+	//double conversion_factor = (double)CONVERSION[65];
+
+	//APPLY CONVERSION MULTIPLIER
+	input = input * (double)CONVERSION[65];
+	//input = input / 0.0001;
+	printf(" \n CONVERTED INPUT  =  %f \n",input);
+	printf(" \n MULTIPLIER  =  %f \n",(double)CONVERSION[65]);
 
 
-	uint16_t value = atoi(argv[0]);
-	printf(" SET CURRENT  =  %d \n",value);
-	// APPLY CONVERSION MULTIPLIER CONCEPT
-	uint16_t conversion_mult = 10000;
-	value = value * conversion_mult;
+	// CONVERT INPUT INTO UINT16
+	uint16_t value = (uint16_t) input;
+	printf("\n SET CURRENT  =  %d \n",value);
+
 
 	uint8_t request[9];
 	request[0] = SENDER_ADRESS;
@@ -680,8 +717,11 @@ void SetHeaterPower(int argc, char *argv[]){
 	uint16_t value = atoi(argv[0]);
 	printf(" SET POWER  =  %d \n",value);
 	// APPLY CONVERSION MULTIPLIER CONCEPT
-	uint16_t conversion_mult = 1000;
-	value = value * conversion_mult;
+	//uint16_t conversion_mult = 1000;
+	//uint16_t conversion_mult = CONVERSION[69];
+	value = value * CONVERSION[69];
+
+	printf(" CONVERSION  =  %d \n",CONVERSION[69]);
 
 	uint8_t request[9];
 	request[0] = SENDER_ADRESS;
@@ -705,3 +745,45 @@ void SetHeaterPower(int argc, char *argv[]){
 }
 
 
+/*
+void SetDEBUGCURRENT_reff(int argc, char *argv[]){
+
+
+	uint16_t value = atoi(argv[0]);
+	printf(" SET current  =  %d \n",value);
+	SetHeaterCurrentRef(value);
+
+
+}
+
+
+
+void  Set_Int_Reg_Value(uint8_t reg_index,uint16_t value){
+
+
+
+		value = value * CONVERSION[reg_index];
+
+		printf(" CONVERSION  =  %d \n",CONVERSION[reg_index]);
+
+		uint8_t request[9];
+		request[0] = SENDER_ADRESS;
+		request[1] = DEVICE;
+		request[2] = MSGTYPE[3]; // WRITE -3
+		request[3] = 0x00; //checksumm
+		request[4] = 0x03; // LENGTH of payload HARDCODED (3)
+		request[5] = 0x00; //hardcoded
+		request[6]= reg_index; // RESEIRVOUR TEMPERATURE - index 69
+		request[7]= value & 0xff;
+		request[8] = (value >> 8) & 0xff;
+
+		int len = sizeof(request);
+
+
+		request[3] = CRC8(request,len);
+
+		ThrusterSendUint8_t(request,len);
+
+
+}
+*/
