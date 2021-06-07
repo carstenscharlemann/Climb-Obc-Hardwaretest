@@ -36,13 +36,14 @@ void SetHeaterMode(int argc, char *argv[]);
 void SetHeaterVoltage(int argc, char *argv[]);
 void SetHeaterCurrent(int argc, char *argv[]);
 void SetHeaterPower(int argc, char *argv[]);
+void ReadHeaterCurrent(int argc, char *argv[]);
 
 /*
 #define TR_HEATER_CURRENT_REFF 0x41
 #define  SetHeaterCurrentRef(x)   Set_Int_Reg_Value(TR_HEATER_CURRENT_REFF, x)
 
 */
-
+#define TR_HEATER_CURRENT 0x43
 
 //uint8_t CONVERSION[108] = {[0 ... 107]=1};
 uint16_t CONVERSION[108] = {0,1,2,3,4,5,6,7,8,9,10,
@@ -88,10 +89,11 @@ uint8_t MSGTYPE[7]={0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
 
 
 
-#define THR_RXBUFFER_SIZE 128
+//#define THR_RXBUFFER_SIZE 128
+#define THR_RXBUFFER_SIZE 7 // WAIT TO RECEIVE 6 bytes from thruster
 char ThrRxBuffer[THR_RXBUFFER_SIZE+1];
 int ThrRxIdx = 0;
-
+int tr_ExpectedReceiveBuffer = 1; //7
 
 // module variables
 int myStateExample;
@@ -135,6 +137,7 @@ void ThrInit() {
 	RegisterCommand("setheaterv", SetHeaterVoltage);
 	RegisterCommand("setheaterc", SetHeaterCurrent);
 	RegisterCommand("setheaterp", SetHeaterPower);
+	RegisterCommand("readheaterc", ReadHeaterCurrent);
 
 
 	RegisterCommand("sett", SetReservoirTemperature);
@@ -189,11 +192,32 @@ void ThrMain() {
 			ThrRxIdx++;
 		}
 
-		if ((ThrRxIdx >= THR_RXBUFFER_SIZE) ||
+		//if ((ThrRxIdx >= THR_RXBUFFER_SIZE) ||
+		if ((ThrRxIdx >= tr_ExpectedReceiveBuffer) ||
+
 			 ch == 0x0a ||
 			 ch == 0x0d) 	{
 			ThrRxBuffer[ThrRxIdx] = 0x00;
-			printf (ThrRxBuffer); //print receiced buffer to cli uart
+			//printf (" DATA PACKAGE RECEIVED---- \n");
+			//printf (ThrRxBuffer); //print receiced buffer to cli uart
+			printf("\n ------------------------\n");
+			//printf("\n RECEIVED BYTE 0 %d \n",(uint8_t)ThrRxBuffer[0]);
+			//printf("\n RECEIVED BYTE 1 %d \n",(uint8_t)ThrRxBuffer[1]);
+			//printf("\n RECEIVED BYTE 2 %d \n",(uint8_t)ThrRxBuffer[2]);
+			//printf("\n RECEIVED BYTE 3 %d \n",(uint8_t)ThrRxBuffer[3]);
+			//printf("\n RECEIVED BYTE 4 %d \n",(uint8_t)ThrRxBuffer[4]);
+			//printf("\n RECEIVED BYTE 5 %d \n",(uint8_t)ThrRxBuffer[5]);
+
+			//printf("RECEIVED HEX 0 %x \n",ThrRxBuffer[0] & 0xff);
+			//printf("RECEIVED HEX 1 %x \n",ThrRxBuffer[1] & 0xff);
+			//printf("RECEIVED HEX 2 %x \n",ThrRxBuffer[2] & 0xff);
+			//printf("RECEIVED HEX 3 %x \n",ThrRxBuffer[3] & 0xff);
+			//printf("RECEIVED HEX 4 %x \n",ThrRxBuffer[4] & 0xff);
+			//printf("RECEIVED HEX 5 %x \n",ThrRxBuffer[5] & 0xff);
+
+			printf("%x %x %x %x %x %x %x \n",ThrRxBuffer[0] & 0xff,ThrRxBuffer[1] & 0xff,ThrRxBuffer[2] & 0xff,ThrRxBuffer[3] & 0xff,ThrRxBuffer[4] & 0xff,ThrRxBuffer[5] & 0xff,ThrRxBuffer[6] & 0xff);
+
+
 			//processLine();
 			ThrRxIdx= 0;
 		}
@@ -704,6 +728,7 @@ void SetHeaterCurrent(int argc, char *argv[]){
 
 
 	request[3] = CRC8(request,len);
+	tr_ExpectedReceiveBuffer = 6;// change expected receive buffer accordingly
 
 	ThrusterSendUint8_t(request,len);
 
@@ -743,6 +768,46 @@ void SetHeaterPower(int argc, char *argv[]){
 
 
 }
+
+
+
+
+
+void ReadHeaterCurrent(int argc, char *argv[]){
+
+		uint8_t request[8];
+		request[0] = SENDER_ADRESS;
+		request[1] = DEVICE;
+		request[2] = MSGTYPE[2]; // READ -3
+		request[3] = 0x00; //checksumm
+		request[4] = 0x02; // LENGTH of payload REGISTER and length
+		request[5] = 0x00; //hardcoded
+		request[6]= TR_HEATER_CURRENT; // value from DEFINE register
+		request[7]= 2;// number of bytes to read
+		//request[8] = (value >> 8) & 0xff;
+
+		int len = sizeof(request);
+
+
+		request[3] = CRC8(request,len);
+
+		ThrusterSendUint8_t(request,len);
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*
