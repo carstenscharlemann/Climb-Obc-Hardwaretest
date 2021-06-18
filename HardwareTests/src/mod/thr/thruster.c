@@ -218,6 +218,9 @@ void ThrMain() {
 			printf("%x %x %x %x %x %x %x \n",ThrRxBuffer[0] & 0xff,ThrRxBuffer[1] & 0xff,ThrRxBuffer[2] & 0xff,ThrRxBuffer[3] & 0xff,ThrRxBuffer[4] & 0xff,ThrRxBuffer[5] & 0xff,ThrRxBuffer[6] & 0xff);
 
 
+			int tr_ReceivedSenderAdress = ThrRxBuffer[0];
+			int tr_ReceivedReceiverAdress = ThrRxBuffer[1];
+			int tr_ReceivedCheckSum = ThrRxBuffer[2];
 			//processLine();
 			ThrRxIdx= 0;
 		}
@@ -790,6 +793,7 @@ void ReadHeaterCurrent(int argc, char *argv[]){
 
 
 		request[3] = CRC8(request,len);
+		tr_ExpectedReceiveBuffer = 7;
 
 		ThrusterSendUint8_t(request,len);
 
